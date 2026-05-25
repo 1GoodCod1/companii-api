@@ -61,9 +61,14 @@ export class PrismaService
           const existing = rlsTxStorage.getStore();
           if (existing) {
             return <T>(
-              fn: (tx: Prisma.TransactionClient) => Promise<T>,
+              arg: Array<Promise<unknown>> | ((tx: Prisma.TransactionClient) => Promise<T>),
               _options?: unknown,
-            ) => fn(existing);
+            ) => {
+              if (Array.isArray(arg)) {
+                return Promise.all(arg) as Promise<unknown> as Promise<T>;
+              }
+              return arg(existing);
+            };
           }
         }
 

@@ -43,4 +43,12 @@ export class CreateCompanyDto {
   @IsOptional()
   @IsString()
   logoUrl?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  showPublicPhone?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  showPublicEmail?: boolean;
 }

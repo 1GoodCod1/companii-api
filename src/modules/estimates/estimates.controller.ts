@@ -146,6 +146,60 @@ export class EstimatesController {
     return this.estimates.updateStage(user, projectId, stageId, body);
   }
 
+  @Patch('projects/:projectId/stages/:stageId/lines/:lineId')
+  @UseGuards(CompanyGuard, SubscriptionGuard)
+  @RequiresPlan('BUSINESS')
+  @CompanyRoles('OWNER', 'MANAGER')
+  updateLine(
+    @CurrentUser() user: JwtPayload,
+    @Param('projectId') projectId: string,
+    @Param('stageId') stageId: string,
+    @Param('lineId') lineId: string,
+    @Body()
+    body: {
+      description?: string;
+      qty?: number;
+      unit?: string;
+      unitPrice?: number;
+      materialStore?: string | null;
+      receiptFileKey?: string | null;
+    },
+  ) {
+    return this.estimates.updateLine(user, projectId, stageId, lineId, body);
+  }
+
+  @Post('projects/:projectId/stages/:stageId/lines')
+  @UseGuards(CompanyGuard, SubscriptionGuard)
+  @RequiresPlan('BUSINESS')
+  @CompanyRoles('OWNER', 'MANAGER')
+  addLine(
+    @CurrentUser() user: JwtPayload,
+    @Param('projectId') projectId: string,
+    @Param('stageId') stageId: string,
+    @Body()
+    body: {
+      description: string;
+      qty: number;
+      unit: string;
+      unitPrice: number;
+    },
+  ) {
+    return this.estimates.addLine(user, projectId, stageId, body);
+  }
+
+  @Delete('projects/:projectId/stages/:stageId/lines/:lineId')
+  @UseGuards(CompanyGuard, SubscriptionGuard)
+  @RequiresPlan('BUSINESS')
+  @CompanyRoles('OWNER', 'MANAGER')
+  deleteLine(
+    @CurrentUser() user: JwtPayload,
+    @Param('projectId') projectId: string,
+    @Param('stageId') stageId: string,
+    @Param('lineId') lineId: string,
+  ) {
+    return this.estimates.deleteLine(user, projectId, stageId, lineId);
+  }
+
   @Post('projects/:id/generate-quote')
   @UseGuards(CompanyGuard, SubscriptionGuard)
   @RequiresPlan('BUSINESS')

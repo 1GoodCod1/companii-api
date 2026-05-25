@@ -85,8 +85,26 @@ export class FilesService {
     if (!file) throw AppErrors.notFound(AppErrorMessages.FILES_NOT_FOUND);
 
     if (user.accountKind !== 'PLATFORM_ADMIN') {
-      if (!file.uploadedById || file.uploadedById !== user.sub) {
-        throw AppErrors.forbidden(AppErrorMessages.FILES_ACCESS_DENIED);
+      if (file.uploadedById && file.uploadedById === user.sub) {
+        // Uploader has access
+      } else {
+        // Check if file is a receipt linked to an estimate line of a project they have access to
+        const isReceiptForLine = await this.prisma.estimateLine.findFirst({
+          where: {
+            receiptFileKey: fileId,
+            stage: {
+              project: {
+                OR: [
+                  { companyId: user.activeCompanyId },
+                  { customer: { portalUserId: user.sub } },
+                ],
+              },
+            },
+          },
+        });
+        if (!isReceiptForLine) {
+          throw AppErrors.forbidden(AppErrorMessages.FILES_ACCESS_DENIED);
+        }
       }
     }
 

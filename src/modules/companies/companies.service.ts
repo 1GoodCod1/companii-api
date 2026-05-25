@@ -9,12 +9,39 @@ import { CreateCompanyDto } from './dto/create-company.dto';
 import { AddGalleryImageDto } from './dto/add-gallery-image.dto';
 import { CompanyAuthorizationService } from './company-authorization.service';
 
+function transliterate(text: string): string {
+  const map: Record<string, string> = {
+    'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'yo', 'ж': 'zh',
+    'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o',
+    'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u', 'ф': 'f', 'х': 'kh', 'ц': 'ts',
+    'ч': 'ch', 'ш': 'sh', 'щ': 'shch', 'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu',
+    'я': 'ya',
+    'ă': 'a', 'â': 'a', 'î': 'i', 'ș': 's', 'ț': 't'
+  };
+  return text
+    .split('')
+    .map(char => {
+      const lower = char.toLowerCase();
+      if (map[lower] !== undefined) {
+        return char === char.toUpperCase() ? map[lower].toUpperCase() : map[lower];
+      }
+      return char;
+    })
+    .join('');
+}
+
 function slugify(name: string): string {
-  return name
+  const transliterated = transliterate(name);
+  let slug = transliterated
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
     .slice(0, 80);
+
+  if (!slug) {
+    slug = 'company-' + Math.random().toString(36).substring(2, 8);
+  }
+  return slug;
 }
 
 @Injectable()
@@ -86,6 +113,8 @@ export class CompaniesService {
           description: dto.description,
           contactPhone: dto.contactPhone,
           contactEmail: dto.contactEmail,
+          showPublicPhone: dto.showPublicPhone ?? true,
+          showPublicEmail: dto.showPublicEmail ?? true,
           logoUrl: dto.logoUrl,
         },
       });
@@ -165,7 +194,12 @@ export class CompaniesService {
           }),
           this.prisma.company.count({ where }),
         ]);
-        return { items, total, page, limit };
+        const filteredItems = items.map((item) => ({
+          ...item,
+          contactPhone: item.showPublicPhone ? item.contactPhone : null,
+          contactEmail: item.showPublicEmail ? item.contactEmail : null,
+        }));
+        return { items: filteredItems, total, page, limit };
       },
       this.cache.ttl.companiesList,
     );
@@ -189,7 +223,11 @@ export class CompaniesService {
         if (!company) {
           throw AppErrors.notFound(AppErrorMessages.COMPANY_NOT_FOUND);
         }
-        return company;
+        return {
+          ...company,
+          contactPhone: company.showPublicPhone ? company.contactPhone : null,
+          contactEmail: company.showPublicEmail ? company.contactEmail : null,
+        };
       },
       this.cache.ttl.companyBySlug,
     );

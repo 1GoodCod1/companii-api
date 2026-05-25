@@ -21,6 +21,13 @@ import {
   winstonConfig,
 } from './config';
 
+process.on('warning', (warning) => {
+  if (warning.name === 'DeprecationWarning' && warning.message.includes('client.query')) {
+    return;
+  }
+  console.warn(warning.stack);
+});
+
 const isShuttingDownRef = { current: false };
 
 async function bootstrap() {

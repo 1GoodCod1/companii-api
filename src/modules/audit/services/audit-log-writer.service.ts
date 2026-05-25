@@ -3,6 +3,7 @@ import { PrismaService } from '../../shared/database/prisma.service';
 import { RedisService } from '../../shared/redis/redis.service';
 import { SECURITY_ACTION_SET } from '../audit-action.enum';
 import type { AuditLogData } from '../types/audit.types';
+import { rlsTxStorage } from '../../../common/rls/rls.storage';
 
 @Injectable()
 export class AuditLogWriterService {
@@ -14,40 +15,42 @@ export class AuditLogWriterService {
   ) {}
 
   async log(data: AuditLogData) {
-    try {
-      let userId = data.userId;
-      if (userId) {
-        const exists = await this.prisma.user.findUnique({
-          where: { id: userId },
-          select: { id: true },
-        });
-        if (!exists) userId = null;
-      }
+    return rlsTxStorage.run(undefined, async () => {
+      try {
+        let userId = data.userId;
+        if (userId) {
+          const exists = await this.prisma.user.findUnique({
+            where: { id: userId },
+            select: { id: true },
+          });
+          if (!exists) userId = null;
+        }
 
-      const log = await this.prisma.auditLog.create({
-        data: {
-          userId: userId ?? null,
-          action: data.action,
-          entityType: data.entityType,
-          entityId: data.entityId,
-          oldData: data.oldData,
-          newData: data.newData,
-          ipAddress: data.ipAddress,
-          userAgent: data.userAgent,
-        },
-      });
-
-      await this.publishToStream(data, userId);
-      if (SECURITY_ACTION_SET.has(data.action)) {
-        this.logger.warn(`[SECURITY] ${data.action}`, {
-          userId,
-          ipAddress: data.ipAddress,
+        const log = await this.prisma.auditLog.create({
+          data: {
+            userId: userId ?? null,
+            action: data.action,
+            entityType: data.entityType,
+            entityId: data.entityId,
+            oldData: data.oldData,
+            newData: data.newData,
+            ipAddress: data.ipAddress,
+            userAgent: data.userAgent,
+          },
         });
+
+        await this.publishToStream(data, userId);
+        if (SECURITY_ACTION_SET.has(data.action)) {
+          this.logger.warn(`[SECURITY] ${data.action}`, {
+            userId,
+            ipAddress: data.ipAddress,
+          });
+        }
+        return log;
+      } catch (error) {
+        this.logger.error('Failed to persist audit log', error);
       }
-      return log;
-    } catch (error) {
-      this.logger.error('Failed to persist audit log', error);
-    }
+    });
   }
 
   private async publishToStream(

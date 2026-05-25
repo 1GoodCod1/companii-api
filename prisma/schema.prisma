@@ -254,6 +254,8 @@ model Company {
   categoryId   String?  @map("category_id")
   contactPhone String?  @map("contact_phone")
   contactEmail String?  @map("contact_email")
+  showPublicPhone  Boolean  @default(true) @map("show_public_phone")
+  showPublicEmail  Boolean  @default(true) @map("show_public_email")
   rating       Decimal  @default(0) @db.Decimal(3, 2)
   totalReviews Int      @default(0) @map("total_reviews")
   teamSize     Int      @default(0) @map("team_size")
@@ -838,15 +840,17 @@ model EstimateStage {
 }
 
 model EstimateLine {
-  id          String   @id @default(uuid())
-  stageId     String   @map("stage_id")
-  description String
-  qty         Decimal  @db.Decimal(10, 2)
-  unit        String   @default("buc")
-  unitPrice   Decimal  @map("unit_price") @db.Decimal(12, 2)
-  lineTotal   Decimal  @map("line_total") @db.Decimal(12, 2)
-  source      String   @default("manual")
-  sortOrder   Int      @default(0) @map("sort_order")
+  id             String   @id @default(uuid())
+  stageId        String   @map("stage_id")
+  description    String
+  qty            Decimal  @db.Decimal(10, 2)
+  unit           String   @default("buc")
+  unitPrice      Decimal  @map("unit_price") @db.Decimal(12, 2)
+  lineTotal      Decimal  @map("line_total") @db.Decimal(12, 2)
+  source         String   @default("manual")
+  sortOrder      Int      @default(0) @map("sort_order")
+  materialStore  String?  @map("material_store")
+  receiptFileKey String?  @map("receipt_file_key")
 
   stage EstimateStage @relation(fields: [stageId], references: [id], onDelete: Cascade)
 

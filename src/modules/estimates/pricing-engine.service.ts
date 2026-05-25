@@ -23,6 +23,14 @@ export type Plan2dData = {
 
 export type MeasurementMap = Record<string, number>;
 
+export type CustomPricingOverrideResult = {
+  measurements: MeasurementMap;
+  rules: BlueprintPricingRule[];
+  customDurationDays?: number;
+  customLaborHours?: number;
+  customLaborTotal?: number;
+};
+
 @Injectable()
 export class EstimatePricingEngine {
   deriveMeasurements(
@@ -30,6 +38,7 @@ export class EstimatePricingEngine {
     diagnosticAnswers: Record<string, unknown> | null | undefined,
   ): MeasurementMap {
     const measurements: MeasurementMap = {};
+    const pointsCount = (type: string) => plan2d?.points?.filter((p) => p.type === type).length ?? 0;
 
     if (plan2d?.rooms?.length) {
       let floorArea = 0;
@@ -41,13 +50,39 @@ export class EstimatePricingEngine {
     }
 
     if (plan2d?.points?.length) {
-      const byType = (type: string) => plan2d.points.filter((p) => p.type === type).length;
+      // 1. Instalații sanitare (Plumbing)
       measurements.plumbingPoints =
-        byType('water') + byType('drain') + byType('mixer') + byType('toilet');
+        pointsCount('water') + pointsCount('drain') + pointsCount('mixer') + pointsCount('toilet');
+
+      // 2. Electricitate (Electrical)
       measurements.electricPoints =
-        byType('socket') + byType('switch') + byType('light');
-      measurements.panelCount = byType('panel');
-      measurements.acUnits = byType('indoor') + byType('outdoor');
+        pointsCount('socket') + pointsCount('switch') + pointsCount('light');
+      measurements.panelCount = pointsCount('panel');
+
+      // 3. Climatizare (Clima)
+      measurements.acUnits = pointsCount('indoor') + pointsCount('outdoor');
+      if (pointsCount('indoor')) {
+        measurements.acUnits = pointsCount('indoor');
+      }
+
+      // 4. Servicii IT și Securitate (IT networks & Security)
+      measurements.networkPoints = pointsCount('ethernet');
+      measurements.apCount = pointsCount('ap');
+      measurements.cameraCount = pointsCount('camera');
+      measurements.rackCount = pointsCount('rack');
+
+      // 5. Panouri solare (Solar panels)
+      measurements.panelCount = pointsCount('solar_panel');
+      measurements.inverterCount = pointsCount('inverter');
+      measurements.batteryCount = pointsCount('battery');
+
+      // 6. Ferestre și uși (Windows & Doors)
+      measurements.windowCount = pointsCount('window');
+      measurements.doorCount = pointsCount('door') + pointsCount('sliding_door');
+
+      // 7. Mobilier (Furniture)
+      measurements.cabinetCount = pointsCount('kitchen_cabinet') + pointsCount('table');
+      measurements.wardrobeCount = pointsCount('wardrobe') + pointsCount('bed');
     }
 
     if (diagnosticAnswers && typeof diagnosticAnswers === 'object') {
@@ -71,6 +106,19 @@ export class EstimatePricingEngine {
     measurements.panelCount ??= 0;
     measurements.routeLengthM ??= 5;
     measurements.acUnits ??= 1;
+    measurements.networkPoints ??= 0;
+    measurements.apCount ??= 0;
+    measurements.cameraCount ??= 0;
+    measurements.rackCount ??= 0;
+    measurements.windowCount ??= 0;
+    measurements.doorCount ??= 0;
+    measurements.cabinetCount ??= 0;
+    measurements.wardrobeCount ??= 0;
+    measurements.pavementArea ??= measurements.totalFloorArea ?? 20;
+    measurements.borderLengthM ??= Math.max(10, (measurements.roomCount ?? 1) * 8);
+    measurements.roofArea ??= measurements.totalFloorArea ?? 30;
+    measurements.gutterLengthM ??= pointsCount('gutter') * 6 || 10;
+    measurements.facadeArea ??= measurements.totalFloorArea ? round2(measurements.totalFloorArea * 2.2) : 40;
 
     return measurements;
   }
@@ -176,12 +224,7 @@ export class EstimatePricingEngine {
     diagnosticAnswers: Record<string, unknown> | null | undefined,
     rules: BlueprintPricingRule[],
     stages: Array<{ code: string }>,
-  ): {
-    measurements: MeasurementMap;
-    rules: BlueprintPricingRule[];
-    customDurationDays?: number;
-    customLaborHours?: number;
-  } {
+  ): CustomPricingOverrideResult {
     const customUnitPriceSqm = readOptionalPositiveNumber(
       diagnosticAnswers,
       CUSTOM_PRICING_KEYS.unitPriceSqm,
@@ -193,6 +236,10 @@ export class EstimatePricingEngine {
     const customLaborHours = readOptionalPositiveNumber(
       diagnosticAnswers,
       CUSTOM_PRICING_KEYS.laborHours,
+    );
+    const customLaborTotal = readOptionalPositiveNumber(
+      diagnosticAnswers,
+      CUSTOM_PRICING_KEYS.laborTotal,
     );
 
     const nextMeasurements = { ...measurements };
@@ -256,6 +303,7 @@ export class EstimatePricingEngine {
       rules: nextRules,
       customDurationDays,
       customLaborHours,
+      customLaborTotal,
     };
   }
 
@@ -308,6 +356,7 @@ export const CUSTOM_PRICING_KEYS = {
   unitPriceSqm: 'customUnitPriceSqm',
   durationDays: 'customDurationDays',
   laborHours: 'customLaborHours',
+  laborTotal: 'customLaborTotal',
 } as const;
 
 function readOptionalPositiveNumber(

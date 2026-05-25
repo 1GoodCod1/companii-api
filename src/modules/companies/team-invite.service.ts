@@ -9,7 +9,7 @@ import { EmailService } from '../email/email.service';
 import { PrismaService } from '../shared/database/prisma.service';
 import { CompanyAuthorizationService } from './company-authorization.service';
 
-const TEAM_INVITE_TTL_MS = 24 * 60 * 60 * 1000;
+const TEAM_INVITE_TTL_MS = 2 * 60 * 60 * 1000;
 
 @Injectable()
 export class TeamInviteService {

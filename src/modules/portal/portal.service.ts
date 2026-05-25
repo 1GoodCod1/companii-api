@@ -9,7 +9,7 @@ import { InvoicePdfService } from '../fsm/invoice-pdf.service';
 import { EstimatePdfService } from '../fsm/estimate-pdf.service';
 import { EmailService } from '../email/email.service';
 
-const PORTAL_INVITE_TTL_MS = 24 * 60 * 60 * 1000;
+const PORTAL_INVITE_TTL_MS = 2 * 60 * 60 * 1000;
 
 const portalEstimateInclude = {
   customer: true,

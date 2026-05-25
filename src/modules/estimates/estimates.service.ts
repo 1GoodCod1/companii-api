@@ -16,7 +16,10 @@ import { EstimatePdfService } from '../fsm/estimate-pdf.service';
 import {
   EstimatePricingEngine,
   distributeDurationDays,
-  type Plan2dData,
+} from './pricing-engine.service';
+import type {
+  Plan2dData,
+  CustomPricingOverrideResult,
 } from './pricing-engine.service';
 
 const projectInclude = {
@@ -268,7 +271,7 @@ export class EstimatesService {
       select: { name: true, defaultPrice: true },
     });
     let pricingRules = this.pricing.applyCompanyRateBook(config.pricingRules, companyServices);
-    const customPricing = this.pricing.applyCustomPricingOverrides(
+    const customPricing: CustomPricingOverrideResult = this.pricing.applyCustomPricingOverrides(
       config,
       measurements,
       diagnostic,
@@ -297,7 +300,40 @@ export class EstimatesService {
         let laborCost = 0;
         let materialCost = 0;
 
-        if (stageLines.length) {
+        if (customPricing.customLaborTotal && project.stages.length) {
+          laborCost = round2(customPricing.customLaborTotal / project.stages.length);
+          await tx.estimateLine.create({
+            data: {
+              stageId: stage.id,
+              description: `Manoperă (Volum / Contract) — ${stage.name}`,
+              qty: 1,
+              unit: 'volum',
+              unitPrice: laborCost,
+              lineTotal: laborCost,
+              source: 'custom-total-override',
+              sortOrder: 0,
+            },
+          });
+
+          const materialLines = stageLines.filter((l) => l.kind === 'material');
+          if (materialLines.length) {
+            await tx.estimateLine.createMany({
+              data: materialLines.map((line, index) => ({
+                stageId: stage.id,
+                description: line.description,
+                qty: line.qty,
+                unit: line.unit,
+                unitPrice: line.unitPrice,
+                lineTotal: line.lineTotal,
+                source: line.source,
+                sortOrder: index + 1,
+              })),
+            });
+            for (const line of materialLines) {
+              materialCost += line.lineTotal;
+            }
+          }
+        } else if (stageLines.length) {
           await tx.estimateLine.createMany({
             data: stageLines.map((line, index) => ({
               stageId: stage.id,
@@ -413,6 +449,213 @@ export class EstimatesService {
         checklist: data.checklist as Prisma.InputJsonValue,
       },
       include: { lines: { orderBy: { sortOrder: 'asc' } } },
+    });
+  }
+
+  async updateLine(
+    user: JwtPayload,
+    projectId: string,
+    stageId: string,
+    lineId: string,
+    data: {
+      description?: string;
+      qty?: number;
+      unit?: string;
+      unitPrice?: number;
+      materialStore?: string | null;
+      receiptFileKey?: string | null;
+    },
+  ) {
+    this.assertManagement(user);
+    await this.findProjectOrThrow(user, projectId);
+    const stage = await this.prisma.estimateStage.findFirst({
+      where: { id: stageId, projectId },
+    });
+    if (!stage) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
+
+    const line = await this.prisma.estimateLine.findFirst({
+      where: { id: lineId, stageId },
+    });
+    if (!line) throw AppErrors.notFound('Estimate line not found');
+
+    const qty = data.qty !== undefined ? data.qty : Number(line.qty);
+    const unitPrice = data.unitPrice !== undefined ? data.unitPrice : Number(line.unitPrice);
+    const lineTotal = round2(qty * unitPrice);
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.estimateLine.update({
+        where: { id: lineId },
+        data: {
+          description: data.description?.trim(),
+          qty,
+          unit: data.unit,
+          unitPrice,
+          lineTotal,
+          materialStore: data.materialStore === null ? null : data.materialStore?.trim(),
+          receiptFileKey: data.receiptFileKey === null ? null : data.receiptFileKey,
+        },
+      });
+
+      const allLines = await tx.estimateLine.findMany({ where: { stageId } });
+      let laborCost = 0;
+      let materialCost = 0;
+      for (const l of allLines) {
+        const isLabor =
+          l.unit === 'ore' ||
+          l.unit === 'h' ||
+          l.description.toLowerCase().includes('manoperă') ||
+          l.description.toLowerCase().includes('manopera');
+        if (isLabor) laborCost += Number(l.lineTotal);
+        else materialCost += Number(l.lineTotal);
+      }
+      const stageTotal = round2(laborCost + materialCost);
+
+      await tx.estimateStage.update({
+        where: { id: stageId },
+        data: { laborCost, materialCost, stageTotal },
+      });
+
+      const project = await tx.estimateProject.findUniqueOrThrow({
+        where: { id: projectId },
+        include: { stages: true },
+      });
+      const projectLaborTotal = round2(project.stages.reduce((acc, s) => acc + Number(s.laborCost), 0));
+      const projectMaterialTotal = round2(project.stages.reduce((acc, s) => acc + Number(s.materialCost), 0));
+      const subtotal = projectLaborTotal + projectMaterialTotal;
+      const marginPct = Number(project.marginPct);
+      const grandTotal = round2(subtotal * (1 + marginPct / 100));
+
+      await tx.estimateProject.update({
+        where: { id: projectId },
+        data: {
+          laborTotal: projectLaborTotal,
+          materialTotal: projectMaterialTotal,
+          grandTotal,
+        },
+      });
+
+      return tx.estimateProject.findUniqueOrThrow({
+        where: { id: projectId },
+        include: projectInclude,
+      });
+    });
+  }
+
+  async addLine(
+    user: JwtPayload,
+    projectId: string,
+    stageId: string,
+    data: {
+      description: string;
+      qty: number;
+      unit: string;
+      unitPrice: number;
+    },
+  ) {
+    this.assertManagement(user);
+    await this.findProjectOrThrow(user, projectId);
+    const stage = await this.prisma.estimateStage.findFirst({
+      where: { id: stageId, projectId },
+    });
+    if (!stage) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
+
+    const lastLine = await this.prisma.estimateLine.findFirst({
+      where: { stageId },
+      orderBy: { sortOrder: 'desc' },
+    });
+    const sortOrder = (lastLine?.sortOrder ?? 0) + 1;
+    const lineTotal = round2(data.qty * data.unitPrice);
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.estimateLine.create({
+        data: {
+          stageId,
+          description: data.description.trim(),
+          qty: data.qty,
+          unit: data.unit,
+          unitPrice: data.unitPrice,
+          lineTotal,
+          source: 'manual',
+          sortOrder,
+        },
+      });
+
+      return this.recalcStageTotals(tx, stageId, projectId);
+    });
+  }
+
+  async deleteLine(
+    user: JwtPayload,
+    projectId: string,
+    stageId: string,
+    lineId: string,
+  ) {
+    this.assertManagement(user);
+    await this.findProjectOrThrow(user, projectId);
+    const stage = await this.prisma.estimateStage.findFirst({
+      where: { id: stageId, projectId },
+    });
+    if (!stage) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
+
+    const line = await this.prisma.estimateLine.findFirst({
+      where: { id: lineId, stageId },
+    });
+    if (!line) throw AppErrors.notFound('Estimate line not found');
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.estimateLine.delete({ where: { id: lineId } });
+
+      return this.recalcStageTotals(tx, stageId, projectId);
+    });
+  }
+
+  /** Shared helper: recalculate stage + project totals after line changes */
+  private async recalcStageTotals(
+    tx: Parameters<Parameters<typeof this.prisma.$transaction>[0]>[0],
+    stageId: string,
+    projectId: string,
+  ) {
+    const allLines = await tx.estimateLine.findMany({ where: { stageId } });
+    let laborCost = 0;
+    let materialCost = 0;
+    for (const l of allLines) {
+      const isLabor =
+        l.unit === 'ore' ||
+        l.unit === 'h' ||
+        l.description.toLowerCase().includes('manoperă') ||
+        l.description.toLowerCase().includes('manopera');
+      if (isLabor) laborCost += Number(l.lineTotal);
+      else materialCost += Number(l.lineTotal);
+    }
+    const stageTotal = round2(laborCost + materialCost);
+
+    await tx.estimateStage.update({
+      where: { id: stageId },
+      data: { laborCost, materialCost, stageTotal },
+    });
+
+    const project = await tx.estimateProject.findUniqueOrThrow({
+      where: { id: projectId },
+      include: { stages: true },
+    });
+    const projectLaborTotal = round2(project.stages.reduce((acc, s) => acc + Number(s.laborCost), 0));
+    const projectMaterialTotal = round2(project.stages.reduce((acc, s) => acc + Number(s.materialCost), 0));
+    const subtotal = projectLaborTotal + projectMaterialTotal;
+    const marginPct = Number(project.marginPct);
+    const grandTotal = round2(subtotal * (1 + marginPct / 100));
+
+    await tx.estimateProject.update({
+      where: { id: projectId },
+      data: {
+        laborTotal: projectLaborTotal,
+        materialTotal: projectMaterialTotal,
+        grandTotal,
+      },
+    });
+
+    return tx.estimateProject.findUniqueOrThrow({
+      where: { id: projectId },
+      include: projectInclude,
     });
   }
 
@@ -771,9 +1014,12 @@ export class EstimatesService {
         materials: stage.lines
           .filter((line) => line.source !== 'stage-default')
           .map((line) => ({
+            id: line.id,
             description: line.description,
             qty: Number(line.qty),
             unit: line.unit,
+            materialStore: line.materialStore,
+            receiptFileKey: line.receiptFileKey,
           })),
       })),
     };
@@ -812,9 +1058,12 @@ export class EstimatesService {
         durationDays: stage.durationDays,
         checklist: stage.checklist,
         materials: stage.lines.map((line) => ({
+          id: line.id,
           description: line.description,
           qty: Number(line.qty),
           unit: line.unit,
+          materialStore: line.materialStore,
+          receiptFileKey: line.receiptFileKey,
           ...(hidePrices
             ? {}
             : { unitPrice: Number(line.unitPrice), lineTotal: Number(line.lineTotal) }),
