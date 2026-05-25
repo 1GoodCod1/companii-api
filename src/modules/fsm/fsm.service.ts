@@ -2,8 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InterventionStatus, InvoicePaymentStatus, Prisma, QuoteStatus } from '@prisma/client';
 import { AppErrorMessages, AppErrors } from '../../common/errors';
+import { planHasFeature } from '../../common/constants/plan-entitlements.constants';
 import { normalizePhone } from '../../common/utils/phone.util';
 import { PrismaService } from '../shared/database/prisma.service';
+import { CacheService } from '../shared/cache/cache.service';
 import { CompanyAuthorizationService } from '../companies/company-authorization.service';
 import type { JwtPayload } from '../auth/types/jwt-payload';
 import { EmailService } from '../email/email.service';
@@ -37,6 +39,7 @@ export class FsmService {
     private readonly email: EmailService,
     private readonly config: ConfigService,
     private readonly companyAuth: CompanyAuthorizationService,
+    private readonly cache: CacheService,
   ) {}
 
   private companyId(user: JwtPayload) {
@@ -932,7 +935,7 @@ export class FsmService {
       this.prisma.companyLead.findMany({
         where: { companyId: cid, customerId },
         orderBy: { createdAt: 'desc' },
-        select: { id: true, contactName: true, status: true, source: true, packageTitle: true, createdAt: true },
+        select: { id: true, contactName: true, status: true, source: true, serviceTitle: true, createdAt: true },
       }),
       this.prisma.interventionNote.findMany({
         where: { intervention: { customerId, companyId: cid }, isInternal: false },
@@ -1000,7 +1003,7 @@ export class FsmService {
       items.push({
         id: l.id,
         type: 'lead',
-        title: l.packageTitle ?? l.contactName,
+        title: l.serviceTitle ?? l.contactName,
         status: l.status,
         at: l.createdAt.toISOString(),
         meta: { leadId: l.id, source: l.source },
@@ -1021,7 +1024,39 @@ export class FsmService {
     return { customer, items };
   }
 
-  // --- COMPANY SERVICES (rate book) ---
+  // --- COMPANY SERVICES (catalog + rate book) ---
+
+  private serviceInclude = {
+    category: { select: { id: true, name: true, slug: true } },
+  } as const;
+
+  private async companyPlanCode(companyId: string) {
+    const sub = await this.prisma.companySubscription.findUnique({
+      where: { companyId },
+      include: { plan: true },
+    });
+    return sub?.plan.code ?? 'FREE';
+  }
+
+  private buildServiceSlug(name: string): string {
+    const base = name
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'serviciu';
+    return `${base}-${Date.now()}`;
+  }
+
+  private async invalidateServiceCaches(companyId: string) {
+    const company = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      select: { slug: true },
+    });
+    void this.cache.invalidatePublicServices(company?.slug);
+    if (company?.slug) {
+      void this.cache.invalidatePublicCompanies(company.slug);
+    }
+  }
 
   listCompanyServices(user: JwtPayload) {
     if (this.isTechnician(user)) {
@@ -1029,61 +1064,113 @@ export class FsmService {
     }
     return this.prisma.companyService.findMany({
       where: { companyId: this.companyId(user) },
-      orderBy: { name: 'asc' },
+      include: this.serviceInclude,
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
     });
   }
 
-  createCompanyService(
+  async createCompanyService(
     user: JwtPayload,
-    data: { name: string; defaultPrice: number; materialsCost?: number; vatRate?: number },
+    data: {
+      name: string;
+      defaultPrice: number;
+      description?: string;
+      categoryId?: string;
+      durationMinutes?: number;
+      isPublished?: boolean;
+      materialsCost?: number;
+      vatRate?: number;
+      sortOrder?: number;
+    },
   ) {
     if (this.isTechnician(user)) {
       throw AppErrors.forbidden(AppErrorMessages.COMPANY_ACCESS_DENIED);
     }
-    return this.prisma.companyService.create({
+    const companyId = this.companyId(user);
+    const planCode = await this.companyPlanCode(companyId);
+    const canEditInternal = planHasFeature(planCode, 'internalServices');
+
+    const created = await this.prisma.companyService.create({
       data: {
-        companyId: this.companyId(user),
+        companyId,
+        slug: this.buildServiceSlug(data.name),
         name: data.name.trim(),
+        description: data.description?.trim() ?? '',
+        categoryId: data.categoryId,
         defaultPrice: data.defaultPrice,
-        materialsCost: data.materialsCost,
-        vatRate: data.vatRate,
+        durationMinutes: data.durationMinutes,
+        isPublished: Boolean(data.isPublished),
+        sortOrder: data.sortOrder ?? 0,
+        materialsCost: canEditInternal ? data.materialsCost : undefined,
+        vatRate: canEditInternal ? data.vatRate : undefined,
       },
+      include: this.serviceInclude,
     });
+    void this.invalidateServiceCaches(companyId);
+    return created;
   }
 
   async updateCompanyService(
     user: JwtPayload,
     id: string,
-    data: { name?: string; defaultPrice?: number; materialsCost?: number | null; vatRate?: number | null },
+    data: {
+      name?: string;
+      defaultPrice?: number;
+      description?: string;
+      categoryId?: string | null;
+      durationMinutes?: number | null;
+      isPublished?: boolean;
+      materialsCost?: number | null;
+      vatRate?: number | null;
+      sortOrder?: number;
+    },
   ) {
     if (this.isTechnician(user)) {
       throw AppErrors.forbidden(AppErrorMessages.COMPANY_ACCESS_DENIED);
     }
+    const companyId = this.companyId(user);
     const existing = await this.prisma.companyService.findFirst({
-      where: { id, companyId: this.companyId(user) },
+      where: { id, companyId },
     });
-    if (!existing) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
+    if (!existing) throw AppErrors.notFound(AppErrorMessages.SERVICE_NOT_FOUND);
 
-    return this.prisma.companyService.update({
+    const planCode = await this.companyPlanCode(companyId);
+    const canEditInternal = planHasFeature(planCode, 'internalServices');
+
+    const updated = await this.prisma.companyService.update({
       where: { id },
       data: {
         name: data.name?.trim(),
         defaultPrice: data.defaultPrice,
-        materialsCost: data.materialsCost === null ? null : data.materialsCost,
-        vatRate: data.vatRate === null ? null : data.vatRate,
+        description: data.description?.trim(),
+        categoryId: data.categoryId === null ? null : data.categoryId,
+        durationMinutes: data.durationMinutes === null ? null : data.durationMinutes,
+        isPublished: data.isPublished,
+        sortOrder: data.sortOrder,
+        ...(canEditInternal
+          ? {
+              materialsCost: data.materialsCost === null ? null : data.materialsCost,
+              vatRate: data.vatRate === null ? null : data.vatRate,
+            }
+          : {}),
       },
+      include: this.serviceInclude,
     });
+    void this.invalidateServiceCaches(companyId);
+    return updated;
   }
 
   async deleteCompanyService(user: JwtPayload, id: string) {
     if (this.isTechnician(user)) {
       throw AppErrors.forbidden(AppErrorMessages.COMPANY_ACCESS_DENIED);
     }
+    const companyId = this.companyId(user);
     const existing = await this.prisma.companyService.findFirst({
-      where: { id, companyId: this.companyId(user) },
+      where: { id, companyId },
     });
-    if (!existing) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
+    if (!existing) throw AppErrors.notFound(AppErrorMessages.SERVICE_NOT_FOUND);
     await this.prisma.companyService.delete({ where: { id } });
+    void this.invalidateServiceCaches(companyId);
     return { success: true };
   }
 

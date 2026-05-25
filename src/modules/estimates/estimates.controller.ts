@@ -16,7 +16,7 @@ import { CONTROLLER_PATH } from '../../common/constants';
 import { CompanyGuard } from '../companies/guards/company.guard';
 import { CompanyRoles } from '../companies/decorators/company-roles.decorator';
 import { SubscriptionGuard } from '../auth/guards/subscription.guard';
-import { RequiresPlan } from '../../common/decorators/requires-plan.decorator';
+import { RequiresFeature } from '../../common/decorators/requires-feature.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../auth/types/jwt-payload';
 import { EstimatesService } from './estimates.service';
@@ -28,21 +28,21 @@ export class EstimatesController {
 
   @Get('blueprints')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('BUSINESS')
+  @RequiresFeature('estimates')
   listBlueprints() {
     return this.estimates.listBlueprints();
   }
 
   @Get('blueprints/category/:slug')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('BUSINESS')
+  @RequiresFeature('estimates')
   blueprintBySlug(@Param('slug') slug: string) {
     return this.estimates.getBlueprintByCategorySlug(slug);
   }
 
   @Get('projects')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('BUSINESS')
+  @RequiresFeature('estimates')
   @CompanyRoles('OWNER', 'MANAGER')
   listProjects(@CurrentUser() user: JwtPayload) {
     return this.estimates.listProjects(user);
@@ -50,7 +50,7 @@ export class EstimatesController {
 
   @Get('projects/:id')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('BUSINESS')
+  @RequiresFeature('estimates')
   @CompanyRoles('OWNER', 'MANAGER')
   getProject(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.estimates.getProject(user, id);
@@ -58,7 +58,7 @@ export class EstimatesController {
 
   @Post('projects')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('BUSINESS')
+  @RequiresFeature('estimates')
   @CompanyRoles('OWNER', 'MANAGER')
   createProject(
     @CurrentUser() user: JwtPayload,
@@ -77,7 +77,7 @@ export class EstimatesController {
 
   @Patch('projects/:id')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('BUSINESS')
+  @RequiresFeature('estimates')
   @CompanyRoles('OWNER', 'MANAGER')
   updateProject(
     @CurrentUser() user: JwtPayload,
@@ -99,7 +99,7 @@ export class EstimatesController {
 
   @Delete('projects/:id')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('BUSINESS')
+  @RequiresFeature('estimates')
   @CompanyRoles('OWNER', 'MANAGER')
   deleteProject(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.estimates.deleteProject(user, id);
@@ -107,7 +107,7 @@ export class EstimatesController {
 
   @Put('projects/:id/site-plan')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('BUSINESS')
+  @RequiresFeature('estimates')
   @CompanyRoles('OWNER', 'MANAGER')
   saveSitePlan(
     @CurrentUser() user: JwtPayload,
@@ -119,7 +119,7 @@ export class EstimatesController {
 
   @Post('projects/:id/calculate')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('BUSINESS')
+  @RequiresFeature('estimates')
   @CompanyRoles('OWNER', 'MANAGER')
   calculate(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.estimates.calculateProject(user, id);
@@ -127,7 +127,7 @@ export class EstimatesController {
 
   @Patch('projects/:projectId/stages/:stageId')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('BUSINESS')
+  @RequiresFeature('estimates')
   @CompanyRoles('OWNER', 'MANAGER')
   updateStage(
     @CurrentUser() user: JwtPayload,
@@ -148,7 +148,7 @@ export class EstimatesController {
 
   @Patch('projects/:projectId/stages/:stageId/lines/:lineId')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('BUSINESS')
+  @RequiresFeature('estimates')
   @CompanyRoles('OWNER', 'MANAGER')
   updateLine(
     @CurrentUser() user: JwtPayload,
@@ -170,7 +170,7 @@ export class EstimatesController {
 
   @Post('projects/:projectId/stages/:stageId/lines')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('BUSINESS')
+  @RequiresFeature('estimates')
   @CompanyRoles('OWNER', 'MANAGER')
   addLine(
     @CurrentUser() user: JwtPayload,
@@ -189,7 +189,7 @@ export class EstimatesController {
 
   @Delete('projects/:projectId/stages/:stageId/lines/:lineId')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('BUSINESS')
+  @RequiresFeature('estimates')
   @CompanyRoles('OWNER', 'MANAGER')
   deleteLine(
     @CurrentUser() user: JwtPayload,
@@ -202,7 +202,7 @@ export class EstimatesController {
 
   @Post('projects/:id/generate-quote')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('BUSINESS')
+  @RequiresFeature('estimates')
   @CompanyRoles('OWNER', 'MANAGER')
   generateQuote(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.estimates.generateQuote(user, id);
@@ -210,7 +210,7 @@ export class EstimatesController {
 
   @Post('projects/:id/send')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('BUSINESS')
+  @RequiresFeature('estimates')
   @CompanyRoles('OWNER', 'MANAGER')
   sendToClient(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.estimates.sendToClient(user, id);
@@ -218,7 +218,7 @@ export class EstimatesController {
 
   @Post('projects/:id/convert')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('BUSINESS')
+  @RequiresFeature('estimates')
   @CompanyRoles('OWNER', 'MANAGER')
   convert(
     @CurrentUser() user: JwtPayload,
@@ -230,7 +230,7 @@ export class EstimatesController {
 
   @Get('projects/:id/pdf')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('BUSINESS')
+  @RequiresFeature('estimates')
   @CompanyRoles('OWNER', 'MANAGER')
   async projectPdf(
     @CurrentUser() user: JwtPayload,
@@ -248,7 +248,7 @@ export class EstimatesController {
 
   @Get('projects/:id/worksheet')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('BUSINESS')
+  @RequiresFeature('estimates')
   @CompanyRoles('OWNER', 'MANAGER')
   worksheetByProject(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.estimates.getWorksheetByProject(user, id);
@@ -256,7 +256,7 @@ export class EstimatesController {
 
   @Get('worksheet/intervention/:interventionId')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('PRO', 'BUSINESS')
+  @RequiresFeature('estimateWorksheet')
   worksheetByIntervention(
     @CurrentUser() user: JwtPayload,
     @Param('interventionId') interventionId: string,

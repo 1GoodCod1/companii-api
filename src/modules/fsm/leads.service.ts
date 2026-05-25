@@ -13,11 +13,6 @@ import type { JwtPayload } from '../auth/types/jwt-payload';
 const leadInclude = {
   customer: true,
   category: { select: { id: true, name: true, slug: true } },
-  booking: {
-    include: {
-      package: { select: { id: true, title: true, categoryId: true } },
-    },
-  },
 } satisfies Prisma.CompanyLeadInclude;
 
 @Injectable()
@@ -81,38 +76,6 @@ export class LeadsService {
         categoryId: data.categoryId,
         scheduledAt: data.scheduledAt ? new Date(data.scheduledAt) : undefined,
         notes: data.notes?.trim(),
-      },
-      include: leadInclude,
-    });
-  }
-
-  async createLeadFromBooking(
-    bookingId: string,
-    data: {
-      companyId: string;
-      contactName: string;
-      contactPhone: string;
-      contactEmail?: string;
-      scheduledAt?: Date;
-      categoryId?: string;
-      packageTitle?: string;
-      message?: string;
-    },
-  ) {
-    const phone = normalizePhone(data.contactPhone) ?? data.contactPhone.trim();
-    return this.prisma.companyLead.create({
-      data: {
-        companyId: data.companyId,
-        bookingId,
-        contactName: data.contactName.trim(),
-        contactPhone: phone,
-        contactEmail: data.contactEmail?.trim().toLowerCase(),
-        scheduledAt: data.scheduledAt,
-        categoryId: data.categoryId,
-        packageTitle: data.packageTitle,
-        message: data.message,
-        source: 'PACKAGE_BOOKING',
-        status: 'NEW',
       },
       include: leadInclude,
     });
@@ -217,8 +180,8 @@ export class LeadsService {
             customerId,
             sourceLeadId: lead.id,
             number,
-            type: lead.packageTitle ?? lead.category?.name ?? 'Cerere nouă',
-            description: lead.message ?? lead.packageTitle ?? 'Convertit din cerere',
+            type: lead.serviceTitle ?? lead.category?.name ?? 'Cerere nouă',
+            description: lead.message ?? lead.serviceTitle ?? 'Convertit din cerere',
             address: lead.address ?? lead.contactName,
             scheduledAt: lead.scheduledAt ?? undefined,
             status: 'NEW',
@@ -280,7 +243,7 @@ export class LeadsService {
           categoryId,
           blueprintId: blueprint?.id,
           number: estNumber,
-          title: body?.title ?? lead.packageTitle ?? `Smetă ${category.name}`,
+          title: body?.title ?? lead.serviceTitle ?? `Smetă ${category.name}`,
           address: lead.address ?? customer.address,
           status: 'DRAFT',
         },

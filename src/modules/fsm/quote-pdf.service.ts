@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import PDFDocument from 'pdfkit';
 import type { Company, CompanyCustomer, Quote, QuoteLine } from '@prisma/client';
 
+import { formatDate, formatMoney } from './pdf-format.util';
+
 type QuotePdfData = Quote & {
   company: Pick<
     Company,
@@ -17,14 +19,6 @@ type QuotePdfData = Quote & {
   customer: CompanyCustomer;
   lines: QuoteLine[];
 };
-
-function formatMoney(value: number): string {
-  return `${value.toLocaleString('ro-MD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MDL`;
-}
-
-function formatDate(value: Date): string {
-  return value.toLocaleDateString('ro-MD', { day: '2-digit', month: 'long', year: 'numeric' });
-}
 
 @Injectable()
 export class QuotePdfService {

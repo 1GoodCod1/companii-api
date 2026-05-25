@@ -1,9 +1,7 @@
-import { CompanySubscriptionPlan } from '@prisma/client';
 import { IsIn } from 'class-validator';
-
-const CLAIMABLE_PLANS = ['PRO', 'BUSINESS'] as const satisfies readonly CompanySubscriptionPlan[];
+import { SUBSCRIPTION_CLAIMABLE_PLANS } from '../../../common/constants/subscription-plan.constants';
 
 export class ClaimFreePlanDto {
-  @IsIn(CLAIMABLE_PLANS)
-  planCode!: (typeof CLAIMABLE_PLANS)[number];
+  @IsIn(SUBSCRIPTION_CLAIMABLE_PLANS)
+  planCode!: (typeof SUBSCRIPTION_CLAIMABLE_PLANS)[number];
 }

@@ -23,7 +23,7 @@ export const AppErrorMessages = {
   SUBSCRIPTION_INVALID_UPGRADE: 'Invalid plan upgrade path',
   RECORD_NOT_FOUND: 'Record not found',
   CATALOG_IN_USE: 'Cannot delete: item is used by existing records',
-  PACKAGE_NOT_FOUND: 'Package not found',
+  SERVICE_NOT_FOUND: 'Service not found',
   PORTAL_NOT_LINKED: 'Portal profile not linked',
   PORTAL_INVITE_INVALID: 'Portal invitation is invalid or expired',
   PORTAL_ALREADY_LINKED: 'Portal profile is already linked to another company client',

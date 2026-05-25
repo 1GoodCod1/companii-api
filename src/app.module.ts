@@ -24,7 +24,6 @@ import { FilesModule } from './modules/files/files.module';
 import { EmailModule } from './modules/email/email.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CompaniesModule } from './modules/companies/companies.module';
-import { PackagesModule } from './modules/packages/packages.module';
 import { FsmModule } from './modules/fsm/fsm.module';
 import { PortalModule } from './modules/portal/portal.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
@@ -73,7 +72,6 @@ const isProd = process.env.NODE_ENV === 'production';
     AuditModule,
     AuthModule,
     CompaniesModule,
-    PackagesModule,
     FsmModule,
     PortalModule,
     SubscriptionsModule,

@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { AppErrorMessages, AppErrors } from '../../common/errors';
+import { RLS_SYSTEM_CONTEXT } from '../../common/rls/rls-system.util';
+import { normalizePhone } from '../../common/utils/phone.util';
 import { CacheService } from '../shared/cache/cache.service';
 import { PrismaService } from '../shared/database/prisma.service';
 import type { JwtPayload } from '../auth/types/jwt-payload';
@@ -215,7 +217,11 @@ export class CompaniesService {
             city: true,
             category: true,
             members: { where: { status: 'ACTIVE', isActive: true } },
-            packages: { where: { isPublished: true } },
+            services: {
+              where: { isPublished: true },
+              include: { category: { select: { id: true, name: true, slug: true } } },
+              orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+            },
             badges: { where: { isActive: true } },
             galleryImages: { orderBy: { sortOrder: 'asc' } },
           },
@@ -326,6 +332,50 @@ export class CompaniesService {
   private async invalidateCompanyCache(companyId: string) {
     const company = await this.prisma.company.findUnique({ where: { id: companyId } });
     if (company) void this.cache.invalidatePublicCompanies(company.slug);
+  }
+
+  async requestPublicService(
+    companySlug: string,
+    serviceId: string,
+    body: {
+      customerName: string;
+      customerPhone: string;
+      customerEmail?: string;
+      message?: string;
+      scheduledAt?: string;
+    },
+  ) {
+    return this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async () => {
+      const company = await this.prisma.company.findFirst({
+        where: { slug: companySlug, isPublished: true, isVerified: true },
+        select: { id: true, slug: true },
+      });
+      if (!company) throw AppErrors.notFound(AppErrorMessages.COMPANY_NOT_FOUND);
+
+      const service = await this.prisma.companyService.findFirst({
+        where: { id: serviceId, companyId: company.id, isPublished: true },
+        include: { category: true },
+      });
+      if (!service) throw AppErrors.notFound(AppErrorMessages.SERVICE_NOT_FOUND);
+
+      const phone = normalizePhone(body.customerPhone) ?? body.customerPhone.trim();
+      const lead = await this.prisma.companyLead.create({
+        data: {
+          companyId: company.id,
+          contactName: body.customerName.trim(),
+          contactPhone: phone,
+          contactEmail: body.customerEmail?.trim().toLowerCase(),
+          message: body.message?.trim() || `Cerere serviciu: ${service.name}`,
+          scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : undefined,
+          categoryId: service.categoryId ?? undefined,
+          serviceTitle: service.name,
+          source: 'SERVICE_REQUEST',
+          status: 'NEW',
+        },
+      });
+
+      return { leadId: lead.id, service: { id: service.id, name: service.name } };
+    });
   }
 
   private async assertCompanyAccess(user: JwtPayload, companyId: string) {

@@ -2,7 +2,12 @@ import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { CompanySubscriptionPlan } from '@prisma/client';
 import { AppErrorMessages, AppErrors } from '../../../common/errors';
-import { REQUIRES_PLAN_KEY } from '../../../common/decorators/requires-plan.decorator';
+import { REQUIRES_FEATURE_KEY } from '../../../common/decorators/requires-feature.decorator';
+import {
+  minPlanForFeature,
+  type PlanFeatureKey,
+} from '../../../common/constants/plan-entitlements.constants';
+import { planRank } from '../../../common/constants';
 import { rlsContextFromUser } from '../../../common/rls/rls-context.util';
 import { PrismaService } from '../../shared/database/prisma.service';
 import type { JwtPayload } from '../types/jwt-payload';
@@ -15,11 +20,14 @@ export class SubscriptionGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const required = this.reflector.getAllAndOverride<CompanySubscriptionPlan[]>(
-      REQUIRES_PLAN_KEY,
+    const requiredFeatures = this.reflector.getAllAndOverride<PlanFeatureKey[]>(
+      REQUIRES_FEATURE_KEY,
       [context.getHandler(), context.getClass()],
     );
-    if (!required?.length) return true;
+
+    if (!requiredFeatures?.length) return true;
+
+    const minRequired = this.resolveMinimumPlan(requiredFeatures);
 
     const user = context.switchToHttp().getRequest<{ user: JwtPayload }>().user;
     const companyId = user.activeCompanyId;
@@ -37,12 +45,18 @@ export class SubscriptionGuard implements CanActivate {
       throw AppErrors.forbidden(AppErrorMessages.SUBSCRIPTION_INACTIVE);
     }
 
-    const order: CompanySubscriptionPlan[] = ['FREE', 'PRO', 'BUSINESS'];
-    const current = order.indexOf(sub.plan.code);
-    const minRequired = Math.min(...required.map((p) => order.indexOf(p)));
-    if (current < minRequired) {
+    if (planRank(sub.plan.code) < planRank(minRequired)) {
       throw AppErrors.forbidden(AppErrorMessages.SUBSCRIPTION_PLAN_REQUIRED);
     }
     return true;
+  }
+
+  private resolveMinimumPlan(
+    requiredFeatures: PlanFeatureKey[],
+  ): CompanySubscriptionPlan {
+    return requiredFeatures.reduce((highest, feature) => {
+      const plan = minPlanForFeature(feature);
+      return planRank(plan) > planRank(highest) ? plan : highest;
+    }, 'FREE' as CompanySubscriptionPlan);
   }
 }

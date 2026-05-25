@@ -6,9 +6,9 @@ Faber Companii — isolated B2B/B2C multi-tenant API (NestJS + Prisma + PostgreS
 
 ```bash
 cp .env.example .env
-docker compose -f docker-compose.dev.yml up -d
+docker compose -f docker-compose.dev.yml up -d postgres redis
 npm install
-npx prisma migrate dev
+npx prisma migrate deploy
 npm run seed
 npm run start:dev
 ```
@@ -19,8 +19,7 @@ API: `http://localhost:4100/api/v1` — health: `/api/v1/health`
 
 - `auth` — JWT, register COMPANY_STAFF / END_CLIENT / PLATFORM_ADMIN
 - `companies` — tenant CRUD, waitlist, team invites
-- `packages` — service packages + public booking
-- `fsm` — customers, interventions, calendar, quotes, invoices
+- `fsm` — servicii (catalog public + intern), customers, interventions, calendar, quotes, invoices
 - `portal` — B2C client dashboard
 - `subscriptions` — CompanyPlan FREE/PRO/BUSINESS
 - `admin` — verify companies, stats

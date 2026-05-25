@@ -145,7 +145,7 @@ export class CacheService {
 
   readonly patterns = {
     companiesList: () => 'cache:companii:companies:list:*',
-    packagesList: () => 'cache:companii:packages:list:*',
+    servicesList: () => 'cache:companii:services:list:*',
   } as const;
 
   readonly keys: CompaniiCacheKeyBuilders = {
@@ -162,11 +162,11 @@ export class CacheService {
       ]),
     companyBySlug: (slug) =>
       this.buildKey(['cache', 'companii', 'company', 'slug', slug]),
-    packagesList: (companySlug) =>
+    servicesList: (companySlug) =>
       this.buildKey([
         'cache',
         'companii',
-        'packages',
+        'services',
         'list',
         companySlug ?? 'all',
       ]),
@@ -176,7 +176,7 @@ export class CacheService {
   readonly ttl = {
     companiesList: 120,
     companyBySlug: 180,
-    packagesList: 120,
+    servicesList: 120,
     plansAll: 3600,
   } as const;
 
@@ -188,8 +188,13 @@ export class CacheService {
     await Promise.all(tasks);
   }
 
-  async invalidatePublicPackages(): Promise<void> {
-    await this.invalidate(this.patterns.packagesList());
+  async invalidatePublicServices(slug?: string): Promise<void> {
+    if (slug) {
+      await this.del(this.keys.servicesList(slug));
+      await this.del(this.keys.companyBySlug(slug));
+      return;
+    }
+    await this.invalidate(this.patterns.servicesList());
   }
 
   async invalidatePlans(): Promise<void> {

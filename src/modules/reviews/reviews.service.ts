@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, ReviewStatus } from '@prisma/client';
 import { AppErrorMessages, AppErrors } from '../../common/errors';
+import { findPortalCustomerForUser } from '../../common/utils/portal-customer.util';
 import { RLS_SYSTEM_CONTEXT } from '../../common/rls/rls-system.util';
 import { PrismaService } from '../shared/database/prisma.service';
 import type { JwtPayload } from '../auth/types/jwt-payload';
@@ -15,16 +16,8 @@ import {
 export class ReviewsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private async customerForUser(user: JwtPayload) {
-    const customer = await this.prisma.companyCustomer.findFirst({
-      where: { portalUserId: user.sub },
-    });
-    if (!customer) throw AppErrors.notFound(AppErrorMessages.PORTAL_NOT_LINKED);
-    return customer;
-  }
-
   async canCreate(user: JwtPayload, companyId: string): Promise<CanCreateReviewDto> {
-    const customer = await this.customerForUser(user);
+    const customer = await findPortalCustomerForUser(this.prisma, user.sub);
 
     const intervention = await this.prisma.intervention.findFirst({
       where: {
@@ -45,7 +38,7 @@ export class ReviewsService {
   }
 
   async canCreateForIntervention(user: JwtPayload, interventionId: string): Promise<CanCreateReviewDto> {
-    const customer = await this.customerForUser(user);
+    const customer = await findPortalCustomerForUser(this.prisma, user.sub);
     const intervention = await this.prisma.intervention.findFirst({
       where: { id: interventionId, customerId: customer.id },
       include: { review: { select: { id: true } } },
@@ -65,7 +58,7 @@ export class ReviewsService {
   }
 
   async create(user: JwtPayload, dto: CreateCompanyReviewDto) {
-    const customer = await this.customerForUser(user);
+    const customer = await findPortalCustomerForUser(this.prisma, user.sub);
 
     const intervention = await this.prisma.intervention.findFirst({
       where: { id: dto.interventionId, customerId: customer.id },
@@ -203,7 +196,7 @@ export class ReviewsService {
   }
 
   async findMine(user: JwtPayload) {
-    const customer = await this.customerForUser(user);
+    const customer = await findPortalCustomerForUser(this.prisma, user.sub);
     return this.prisma.companyReview.findMany({
       where: { customerId: customer.id },
       orderBy: { createdAt: 'desc' },

@@ -1,10 +1,12 @@
-import { Body, Controller, Get, Param, Post, Query, Res } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { CONTROLLER_PATH } from '../../common/constants';
 import { PortalService } from './portal.service';
 import { EndClientLinkService } from './end-client-link.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { RolesGuard } from '../../common/guards/roles.guard';
 import type { JwtPayload } from '../auth/types/jwt-payload';
 
 @Controller(CONTROLLER_PATH.portal)
@@ -14,6 +16,8 @@ export class PortalController {
     private readonly endClientLink: EndClientLinkService,
   ) {}
 
+  @UseGuards(RolesGuard)
+  @Roles('END_CLIENT')
   @Get('dashboard')
   dashboard(@CurrentUser() user: JwtPayload) {
     return this.portal.dashboard(user);
@@ -25,6 +29,8 @@ export class PortalController {
     return this.endClientLink.previewInvite(token);
   }
 
+  @UseGuards(RolesGuard)
+  @Roles('END_CLIENT')
   @Post('quotes/:id/status')
   updateQuoteStatus(
     @CurrentUser() user: JwtPayload,
@@ -34,6 +40,8 @@ export class PortalController {
     return this.portal.updateQuoteStatus(user, id, body.status);
   }
 
+  @UseGuards(RolesGuard)
+  @Roles('END_CLIENT')
   @Post('estimates/:id/status')
   updateEstimateStatus(
     @CurrentUser() user: JwtPayload,
@@ -43,11 +51,15 @@ export class PortalController {
     return this.portal.updateEstimateStatus(user, id, body.status);
   }
 
+  @UseGuards(RolesGuard)
+  @Roles('END_CLIENT')
   @Get('estimates/:id')
   getEstimate(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.portal.getEstimate(user, id);
   }
 
+  @UseGuards(RolesGuard)
+  @Roles('END_CLIENT')
   @Get('estimates/:id/pdf')
   async estimatePdf(
     @CurrentUser() user: JwtPayload,
@@ -63,6 +75,8 @@ export class PortalController {
     res.send(buffer);
   }
 
+  @UseGuards(RolesGuard)
+  @Roles('END_CLIENT')
   @Get('invoices/:id/pdf')
   async invoicePdf(
     @CurrentUser() user: JwtPayload,
@@ -78,6 +92,8 @@ export class PortalController {
     res.send(buffer);
   }
 
+  @UseGuards(RolesGuard)
+  @Roles('END_CLIENT')
   @Post('invitations/accept')
   accept(@CurrentUser() user: JwtPayload, @Body() body: { token: string }) {
     return this.endClientLink.acceptInviteToken(body.token, user.sub);

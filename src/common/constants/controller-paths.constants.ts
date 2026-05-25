@@ -8,7 +8,6 @@ export const CONTROLLER_PATH = {
   admin: 'admin',
   companies: 'companies',
   companiesWaitlist: 'companies/waitlist',
-  packages: 'packages',
   fsm: 'fsm',
   portal: 'portal',
   subscriptions: 'subscriptions',

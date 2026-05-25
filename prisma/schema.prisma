@@ -38,24 +38,6 @@ enum VerificationStatus {
   REJECTED
 }
 
-enum PackageStatus {
-  DRAFT
-  PUBLISHED
-  ARCHIVED
-}
-
-enum PackagePaymentMode {
-  PREPAID
-  ON_SITE
-}
-
-enum PackageBookingStatus {
-  PENDING_PAYMENT
-  CONFIRMED
-  CANCELLED
-  COMPLETED
-}
-
 enum CompanySubscriptionPlan {
   FREE
   PRO
@@ -132,7 +114,7 @@ enum CompanyLeadStatus {
 }
 
 enum CompanyLeadSource {
-  PACKAGE_BOOKING
+  SERVICE_REQUEST
   MANUAL
   PHONE
   WEBSITE
@@ -140,7 +122,6 @@ enum CompanyLeadSource {
 
 enum PaymentProductType {
   COMPANY_SUBSCRIPTION
-  PACKAGE_PREPAID
 }
 
 model User {
@@ -231,7 +212,7 @@ model Category {
   name      String
   slug      String    @unique
   companies          Company[]
-  packages           ServicePackage[]
+  companyServices    CompanyService[]
   estimateBlueprints EstimateBlueprint[]
   estimateProjects   EstimateProject[]
   leads              CompanyLead[]
@@ -272,7 +253,6 @@ model Company {
   invitations  CompanyInvitation[]
   documents    CompanyDocument[]
   consents     CompanyConsent[]
-  packages     ServicePackage[]
   customers    CompanyCustomer[]
   leads            CompanyLead[]
   interventions    Intervention[]
@@ -390,47 +370,29 @@ model CompanyConsent {
   @@map("company_consents")
 }
 
-model ServicePackage {
-  id              String             @id @default(uuid())
-  slug            String             @unique
-  companyId       String             @map("company_id")
-  title           String
-  description     String
-  categoryId      String             @map("category_id")
-  price           Decimal            @db.Decimal(12, 2)
-  currency        String             @default("MDL")
-  durationMinutes Int                @map("duration_minutes")
-  status          PackageStatus      @default(DRAFT)
-  isPublished     Boolean            @default(false) @map("is_published")
-  paymentMode     PackagePaymentMode @map("payment_mode")
-  totalBookings   Int                @default(0) @map("total_bookings")
-  createdAt       DateTime           @default(now()) @map("created_at")
-  updatedAt       DateTime           @updatedAt @map("updated_at")
+model CompanyService {
+  id              String   @id @default(uuid())
+  companyId       String   @map("company_id")
+  slug            String   @unique
+  name            String
+  description     String   @default("")
+  categoryId      String?  @map("category_id")
+  defaultPrice    Decimal  @map("default_price") @db.Decimal(12, 2)
+  currency        String   @default("MDL")
+  durationMinutes Int?     @map("duration_minutes")
+  materialsCost   Decimal? @map("materials_cost") @db.Decimal(12, 2)
+  vatRate         Decimal? @map("vat_rate") @db.Decimal(5, 2)
+  isPublished     Boolean  @default(false) @map("is_published")
+  sortOrder       Int      @default(0) @map("sort_order")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
-  company  Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  category Category         @relation(fields: [categoryId], references: [id])
-  bookings PackageBooking[]
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  lines    QuoteLine[]
 
-  @@index([companyId])
-  @@map("service_packages")
-}
-
-model PackageBooking {
-  id               String               @id @default(uuid())
-  packageId        String               @map("package_id")
-  companyId        String               @map("company_id")
-  customerName     String               @map("customer_name")
-  customerPhone    String               @map("customer_phone")
-  customerEmail    String?              @map("customer_email")
-  status           PackageBookingStatus @default(CONFIRMED)
-  scheduledAt      DateTime?            @map("scheduled_at")
-  createdAt        DateTime             @default(now()) @map("created_at")
-
-  package ServicePackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
-  invoice CompanyInvoice?
-  lead    CompanyLead?
-
-  @@map("package_bookings")
+  @@index([companyId, isPublished])
+  @@map("company_services")
 }
 
 model CompanyPlan {
@@ -495,7 +457,6 @@ model CompanyLead {
   id           String            @id @default(uuid())
   companyId    String            @map("company_id")
   customerId   String?           @map("customer_id")
-  bookingId    String?           @unique @map("booking_id")
   contactName  String            @map("contact_name")
   contactPhone String            @map("contact_phone")
   contactEmail String?           @map("contact_email")
@@ -504,7 +465,7 @@ model CompanyLead {
   status       CompanyLeadStatus @default(NEW)
   source       CompanyLeadSource @default(MANUAL)
   categoryId   String?           @map("category_id")
-  packageTitle String?           @map("package_title")
+  serviceTitle String?           @map("service_title")
   scheduledAt  DateTime?         @map("scheduled_at")
   notes        String?
   convertedAt  DateTime?         @map("converted_at")
@@ -513,7 +474,6 @@ model CompanyLead {
 
   company       Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   customer      CompanyCustomer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  booking       PackageBooking?  @relation(fields: [bookingId], references: [id], onDelete: SetNull)
   category      Category?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   interventions Intervention[]
 
@@ -624,21 +584,6 @@ model InterventionPhoto {
   @@map("intervention_photos")
 }
 
-model CompanyService {
-  id            String   @id @default(uuid())
-  companyId     String   @map("company_id")
-  name          String
-  defaultPrice  Decimal  @map("default_price") @db.Decimal(12, 2)
-  materialsCost Decimal? @map("materials_cost") @db.Decimal(12, 2)
-  vatRate       Decimal? @map("vat_rate") @db.Decimal(5, 2)
-  createdAt     DateTime @default(now()) @map("created_at")
-
-  company Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  lines   QuoteLine[]
-
-  @@map("company_services")
-}
-
 model Quote {
   id             String      @id @default(uuid())
   companyId      String      @map("company_id")
@@ -678,7 +623,6 @@ model QuoteLine {
 model CompanyInvoice {
   id             String               @id @default(uuid())
   companyId      String               @map("company_id")
-  bookingId      String?              @unique @map("booking_id")
   interventionId String?              @unique @map("intervention_id")
   number         String               @unique
   amount         Decimal              @db.Decimal(12, 2)
@@ -690,7 +634,6 @@ model CompanyInvoice {
   issuedAt       DateTime             @default(now()) @map("issued_at")
 
   company      Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  booking      PackageBooking?   @relation(fields: [bookingId], references: [id])
   intervention Intervention?     @relation(fields: [interventionId], references: [id])
 
   @@map("company_invoices")

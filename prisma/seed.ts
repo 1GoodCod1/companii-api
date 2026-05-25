@@ -1,8 +1,15 @@
 import 'dotenv/config';
-import { PrismaClient, CompanySubscriptionPlan, type Prisma } from '@prisma/client';
+import { type Prisma } from '@prisma/client';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaClient } from '@prisma/client';
 import * as argon2 from 'argon2';
+import {
+  PLAN_CATALOG,
+  PLAN_CODES,
+  PLAN_LIMITS,
+  PLAN_MARKETING_FEATURES,
+} from '../src/common/constants/plan-entitlements.constants';
 import { withSeedRlsContext } from './seed-rls';
 import { buildBlueprintConfig, buildBlueprintName } from './estimate-blueprints';
 
@@ -53,59 +60,6 @@ const CATEGORIES: { name: string; slug: string }[] = [
   { name: 'Pavaj și amenajări exterioare', slug: 'pavaj' },
 ];
 
-const PLANS: {
-  code: CompanySubscriptionPlan;
-  name: string;
-  price: number;
-  maxTech?: number;
-  maxInt?: number;
-  features: string[];
-}[] = [
-  {
-    code: 'FREE',
-    name: 'Free',
-    price: 0,
-    maxTech: 1,
-    maxInt: 20,
-    features: [
-      'Profil companie public',
-      '1 tehnician activ',
-      'Până la 20 intervenții / lună',
-      'Catalog pachete servicii',
-      'Suport email',
-    ],
-  },
-  {
-    code: 'PRO',
-    name: 'Pro',
-    price: 499,
-    maxTech: 10,
-    maxInt: 150,
-    features: [
-      'Tot ce include Free',
-      'Până la 10 tehnicieni',
-      'Până la 150 intervenții / lună',
-      'Clienți, calendar, lucrări',
-      'Portal clienți securizat',
-      'Istoric status intervenții',
-    ],
-  },
-  {
-    code: 'BUSINESS',
-    name: 'Business',
-    price: 999,
-    features: [
-      'Tot ce include Pro',
-      'Tehnicieni nelimitați',
-      'Intervenții nelimitate',
-      'Oferte comerciale (devize)',
-      'Facturi fiscale cu TVA',
-      'Export date & rapoarte',
-      'Suport prioritar',
-    ],
-  },
-];
-
 async function main() {
   await withSeedRlsContext(prisma, async (tx) => {
     await seedPlans(tx);
@@ -113,41 +67,37 @@ async function main() {
     await seedCategories(tx);
     await seedEstimateBlueprints(tx);
     await seedAdmin(tx);
-    await seedDemoOwner(tx);
-
-    const freePlan = await tx.companyPlan.findUnique({ where: { code: 'FREE' } });
-    if (!freePlan) throw new Error('FREE plan not seeded');
 
     console.log('Seed OK', {
       adminEmail: process.env.SEED_ADMIN_EMAIL ?? 'admin@companii.local',
-      demoOwnerEmail: process.env.SEED_DEMO_OWNER_EMAIL ?? 'owner@demo.local',
-      demoOwnerPassword: process.env.SEED_DEMO_OWNER_PASSWORD ?? 'Demo12345!',
       cities: CITIES.length,
       categories: CATEGORIES.length,
-      plans: PLANS.length,
+      plans: PLAN_CODES.length,
       estimateBlueprints: CATEGORIES.length,
     });
   });
 }
 
 async function seedPlans(tx: Prisma.TransactionClient) {
-  for (const p of PLANS) {
+  for (const code of PLAN_CODES) {
+    const catalog = PLAN_CATALOG[code];
+    const limits = PLAN_LIMITS[code];
     await tx.companyPlan.upsert({
-      where: { code: p.code },
+      where: { code },
       create: {
-        code: p.code,
-        name: p.name,
-        price: p.price,
-        maxTechnicians: p.maxTech,
-        maxInterventionsPerMonth: p.maxInt,
-        features: p.features,
+        code,
+        name: catalog.name,
+        price: catalog.price,
+        maxTechnicians: limits.maxTechnicians,
+        maxInterventionsPerMonth: limits.maxInterventionsPerMonth,
+        features: PLAN_MARKETING_FEATURES[code],
       },
       update: {
-        name: p.name,
-        price: p.price,
-        maxTechnicians: p.maxTech,
-        maxInterventionsPerMonth: p.maxInt,
-        features: p.features,
+        name: catalog.name,
+        price: catalog.price,
+        maxTechnicians: limits.maxTechnicians,
+        maxInterventionsPerMonth: limits.maxInterventionsPerMonth,
+        features: PLAN_MARKETING_FEATURES[code],
       },
     });
   }
@@ -210,74 +160,6 @@ async function seedAdmin(tx: Prisma.TransactionClient) {
       lastName: 'Admin',
     },
     update: {},
-  });
-}
-
-async function seedDemoOwner(tx: Prisma.TransactionClient) {
-  const email = (process.env.SEED_DEMO_OWNER_EMAIL ?? 'owner@demo.local').toLowerCase();
-  const password = process.env.SEED_DEMO_OWNER_PASSWORD ?? 'Demo12345!';
-  const hash = await argon2.hash(password, { type: argon2.argon2id });
-
-  const user = await tx.user.upsert({
-    where: { email },
-    create: {
-      email,
-      passwordHash: hash,
-      accountKind: 'COMPANY_STAFF',
-      firstName: 'Demo',
-      lastName: 'Owner',
-      termsAcceptedAt: new Date(),
-      termsVersion: SEED_TERMS_VERSION,
-    },
-    update: {},
-  });
-
-  const existingCompany = await tx.company.findFirst({
-    where: { ownerUserId: user.id },
-  });
-  if (existingCompany) return;
-
-  const chisinau = await tx.city.findUnique({ where: { slug: 'chisinau' } });
-  const category = await tx.category.findUnique({ where: { slug: 'santehnika' } });
-  const freePlan = await tx.companyPlan.findUnique({ where: { code: 'FREE' } });
-  if (!chisinau || !freePlan) throw new Error('Demo owner seed prerequisites missing');
-
-  const company = await tx.company.create({
-    data: {
-      slug: 'demo-service',
-      ownerUserId: user.id,
-      name: 'Demo Service SRL',
-      legalName: 'Demo Service SRL',
-      idno: '1000000000123',
-      legalAddress: 'str. Demo 1, Chișinău',
-      cityId: chisinau.id,
-      categoryId: category?.id,
-      contactEmail: email,
-      contactPhone: '+37360000000',
-      showPublicPhone: true,
-      showPublicEmail: true,
-      description: 'Companie demo pentru testarea cabinetului manager.',
-      isPublished: true,
-    },
-  });
-
-  await tx.companyMember.create({
-    data: {
-      companyId: company.id,
-      userId: user.id,
-      role: 'OWNER',
-      status: 'ACTIVE',
-      joinedAt: new Date(),
-    },
-  });
-
-  await tx.companySubscription.create({
-    data: {
-      companyId: company.id,
-      planId: freePlan.id,
-      status: 'TRIAL',
-      currentPeriodEnd: new Date(Date.now() + 30 * 86400000),
-    },
   });
 }
 

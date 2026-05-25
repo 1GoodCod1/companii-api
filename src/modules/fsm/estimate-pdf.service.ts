@@ -9,6 +9,8 @@ import type {
   EstimateStage,
 } from '@prisma/client';
 
+import { formatDate, formatMoney } from './pdf-format.util';
+
 type EstimatePdfData = EstimateProject & {
   company: Pick<
     Company,
@@ -25,14 +27,6 @@ type EstimatePdfData = EstimateProject & {
   category: Pick<Category, 'name'>;
   stages: Array<EstimateStage & { lines: EstimateLine[] }>;
 };
-
-function formatMoney(value: number): string {
-  return `${value.toLocaleString('ro-MD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MDL`;
-}
-
-function formatDate(value: Date): string {
-  return value.toLocaleDateString('ro-MD', { day: '2-digit', month: 'long', year: 'numeric' });
-}
 
 @Injectable()
 export class EstimatePdfService {

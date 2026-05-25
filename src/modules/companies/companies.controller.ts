@@ -89,6 +89,26 @@ export class CompaniesController {
   }
 
   @Public()
+  @Post(':slug/services/:serviceId/request')
+  requestService(
+    @Param('slug') slug: string,
+    @Param('serviceId') serviceId: string,
+    @Body()
+    body: {
+      customerName: string;
+      customerPhone: string;
+      customerEmail?: string;
+      message?: string;
+      scheduledAt?: string;
+    },
+  ) {
+    if (RESERVED_COMPANY_SLUGS.has(slug)) {
+      throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
+    }
+    return this.companies.requestPublicService(slug, serviceId, body);
+  }
+
+  @Public()
   @Get(':slug')
   bySlug(@Param('slug') slug: string) {
     if (RESERVED_COMPANY_SLUGS.has(slug)) {

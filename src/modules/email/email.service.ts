@@ -36,10 +36,6 @@ export class EmailService {
     }
   }
 
-  isConfigured(): boolean {
-    return !!this.transporter;
-  }
-
   async sendTeamInviteEmail(params: {
     to: string;
     companyName: string;

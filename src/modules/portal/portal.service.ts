@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { EstimateProjectStatus } from '@prisma/client';
 import { AppErrorMessages, AppErrors } from '../../common/errors';
+import { findPortalCustomerForUser } from '../../common/utils/portal-customer.util';
 import { PrismaService } from '../shared/database/prisma.service';
 import type { JwtPayload } from '../auth/types/jwt-payload';
 import { REVIEWABLE_INTERVENTION_STATUSES } from '../reviews/reviews.types';
@@ -30,16 +31,8 @@ export class PortalService {
     private readonly email: EmailService,
   ) {}
 
-  private async customerForUser(user: JwtPayload) {
-    const customer = await this.prisma.companyCustomer.findFirst({
-      where: { portalUserId: user.sub },
-    });
-    if (!customer) throw AppErrors.notFound(AppErrorMessages.PORTAL_NOT_LINKED);
-    return customer;
-  }
-
   async dashboard(user: JwtPayload) {
-    const customer = await this.customerForUser(user);
+    const customer = await findPortalCustomerForUser(this.prisma, user.sub);
     const [interventions, quotes, invoices, reviews, estimates] = await Promise.all([
       this.prisma.intervention.findMany({
         where: { customerId: customer.id },
@@ -114,7 +107,7 @@ export class PortalService {
   }
 
   async updateEstimateStatus(user: JwtPayload, projectId: string, status: 'ACCEPTED' | 'REJECTED') {
-    const customer = await this.customerForUser(user);
+    const customer = await findPortalCustomerForUser(this.prisma, user.sub);
     const project = await this.prisma.estimateProject.findFirst({
       where: { id: projectId, customerId: customer.id, status: EstimateProjectStatus.SENT },
       include: {
@@ -157,7 +150,7 @@ export class PortalService {
   }
 
   async getEstimate(user: JwtPayload, projectId: string) {
-    const customer = await this.customerForUser(user);
+    const customer = await findPortalCustomerForUser(this.prisma, user.sub);
     const project = await this.prisma.estimateProject.findFirst({
       where: {
         id: projectId,
@@ -179,7 +172,7 @@ export class PortalService {
   }
 
   async getEstimatePdf(user: JwtPayload, projectId: string) {
-    const customer = await this.customerForUser(user);
+    const customer = await findPortalCustomerForUser(this.prisma, user.sub);
     const project = await this.prisma.estimateProject.findFirst({
       where: { id: projectId, customerId: customer.id },
       include: {
@@ -210,7 +203,7 @@ export class PortalService {
   }
 
   async updateQuoteStatus(user: JwtPayload, quoteId: string, status: 'ACCEPTED' | 'REJECTED') {
-    const customer = await this.customerForUser(user);
+    const customer = await findPortalCustomerForUser(this.prisma, user.sub);
     const quote = await this.prisma.quote.findFirst({
       where: { id: quoteId, customerId: customer.id, status: 'SENT' },
     });
@@ -223,7 +216,7 @@ export class PortalService {
   }
 
   async getInvoicePdf(user: JwtPayload, invoiceId: string) {
-    const customer = await this.customerForUser(user);
+    const customer = await findPortalCustomerForUser(this.prisma, user.sub);
     const invoice = await this.prisma.companyInvoice.findFirst({
       where: {
         id: invoiceId,

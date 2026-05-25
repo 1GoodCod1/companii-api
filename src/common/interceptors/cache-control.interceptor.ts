@@ -23,7 +23,6 @@ export class CacheControlInterceptor implements NestInterceptor {
       if (
         path === '/companies' ||
         path.startsWith('/companies/') ||
-        path === '/packages' ||
         path === '/subscriptions/plans'
       ) {
         response.setHeader(

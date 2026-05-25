@@ -71,7 +71,7 @@ const companyDetailInclude = {
       customers: true,
       interventions: true,
       reviews: true,
-      packages: true,
+      services: true,
     },
   },
 } as const;
@@ -310,7 +310,7 @@ export class AdminService {
   listCategories() {
     return this.prisma.category.findMany({
       orderBy: { name: 'asc' },
-      include: { _count: { select: { companies: true, packages: true } } },
+      include: { _count: { select: { companies: true, companyServices: true } } },
     });
   }
 
@@ -319,7 +319,7 @@ export class AdminService {
     const slug = await uniqueSlug(this.prisma, 'category', baseSlug);
     return this.prisma.category.create({
       data: { name: dto.name.trim(), slug },
-      include: { _count: { select: { companies: true, packages: true } } },
+      include: { _count: { select: { companies: true, companyServices: true } } },
     });
   }
 
@@ -338,17 +338,17 @@ export class AdminService {
     return this.prisma.category.update({
       where: { id },
       data,
-      include: { _count: { select: { companies: true, packages: true } } },
+      include: { _count: { select: { companies: true, companyServices: true } } },
     });
   }
 
   async deleteCategory(id: string) {
     const category = await this.prisma.category.findUnique({
       where: { id },
-      include: { _count: { select: { companies: true, packages: true } } },
+      include: { _count: { select: { companies: true, companyServices: true } } },
     });
     if (!category) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
-    if (category._count.companies > 0 || category._count.packages > 0) {
+    if (category._count.companies > 0 || category._count.companyServices > 0) {
       throw AppErrors.conflict(AppErrorMessages.CATALOG_IN_USE);
     }
     await this.prisma.category.delete({ where: { id } });

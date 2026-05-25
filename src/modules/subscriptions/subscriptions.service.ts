@@ -31,10 +31,48 @@ export class SubscriptionsService {
   }
 
   me(companyId: string) {
-    return this.prisma.companySubscription.findUnique({
+    return this.buildMeResponse(companyId);
+  }
+
+  private async buildMeResponse(companyId: string) {
+    const subscription = await this.prisma.companySubscription.findUnique({
       where: { companyId },
       include: { plan: true },
     });
+    if (!subscription) return null;
+
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const [activeTechnicians, pendingTechnicianInvites, interventionsThisMonth] =
+      await Promise.all([
+        this.prisma.companyMember.count({
+          where: { companyId, status: 'ACTIVE', role: 'MEMBER' },
+        }),
+        this.prisma.companyInvitation.count({
+          where: {
+            companyId,
+            status: 'PENDING',
+            role: 'MEMBER',
+            expiresAt: { gt: new Date() },
+          },
+        }),
+        this.prisma.intervention.count({
+          where: { companyId, createdAt: { gte: startOfMonth } },
+        }),
+      ]);
+
+    return {
+      ...subscription,
+      usage: {
+        activeTechnicians,
+        pendingTechnicianInvites,
+        interventionsThisMonth,
+        maxTechnicians: subscription.plan.maxTechnicians,
+        maxInterventionsPerMonth: subscription.plan.maxInterventionsPerMonth,
+      },
+    };
   }
 
   async adminSetPlan(

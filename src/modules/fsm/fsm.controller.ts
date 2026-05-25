@@ -18,7 +18,7 @@ import { CONTROLLER_PATH } from '../../common/constants';
 import { CompanyGuard } from '../companies/guards/company.guard';
 import { CompanyRoles } from '../companies/decorators/company-roles.decorator';
 import { SubscriptionGuard } from '../auth/guards/subscription.guard';
-import { RequiresPlan } from '../../common/decorators/requires-plan.decorator';
+import { RequiresFeature } from '../../common/decorators/requires-feature.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../auth/types/jwt-payload';
 
@@ -33,28 +33,28 @@ export class FsmController {
 
   @Get('customers')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('PRO', 'BUSINESS')
+  @RequiresFeature('customers')
   customers(@CurrentUser() user: JwtPayload) {
     return this.fsm.listCustomers(user);
   }
 
   @Get('customers/:id')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('PRO', 'BUSINESS')
+  @RequiresFeature('customers')
   customer(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.fsm.getCustomer(user, id);
   }
 
   @Get('customers/:id/timeline')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('PRO', 'BUSINESS')
+  @RequiresFeature('customers')
   customerTimeline(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.fsm.getCustomerTimeline(user, id);
   }
 
   @Post('customers')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('PRO', 'BUSINESS')
+  @RequiresFeature('customers')
   @CompanyRoles('OWNER', 'MANAGER')
   createCustomer(@CurrentUser() user: JwtPayload, @Body() body: { fullName: string; phone: string; email?: string; address: string; notes?: string }) {
     return this.fsm.createCustomer(user, body);
@@ -62,7 +62,7 @@ export class FsmController {
 
   @Patch('customers/:id')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('PRO', 'BUSINESS')
+  @RequiresFeature('customers')
   @CompanyRoles('OWNER', 'MANAGER')
   updateCustomer(
     @CurrentUser() user: JwtPayload,
@@ -74,7 +74,7 @@ export class FsmController {
 
   @Delete('customers/:id')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('PRO', 'BUSINESS')
+  @RequiresFeature('customers')
   @CompanyRoles('OWNER', 'MANAGER')
   deleteCustomer(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.fsm.deleteCustomer(user, id);
@@ -84,7 +84,7 @@ export class FsmController {
 
   @Get('interventions')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('PRO', 'BUSINESS')
+  @RequiresFeature('interventions')
   interventions(
     @CurrentUser() user: JwtPayload,
     @Query('status') status?: InterventionStatus,
@@ -96,14 +96,14 @@ export class FsmController {
 
   @Get('interventions/:id')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('PRO', 'BUSINESS')
+  @RequiresFeature('interventions')
   intervention(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.fsm.getIntervention(user, id);
   }
 
   @Post('interventions')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('PRO', 'BUSINESS')
+  @RequiresFeature('interventions')
   @CompanyRoles('OWNER', 'MANAGER')
   createIntervention(
     @CurrentUser() user: JwtPayload,
@@ -123,7 +123,7 @@ export class FsmController {
 
   @Patch('interventions/:id')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('PRO', 'BUSINESS')
+  @RequiresFeature('interventions')
   updateIntervention(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
@@ -143,7 +143,7 @@ export class FsmController {
 
   @Patch('interventions/:id/status')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('PRO', 'BUSINESS')
+  @RequiresFeature('interventions')
   status(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
@@ -154,7 +154,7 @@ export class FsmController {
 
   @Delete('interventions/:id')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('PRO', 'BUSINESS')
+  @RequiresFeature('interventions')
   @CompanyRoles('OWNER', 'MANAGER')
   deleteIntervention(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.fsm.deleteIntervention(user, id);
@@ -164,7 +164,7 @@ export class FsmController {
 
   @Post('interventions/:id/notes')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('PRO', 'BUSINESS')
+  @RequiresFeature('interventions')
   createNote(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
@@ -175,7 +175,7 @@ export class FsmController {
 
   @Delete('interventions/:id/notes/:noteId')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('PRO', 'BUSINESS')
+  @RequiresFeature('interventions')
   deleteNote(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
@@ -186,7 +186,7 @@ export class FsmController {
 
   @Post('interventions/:id/photos')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('PRO', 'BUSINESS')
+  @RequiresFeature('interventions')
   addPhotos(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
@@ -197,7 +197,7 @@ export class FsmController {
 
   @Delete('interventions/:id/photos/:photoId')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('PRO', 'BUSINESS')
+  @RequiresFeature('interventions')
   deletePhoto(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
@@ -208,7 +208,7 @@ export class FsmController {
 
   @Patch('interventions/:id/checklist')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('PRO', 'BUSINESS')
+  @RequiresFeature('interventions')
   updateChecklist(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
@@ -221,7 +221,7 @@ export class FsmController {
 
   @Get('leads')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('PRO', 'BUSINESS')
+  @RequiresFeature('leads')
   @CompanyRoles('OWNER', 'MANAGER')
   listLeads(
     @CurrentUser() user: JwtPayload,
@@ -232,7 +232,7 @@ export class FsmController {
 
   @Get('leads/:id')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('PRO', 'BUSINESS')
+  @RequiresFeature('leads')
   @CompanyRoles('OWNER', 'MANAGER')
   getLead(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.leads.getLead(user, id);
@@ -240,7 +240,7 @@ export class FsmController {
 
   @Post('leads')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('PRO', 'BUSINESS')
+  @RequiresFeature('leads')
   @CompanyRoles('OWNER', 'MANAGER')
   createLead(
     @CurrentUser() user: JwtPayload,
@@ -250,7 +250,7 @@ export class FsmController {
       contactEmail?: string;
       message?: string;
       address?: string;
-      source?: 'PACKAGE_BOOKING' | 'MANUAL' | 'PHONE' | 'WEBSITE';
+      source?: 'SERVICE_REQUEST' | 'MANUAL' | 'PHONE' | 'WEBSITE';
       categoryId?: string;
       scheduledAt?: string;
       notes?: string;
@@ -261,7 +261,7 @@ export class FsmController {
 
   @Patch('leads/:id')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('PRO', 'BUSINESS')
+  @RequiresFeature('leads')
   @CompanyRoles('OWNER', 'MANAGER')
   updateLead(
     @CurrentUser() user: JwtPayload,
@@ -281,7 +281,7 @@ export class FsmController {
 
   @Post('leads/:id/convert')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('PRO', 'BUSINESS')
+  @RequiresFeature('leads')
   @CompanyRoles('OWNER', 'MANAGER')
   convertLead(
     @CurrentUser() user: JwtPayload,
@@ -295,7 +295,7 @@ export class FsmController {
 
   @Get('calendar')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('PRO', 'BUSINESS')
+  @RequiresFeature('calendar')
   calendar(
     @CurrentUser() user: JwtPayload,
     @Query('from') from: string,
@@ -312,7 +312,7 @@ export class FsmController {
 
   @Get('services')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('PRO', 'BUSINESS')
+  @RequiresFeature('publicServices')
   @CompanyRoles('OWNER', 'MANAGER')
   listServices(@CurrentUser() user: JwtPayload) {
     return this.fsm.listCompanyServices(user);
@@ -320,30 +320,50 @@ export class FsmController {
 
   @Post('services')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('PRO', 'BUSINESS')
+  @RequiresFeature('publicServices')
   @CompanyRoles('OWNER', 'MANAGER')
   createService(
     @CurrentUser() user: JwtPayload,
-    @Body() body: { name: string; defaultPrice: number; materialsCost?: number; vatRate?: number },
+    @Body() body: {
+      name: string;
+      defaultPrice: number;
+      description?: string;
+      categoryId?: string;
+      durationMinutes?: number;
+      isPublished?: boolean;
+      materialsCost?: number;
+      vatRate?: number;
+      sortOrder?: number;
+    },
   ) {
     return this.fsm.createCompanyService(user, body);
   }
 
   @Patch('services/:id')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('PRO', 'BUSINESS')
+  @RequiresFeature('publicServices')
   @CompanyRoles('OWNER', 'MANAGER')
   updateService(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body() body: { name?: string; defaultPrice?: number; materialsCost?: number | null; vatRate?: number | null },
+    @Body() body: {
+      name?: string;
+      defaultPrice?: number;
+      description?: string;
+      categoryId?: string | null;
+      durationMinutes?: number | null;
+      isPublished?: boolean;
+      materialsCost?: number | null;
+      vatRate?: number | null;
+      sortOrder?: number;
+    },
   ) {
     return this.fsm.updateCompanyService(user, id, body);
   }
 
   @Delete('services/:id')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('PRO', 'BUSINESS')
+  @RequiresFeature('publicServices')
   @CompanyRoles('OWNER', 'MANAGER')
   deleteService(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.fsm.deleteCompanyService(user, id);
@@ -353,7 +373,7 @@ export class FsmController {
 
   @Get('quotes')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('BUSINESS')
+  @RequiresFeature('quotes')
   @CompanyRoles('OWNER', 'MANAGER')
   quotes(@CurrentUser() user: JwtPayload) {
     return this.fsm.listQuotes(user);
@@ -361,7 +381,7 @@ export class FsmController {
 
   @Get('quotes/:id')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('BUSINESS')
+  @RequiresFeature('quotes')
   @CompanyRoles('OWNER', 'MANAGER')
   quote(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.fsm.getQuote(user, id);
@@ -369,7 +389,7 @@ export class FsmController {
 
   @Post('quotes')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('BUSINESS')
+  @RequiresFeature('quotes')
   @CompanyRoles('OWNER', 'MANAGER')
   createQuote(
     @CurrentUser() user: JwtPayload,
@@ -385,7 +405,7 @@ export class FsmController {
 
   @Patch('quotes/:id')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('BUSINESS')
+  @RequiresFeature('quotes')
   @CompanyRoles('OWNER', 'MANAGER')
   updateQuote(
     @CurrentUser() user: JwtPayload,
@@ -401,7 +421,7 @@ export class FsmController {
 
   @Delete('quotes/:id')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('BUSINESS')
+  @RequiresFeature('quotes')
   @CompanyRoles('OWNER', 'MANAGER')
   deleteQuote(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.fsm.deleteQuote(user, id);
@@ -409,7 +429,7 @@ export class FsmController {
 
   @Post('quotes/:id/convert')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('BUSINESS')
+  @RequiresFeature('quotes')
   @CompanyRoles('OWNER', 'MANAGER')
   convertQuote(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.fsm.convertQuoteToIntervention(user, id);
@@ -417,7 +437,7 @@ export class FsmController {
 
   @Post('quotes/:id/send')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('BUSINESS')
+  @RequiresFeature('quotes')
   @CompanyRoles('OWNER', 'MANAGER')
   sendQuote(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.fsm.sendQuote(user, id);
@@ -425,7 +445,7 @@ export class FsmController {
 
   @Get('quotes/:id/pdf')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('BUSINESS')
+  @RequiresFeature('quotes')
   @CompanyRoles('OWNER', 'MANAGER')
   async quotePdf(
     @CurrentUser() user: JwtPayload,
@@ -445,7 +465,7 @@ export class FsmController {
 
   @Get('invoices')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('BUSINESS')
+  @RequiresFeature('invoices')
   @CompanyRoles('OWNER', 'MANAGER')
   invoices(@CurrentUser() user: JwtPayload) {
     return this.fsm.listInvoices(user);
@@ -453,7 +473,7 @@ export class FsmController {
 
   @Get('invoices/:id/pdf')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('BUSINESS')
+  @RequiresFeature('invoices')
   @CompanyRoles('OWNER', 'MANAGER')
   async invoicePdf(
     @CurrentUser() user: JwtPayload,
@@ -471,7 +491,7 @@ export class FsmController {
 
   @Get('invoices/:id')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('BUSINESS')
+  @RequiresFeature('invoices')
   @CompanyRoles('OWNER', 'MANAGER')
   invoice(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.fsm.getInvoice(user, id);
@@ -479,7 +499,7 @@ export class FsmController {
 
   @Post('invoices')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('BUSINESS')
+  @RequiresFeature('invoices')
   @CompanyRoles('OWNER', 'MANAGER')
   createInvoice(
     @CurrentUser() user: JwtPayload,
@@ -494,7 +514,7 @@ export class FsmController {
 
   @Patch('invoices/:id')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('BUSINESS')
+  @RequiresFeature('invoices')
   @CompanyRoles('OWNER', 'MANAGER')
   updateInvoice(
     @CurrentUser() user: JwtPayload,
@@ -509,7 +529,7 @@ export class FsmController {
 
   @Delete('invoices/:id')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('BUSINESS')
+  @RequiresFeature('invoices')
   @CompanyRoles('OWNER', 'MANAGER')
   deleteInvoice(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.fsm.deleteInvoice(user, id);
@@ -517,7 +537,7 @@ export class FsmController {
 
   @Get('export/invoices.csv')
   @UseGuards(CompanyGuard, SubscriptionGuard)
-  @RequiresPlan('BUSINESS')
+  @RequiresFeature('invoices')
   @CompanyRoles('OWNER', 'MANAGER')
   async exportInvoicesCsv(@CurrentUser() user: JwtPayload, @Res() res: Response) {
     const { csv, filename } = await this.fsm.exportInvoicesCsv(user);

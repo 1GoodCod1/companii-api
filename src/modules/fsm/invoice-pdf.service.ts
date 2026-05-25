@@ -2,18 +2,12 @@ import { Injectable } from '@nestjs/common';
 import PDFDocument from 'pdfkit';
 import type { Company, CompanyCustomer, CompanyInvoice, Intervention } from '@prisma/client';
 
+import { formatDate, formatMoney } from './pdf-format.util';
+
 type InvoicePdfData = CompanyInvoice & {
   company: Pick<Company, 'name' | 'legalName' | 'idno' | 'legalAddress' | 'contactPhone' | 'contactEmail' | 'isTvaPayer' | 'tvaCode'>;
   intervention: (Intervention & { customer: CompanyCustomer }) | null;
 };
-
-function formatMoney(value: number): string {
-  return `${value.toLocaleString('ro-MD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MDL`;
-}
-
-function formatDate(value: Date): string {
-  return value.toLocaleDateString('ro-MD', { day: '2-digit', month: 'long', year: 'numeric' });
-}
 
 @Injectable()
 export class InvoicePdfService {
