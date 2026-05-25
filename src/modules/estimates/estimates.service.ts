@@ -1148,6 +1148,7 @@ function round2(value: number): number {
 }
 
 function guessUnit(key: string): string {
+  if (key.endsWith('VolumeM3') || key.includes('Volume')) return 'm³';
   if (key.endsWith('Area') || key.includes('Area')) return 'm²';
   if (key.endsWith('LengthM') || key.includes('Length')) return 'm';
   if (key.endsWith('Hours') || key.includes('Hours')) return 'ore';

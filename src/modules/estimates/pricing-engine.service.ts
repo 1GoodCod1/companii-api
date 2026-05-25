@@ -10,6 +10,7 @@ export type Plan2dData = {
     x?: number;
     y?: number;
     unit?: string;
+    shapeType?: string;
   }>;
   points: Array<{
     id: string;
@@ -116,7 +117,60 @@ export class EstimatePricingEngine {
     measurements.wardrobeCount ??= 0;
     measurements.pavementArea ??= measurements.totalFloorArea ?? 20;
     measurements.borderLengthM ??= Math.max(10, (measurements.roomCount ?? 1) * 8);
-    measurements.roofArea ??= measurements.totalFloorArea ?? 30;
+
+    // IT Services computed measurements (from diagnostic boolean flags)
+    measurements.hasBackendCount ??= 0;
+    measurements.hasCmsCount ??= 0;
+    measurements.hasEcommerceCount ??= 0;
+    measurements.projectUnits ??= 1;
+    measurements.networkCableM ??= (measurements.networkPoints ?? 0) * 20; // 20m cable per network port
+    measurements.analysisHours ??= 8;
+    measurements.testingHours ??= 8;
+    measurements.trainingHours ??= 4;
+    measurements.pagesCount ??= 0;
+    measurements.serverCount ??= 0;
+    measurements.workstationCount ??= 0;
+
+    // 1. Calculate true roof area using floor area, cosine of roofSlope, and a 12% wastage/overlap factor
+    const baseAreaVal = measurements.baseArea ?? measurements.totalFloorArea ?? 30;
+    const slopeVal = measurements.roofSlope ?? 30; // standard default slope is 30 degrees
+    const cosVal = Math.cos((slopeVal * Math.PI) / 180);
+    const calculatedRoofArea = cosVal > 0.1 ? (baseAreaVal / cosVal) * 1.12 : baseAreaVal * 1.15;
+    
+    measurements.roofArea ??= round2(calculatedRoofArea);
+
+    // 2. Calculate timber volume strictly in cubic meters (m³): roofArea * 0.07 (0.06 to 0.08 range)
+    measurements.timberVolumeM3 ??= round2(measurements.roofArea * 0.07);
+
+    // 3. Dynamic Roofing Complexity Multiplier (K) and Joint Elements (Valleys / Endova & Wall Flashings)
+    let complexityK = 1.0;
+    let computedValleys = 0;
+    let computedWallIntersections = 0;
+
+    if (plan2d?.rooms?.length) {
+      if (plan2d.rooms.length > 1) {
+        complexityK = 1.25; // Cascade structure (multi-level roof)
+        computedWallIntersections = 8; // 8 meters standard flashing zone for low annex-to-high building
+      }
+      for (const room of plan2d.rooms) {
+        const shape = (room.shapeType || 'rectangle').toLowerCase();
+        if (shape === 'l-shape') {
+          complexityK = Math.max(complexityK, 1.20);
+          computedValleys = Math.max(computedValleys, 12); // L-shape valley length standard
+        } else if (shape === 't-shape' || shape === 'u-shape') {
+          complexityK = Math.max(complexityK, 1.35);
+          computedValleys = Math.max(computedValleys, 18); // T/U-shape valley length standard
+        }
+      }
+    }
+
+    measurements.complexityMultiplier = complexityK;
+    measurements.valleyLengthM ??= computedValleys;
+    measurements.wallIntersectionLengthM ??= computedWallIntersections;
+
+    // Apply complexity coefficient to structural labor area!
+    measurements.roofAreaLabor ??= round2(measurements.roofArea * complexityK);
+
     measurements.gutterLengthM ??= pointsCount('gutter') * 6 || 10;
     measurements.facadeArea ??= measurements.totalFloorArea ? round2(measurements.totalFloorArea * 2.2) : 40;
 
