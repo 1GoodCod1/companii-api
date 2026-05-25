@@ -1,0 +1,49 @@
+export default () => ({
+  nodeEnv: process.env.NODE_ENV || 'development',
+  port: parseInt(process.env.PORT || '4100', 10),
+  apiUrl: process.env.API_URL || 'http://localhost:4100',
+  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5174',
+  requestTimeoutMs: parseInt(process.env.REQUEST_TIMEOUT_MS || '30000', 10),
+  database: {
+    url: process.env.DATABASE_URL,
+  },
+  redis: {
+    url: process.env.REDIS_URL || 'redis://localhost:6380',
+  },
+  jwt: {
+    secret: process.env.JWT_SECRET || 'dev-secret-change-me',
+    expiresIn: process.env.JWT_EXPIRES_IN || '15m',
+  },
+  auth: {
+    useHttpOnlyCookie: process.env.USE_HTTPONLY_COOKIE !== 'false',
+    refreshCookieName:
+      process.env.REFRESH_COOKIE_NAME ||
+      process.env.JWT_REFRESH_COOKIE_NAME ||
+      'companii_refresh',
+    cookieDomain: process.env.COOKIE_DOMAIN || '',
+  },
+  security: {
+    cookieOriginCheckEnabled: process.env.COOKIE_ORIGIN_CHECK !== 'false',
+  },
+  audit: {
+    httpEnabled: process.env.AUDIT_HTTP_ENABLED !== 'false',
+  },
+  corsOrigins: (process.env.CORS_ORIGINS || 'http://localhost:5174,http://127.0.0.1:5174')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean),
+  files: {
+    uploadDir: process.env.FILES_UPLOAD_DIR || './uploads',
+  },
+  email: {
+    enabled: process.env.EMAIL_ENABLED !== 'false',
+    from: process.env.EMAIL_FROM || 'Faber Companii <noreply@faber.md>',
+    smtp: {
+      host: process.env.SMTP_HOST || '',
+      port: parseInt(process.env.SMTP_PORT || '2525', 10),
+      secure: process.env.SMTP_SECURE === 'true',
+      user: process.env.SMTP_USER || '',
+      pass: process.env.SMTP_PASS || '',
+    },
+  },
+});

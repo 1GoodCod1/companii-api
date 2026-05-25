@@ -1,0 +1,374 @@
+import { Injectable } from '@nestjs/common';
+import type { EstimateBlueprintConfig, BlueprintPricingRule } from '../../../prisma/estimate-blueprints';
+
+export type Plan2dData = {
+  rooms: Array<{
+    id: string;
+    name: string;
+    width: number;
+    height: number;
+    x?: number;
+    y?: number;
+    unit?: string;
+  }>;
+  points: Array<{
+    id: string;
+    roomId?: string;
+    type: string;
+    label?: string;
+    x?: number;
+    y?: number;
+  }>;
+};
+
+export type MeasurementMap = Record<string, number>;
+
+@Injectable()
+export class EstimatePricingEngine {
+  deriveMeasurements(
+    plan2d: Plan2dData | null | undefined,
+    diagnosticAnswers: Record<string, unknown> | null | undefined,
+  ): MeasurementMap {
+    const measurements: MeasurementMap = {};
+
+    if (plan2d?.rooms?.length) {
+      let floorArea = 0;
+      for (const room of plan2d.rooms) {
+        floorArea += room.width * room.height;
+      }
+      measurements.totalFloorArea = round2(floorArea);
+      measurements.roomCount = plan2d.rooms.length;
+    }
+
+    if (plan2d?.points?.length) {
+      const byType = (type: string) => plan2d.points.filter((p) => p.type === type).length;
+      measurements.plumbingPoints =
+        byType('water') + byType('drain') + byType('mixer') + byType('toilet');
+      measurements.electricPoints =
+        byType('socket') + byType('switch') + byType('light');
+      measurements.panelCount = byType('panel');
+      measurements.acUnits = byType('indoor') + byType('outdoor');
+    }
+
+    if (diagnosticAnswers && typeof diagnosticAnswers === 'object') {
+      for (const [key, value] of Object.entries(diagnosticAnswers)) {
+        if (typeof value === 'number' && Number.isFinite(value)) {
+          measurements[key] = value;
+        }
+      }
+    }
+
+    measurements.pipeLengthM ??= Math.max(8, (measurements.roomCount ?? 1) * 6);
+    measurements.cableLengthM ??= Math.max(15, (measurements.roomCount ?? 1) * 12);
+    measurements.tileFloorArea ??= measurements.totalFloorArea ?? 12;
+    measurements.tileWallArea ??= Math.round((measurements.tileFloorArea ?? 12) * 2.5 * 100) / 100;
+    measurements.laborHours ??= measurements.workScope ?? 4;
+    measurements.materialUnits ??= Math.max(1, Math.ceil((measurements.laborHours ?? 4) / 3));
+    measurements.cleanArea ??= measurements.totalFloorArea ?? 40;
+    measurements.finishArea ??= measurements.totalFloorArea ?? 30;
+    measurements.demolitionArea ??= 0;
+    measurements.waterHeaterCount ??= 0;
+    measurements.panelCount ??= 0;
+    measurements.routeLengthM ??= 5;
+    measurements.acUnits ??= 1;
+
+    return measurements;
+  }
+
+  applyDiagnosticIncrements(
+    config: EstimateBlueprintConfig,
+    measurements: MeasurementMap,
+    diagnosticAnswers: Record<string, unknown> | null | undefined,
+  ): MeasurementMap {
+    const result = { ...measurements };
+    if (!diagnosticAnswers) return result;
+
+    for (const question of config.diagnosticQuestions) {
+      if (!question.affectsKey || !question.increment) continue;
+      const val = diagnosticAnswers[question.key];
+      if (val === true) {
+        result[question.affectsKey] = (result[question.affectsKey] ?? 0) + question.increment;
+      }
+      if (typeof val === 'number' && question.type === 'number') {
+        result[question.key] = val;
+      }
+    }
+
+    return result;
+  }
+
+  buildLinesFromRules(
+    rules: BlueprintPricingRule[],
+    measurements: MeasurementMap,
+  ): Array<{
+    stageCode: string;
+    description: string;
+    qty: number;
+    unit: string;
+    unitPrice: number;
+    lineTotal: number;
+    source: string;
+    kind: 'labor' | 'material';
+  }> {
+    const lines: Array<{
+      stageCode: string;
+      description: string;
+      qty: number;
+      unit: string;
+      unitPrice: number;
+      lineTotal: number;
+      source: string;
+      kind: 'labor' | 'material';
+    }> = [];
+
+    for (const rule of rules) {
+      const rawQty = measurements[rule.qtyKey] ?? 0;
+      if (rawQty <= 0) continue;
+
+      const waste = rule.wastePct ? 1 + rule.wastePct / 100 : 1;
+      const qty = round2(rawQty * waste);
+      const lineTotal = round2(qty * rule.unitPrice);
+      lines.push({
+        stageCode: rule.stageCode,
+        description: rule.description,
+        qty,
+        unit: rule.unit,
+        unitPrice: rule.unitPrice,
+        lineTotal,
+        source: 'rule',
+        kind: rule.kind ?? 'material',
+      });
+    }
+
+    return lines;
+  }
+
+  applyCompanyRateBook(
+    rules: BlueprintPricingRule[],
+    services: Array<{ name: string; defaultPrice: number | { toString(): string } }>,
+  ): BlueprintPricingRule[] {
+    if (!services.length) return rules;
+
+    const priceByName = new Map(
+      services.map((service) => [normalizeRateKey(service.name), Number(service.defaultPrice)]),
+    );
+
+    return rules.map((rule) => {
+      const ruleKey = normalizeRateKey(rule.description);
+      const direct = priceByName.get(ruleKey);
+      if (direct != null) {
+        return { ...rule, unitPrice: direct };
+      }
+
+      for (const [name, price] of priceByName) {
+        if (ruleKey.includes(name) || name.includes(ruleKey)) {
+          return { ...rule, unitPrice: price };
+        }
+      }
+
+      return rule;
+    });
+  }
+
+  applyCustomPricingOverrides(
+    config: EstimateBlueprintConfig,
+    measurements: MeasurementMap,
+    diagnosticAnswers: Record<string, unknown> | null | undefined,
+    rules: BlueprintPricingRule[],
+    stages: Array<{ code: string }>,
+  ): {
+    measurements: MeasurementMap;
+    rules: BlueprintPricingRule[];
+    customDurationDays?: number;
+    customLaborHours?: number;
+  } {
+    const customUnitPriceSqm = readOptionalPositiveNumber(
+      diagnosticAnswers,
+      CUSTOM_PRICING_KEYS.unitPriceSqm,
+    );
+    const customDurationDays = readOptionalPositiveNumber(
+      diagnosticAnswers,
+      CUSTOM_PRICING_KEYS.durationDays,
+    );
+    const customLaborHours = readOptionalPositiveNumber(
+      diagnosticAnswers,
+      CUSTOM_PRICING_KEYS.laborHours,
+    );
+
+    const nextMeasurements = { ...measurements };
+    let nextRules = [...rules];
+
+    if (customLaborHours) {
+      nextMeasurements.laborHours = customLaborHours;
+    }
+
+    if (customUnitPriceSqm) {
+      nextMeasurements.totalFloorArea ??=
+        nextMeasurements.finishArea ?? nextMeasurements.cleanArea ?? nextMeasurements.tileFloorArea ?? 12;
+
+      const sqmLaborRules = nextRules.filter((rule) => rule.unit === 'm²' && rule.kind === 'labor');
+      if (sqmLaborRules.length) {
+        nextRules = nextRules.map((rule) =>
+          rule.unit === 'm²' && rule.kind === 'labor'
+            ? { ...rule, unitPrice: customUnitPriceSqm }
+            : rule,
+        );
+      } else {
+        const stageCode =
+          stages.find((stage) => stage.code === 'executie')?.code ??
+          stages.find((stage) => stage.code === 'finisaj')?.code ??
+          stages[0]?.code ??
+          'executie';
+
+        nextRules.push({
+          stageCode,
+          description: 'Manoperă personalizată / m²',
+          unit: 'm²',
+          qtyKey: 'totalFloorArea',
+          unitPrice: customUnitPriceSqm,
+          kind: 'labor',
+        });
+      }
+    }
+
+    if (customLaborHours) {
+      const laborHourRules = nextRules.filter((rule) => rule.qtyKey === 'laborHours');
+      if (!laborHourRules.length) {
+        const stageCode =
+          stages.find((stage) => stage.code === 'lucrari')?.code ??
+          stages.find((stage) => stage.code === 'executie')?.code ??
+          stages[0]?.code ??
+          'executie';
+
+        nextRules.push({
+          stageCode,
+          description: 'Manoperă personalizată',
+          unit: 'ore',
+          qtyKey: 'laborHours',
+          unitPrice: config.defaultLaborRate,
+          kind: 'labor',
+        });
+      }
+    }
+
+    return {
+      measurements: nextMeasurements,
+      rules: nextRules,
+      customDurationDays,
+      customLaborHours,
+    };
+  }
+
+  buildPlan3dPreview(plan2d: Plan2dData | null | undefined) {
+    if (!plan2d?.rooms?.length) return null;
+
+    const layout = normalizeRoomLayout(plan2d.rooms);
+
+    return {
+      rooms: layout.map((room, index) => ({
+        id: room.id,
+        name: room.name,
+        width: room.width,
+        depth: room.height,
+        height: 2.7,
+        x: room.layoutX,
+        z: room.layoutY,
+        color: ROOM_COLORS[index % ROOM_COLORS.length],
+      })),
+      points: plan2d.points.map((point) => {
+        const room = layout.find((item) => item.id === point.roomId);
+        const roomPoints = plan2d.points.filter((item) => item.roomId === point.roomId);
+        const indexInRoom = roomPoints.findIndex((item) => item.id === point.id);
+        const position = room
+          ? pointPositionInRoom(room, point, Math.max(0, indexInRoom))
+          : { x: 0.5, y: 0.5 };
+        return {
+          ...point,
+          x: position.x,
+          z: position.y,
+          elevation: 1.05,
+        };
+      }),
+    };
+  }
+}
+
+function round2(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+function normalizeRateKey(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+const ROOM_COLORS = ['#6366f1', '#2563eb', '#16a34a', '#d97706', '#dc2626', '#ea580c'];
+const ROOM_GAP_M = 0.6;
+
+export const CUSTOM_PRICING_KEYS = {
+  unitPriceSqm: 'customUnitPriceSqm',
+  durationDays: 'customDurationDays',
+  laborHours: 'customLaborHours',
+} as const;
+
+function readOptionalPositiveNumber(
+  diagnostic: Record<string, unknown> | null | undefined,
+  key: string,
+): number | undefined {
+  const value = diagnostic?.[key];
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return undefined;
+  return value;
+}
+
+export function distributeDurationDays(
+  totalDays: number,
+  stages: Array<{ id: string; durationDays: number | null }>,
+): Array<{ id: string; durationDays: number }> {
+  if (!stages.length) return [];
+
+  const weights = stages.map((stage) => Math.max(1, stage.durationDays ?? 1));
+  const weightSum = weights.reduce((acc, value) => acc + value, 0);
+  let assigned = 0;
+
+  return stages.map((stage, index) => {
+    if (index === stages.length - 1) {
+      return { id: stage.id, durationDays: Math.max(1, totalDays - assigned) };
+    }
+
+    const days = Math.max(1, Math.round((totalDays * weights[index]!) / weightSum));
+    assigned += days;
+    return { id: stage.id, durationDays: days };
+  });
+}
+
+type LayoutRoom = Plan2dData['rooms'][number] & { layoutX: number; layoutY: number };
+
+function normalizeRoomLayout(rooms: Plan2dData['rooms']): LayoutRoom[] {
+  let cursorX = 0;
+  return rooms.map((room) => {
+    const layoutX = room.x ?? cursorX;
+    const layoutY = room.y ?? 0;
+    cursorX = Math.max(cursorX, layoutX + room.width + ROOM_GAP_M);
+    return { ...room, layoutX, layoutY };
+  });
+}
+
+function pointPositionInRoom(
+  room: LayoutRoom,
+  point: Plan2dData['points'][number],
+  indexInRoom: number,
+): { x: number; y: number } {
+  if (point.x != null && point.y != null) {
+    return {
+      x: room.layoutX + point.x * room.width,
+      y: room.layoutY + point.y * room.height,
+    };
+  }
+
+  const cols = Math.max(2, Math.ceil(Math.sqrt(indexInRoom + 1)));
+  const col = indexInRoom % cols;
+  const row = Math.floor(indexInRoom / cols);
+  return {
+    x: room.layoutX + 0.35 + col * 0.55,
+    y: room.layoutY + 0.35 + row * 0.55,
+  };
+}

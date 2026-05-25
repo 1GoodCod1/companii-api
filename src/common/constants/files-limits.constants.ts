@@ -1,0 +1,2 @@
+export const FILES_MAX_FILES_PER_BATCH = 10;
+export const FILES_MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;

@@ -1,0 +1,99 @@
+import { join } from 'path';
+import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import type { Response } from 'express';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { ThrottlerModule } from '@nestjs/throttler';
+import configuration from './config';
+import {
+  AppThrottlerGuard,
+  CookieOriginGuard,
+  JwtAuthGuard,
+} from './common/guards';
+import {
+  CacheControlInterceptor,
+  TimeoutInterceptor,
+} from './common/interceptors';
+import { AuditInterceptor } from './modules/audit/audit.interceptor';
+import { AuditModule } from './modules/audit/audit.module';
+import { PrismaModule } from './modules/shared/database/prisma.module';
+import { RedisModule } from './modules/shared/redis/redis.module';
+import { CacheModule } from './modules/shared/cache/cache.module';
+import { FilesModule } from './modules/files/files.module';
+import { EmailModule } from './modules/email/email.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { CompaniesModule } from './modules/companies/companies.module';
+import { PackagesModule } from './modules/packages/packages.module';
+import { FsmModule } from './modules/fsm/fsm.module';
+import { PortalModule } from './modules/portal/portal.module';
+import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
+import { AdminModule } from './modules/admin/admin.module';
+import { PaymentsModule } from './modules/payments/payments.module';
+import { ConsentModule } from './modules/consent/consent.module';
+import { ReviewsModule } from './modules/reviews/reviews.module';
+import { EstimatesModule } from './modules/estimates/estimates.module';
+import { RlsModule } from './common/rls/rls.module';
+import { HealthController } from './health.controller';
+import { AUTH_THROTTLER_NAME } from './common/constants';
+
+const isProd = process.env.NODE_ENV === 'production';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true, load: [configuration] }),
+    ...(isProd
+      ? []
+      : [
+          ServeStaticModule.forRoot({
+            rootPath: join(process.cwd(), 'uploads'),
+            serveRoot: '/uploads',
+            serveStaticOptions: {
+              fallthrough: true,
+              setHeaders: (res: Response) => {
+                res.setHeader(
+                  'Cache-Control',
+                  'public, max-age=86400, stale-while-revalidate=3600',
+                );
+                res.setHeader('X-Content-Type-Options', 'nosniff');
+              },
+            },
+          }),
+        ]),
+    ThrottlerModule.forRoot([
+      { name: 'default', ttl: 60_000, limit: 120 },
+      { name: AUTH_THROTTLER_NAME, ttl: 60_000, limit: 20 },
+    ]),
+    PrismaModule,
+    RlsModule,
+    RedisModule,
+    CacheModule,
+    FilesModule,
+    EmailModule,
+    AuditModule,
+    AuthModule,
+    CompaniesModule,
+    PackagesModule,
+    FsmModule,
+    PortalModule,
+    SubscriptionsModule,
+    AdminModule,
+    PaymentsModule,
+    ConsentModule,
+    ReviewsModule,
+    EstimatesModule,
+  ],
+  controllers: [HealthController],
+  providers: [
+    { provide: APP_GUARD, useClass: AppThrottlerGuard },
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: CookieOriginGuard },
+    { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
+    {
+      provide: APP_INTERCEPTOR,
+      useFactory: () => new TimeoutInterceptor(30_000),
+    },
+    { provide: APP_INTERCEPTOR, useClass: CacheControlInterceptor },
+  ],
+})
+export class AppModule {}
