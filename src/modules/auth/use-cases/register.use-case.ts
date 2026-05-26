@@ -85,11 +85,7 @@ export class RegisterUseCase {
         },
       });
       if (existingPhone) {
-        throw AppErrors.conflict(
-          isAnonymousRegistration
-            ? AppErrorMessages.AUTH_REGISTRATION_CONFLICT
-            : AppErrorMessages.AUTH_PHONE_ALREADY_REGISTERED,
-        );
+        throw AppErrors.conflict(AppErrorMessages.AUTH_PHONE_ALREADY_REGISTERED);
       }
     }
 

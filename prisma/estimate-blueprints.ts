@@ -28,10 +28,25 @@ export type BlueprintDiagnosticQuestion = {
   increment?: number;
 };
 
+export type BlueprintCustomField = {
+  key: string;
+  label: string;
+  type: 'number' | 'boolean' | 'select' | 'text';
+  unit?: string;
+  required: boolean;
+  defaultValue?: any;
+  options?: string[];
+  validation?: {
+    min?: number;
+    max?: number;
+  };
+};
+
 export type EstimateBlueprintConfig = {
   wizardSteps: Array<'object' | 'plan' | 'diagnostic' | 'stages' | 'review'>;
   siteTypes: Array<{ value: string; label: string }>;
   planPointTypes: Array<{ type: string; label: string; color: string }>;
+  customFields?: BlueprintCustomField[];
   diagnosticQuestions: BlueprintDiagnosticQuestion[];
   defaultStages: BlueprintStageDef[];
   pricingRules: BlueprintPricingRule[];
@@ -65,6 +80,11 @@ const CATEGORY_BLUEPRINTS: Record<string, EstimateBlueprintConfig> = {
       { type: 'mixer', label: 'Baterie / mixer', color: '#06b6d4' },
       { type: 'toilet', label: 'WC', color: '#8b5cf6' },
     ],
+    customFields: [
+      { key: 'replacePipes', label: 'Înlocuire completă țevi?', type: 'boolean', required: false, defaultValue: false },
+      { key: 'bathroomCount', label: 'Număr băi', type: 'number', unit: 'buc', required: true, defaultValue: 1, validation: { min: 1, max: 10 } },
+      { key: 'waterHeater', label: 'Montaj boiler', type: 'boolean', required: false, defaultValue: false }
+    ],
     diagnosticQuestions: [
       { key: 'replacePipes', label: 'Înlocuire completă țevi?', type: 'boolean', affectsKey: 'pipeLengthM', increment: 15 },
       { key: 'bathroomCount', label: 'Număr băi', type: 'number' },
@@ -90,6 +110,11 @@ const CATEGORY_BLUEPRINTS: Record<string, EstimateBlueprintConfig> = {
       { type: 'switch', label: 'Întrerupător', color: '#eab308' },
       { type: 'light', label: 'Lumină', color: '#fbbf24' },
       { type: 'panel', label: 'Tablou electric', color: '#ef4444' },
+    ],
+    customFields: [
+      { key: 'newPanel', label: 'Tablou electric nou', type: 'boolean', required: false, defaultValue: false },
+      { key: 'cableReplace', label: 'Înlocuire cabluri', type: 'boolean', required: false, defaultValue: false },
+      { key: 'roomCount', label: 'Număr camere', type: 'number', unit: 'buc', required: true, defaultValue: 1, validation: { min: 1 } }
     ],
     diagnosticQuestions: [
       { key: 'newPanel', label: 'Tablou electric nou', type: 'boolean', affectsKey: 'panelCount', increment: 1 },
@@ -158,6 +183,12 @@ const CATEGORY_BLUEPRINTS: Record<string, EstimateBlueprintConfig> = {
       { type: 'roof_plane', label: 'Suprafață acoperiș', color: '#f97316' },
       { type: 'chimney', label: 'Coș de fum', color: '#7c2d12' },
       { type: 'gutter', label: 'Jgheaburi & scurgeri', color: '#fed7aa' },
+    ],
+    customFields: [
+      { key: 'baseArea', label: 'Suprafață la sol', type: 'number', unit: 'm²', required: true, validation: { min: 5 } },
+      { key: 'roofSlope', label: 'Panta acoperișului', type: 'number', unit: 'grade', required: false, defaultValue: 30, validation: { min: 0, max: 75 } },
+      { key: 'valleyLengthM', label: 'Lungime dolii / îmbinări', type: 'number', unit: 'm', required: false, defaultValue: 0 },
+      { key: 'timberType', label: 'Tip cherestea structură', type: 'select', options: ['Molid Clasa A', 'Pin Tratativ', 'Fag Uscat'], required: true }
     ],
     diagnosticQuestions: [
       { key: 'roofArea', label: 'Suprafață acoperiș (m²)', type: 'number' },

@@ -17,8 +17,8 @@ function enqueueOnTxClient<T>(tx: object, work: () => Promise<T>): Promise<T> {
 
 function wrapTxModelDelegate(tx: object, delegate: object): object {
   return new Proxy(delegate, {
-    get(modelTarget, method, modelReceiver) {
-      const value = Reflect.get(modelTarget, method, modelReceiver);
+    get(modelTarget, method) {
+      const value = Reflect.get(modelTarget, method);
       if (typeof value !== 'function') return value;
       return (...args: unknown[]) =>
         enqueueOnTxClient(tx, async () =>
@@ -33,12 +33,12 @@ export function wrapSerialTransactionClient(
   tx: Prisma.TransactionClient,
 ): Prisma.TransactionClient {
   return new Proxy(tx, {
-    get(target, prop, receiver) {
+    get(target, prop) {
       if (typeof prop === 'symbol') {
-        return Reflect.get(target, prop, receiver);
+        return Reflect.get(target, prop);
       }
 
-      const value = Reflect.get(target, prop, receiver);
+      const value = Reflect.get(target, prop);
 
       if (value && typeof value === 'object' && typeof prop === 'string' && !prop.startsWith('$')) {
         return wrapTxModelDelegate(target, value as object);

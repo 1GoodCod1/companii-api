@@ -78,9 +78,9 @@ export class PrismaService
     const boundTransaction = this.boundTransaction;
 
     return new Proxy(this, {
-      get: (target, prop, receiver) => {
+      get: (target, prop) => {
         if (typeof prop === 'symbol') {
-          return Reflect.get(target, prop, receiver);
+          return Reflect.get(target, prop);
         }
 
         if (prop === '$transaction') {
@@ -124,16 +124,16 @@ export class PrismaService
           }) as PrismaClient['$transaction'];
         }
 
-        if (RLS_DELEGATE_KEYS.has(prop) || prop.startsWith('$')) {
-          return Reflect.get(target, prop, receiver);
-        }
-
         const tx = rlsTxStorage.getStore();
-        if (tx && prop in tx) {
+        if (tx && !RLS_DELEGATE_KEYS.has(prop)) {
           return (tx as Record<string, unknown>)[prop];
         }
 
-        return Reflect.get(target, prop, receiver);
+        if (RLS_DELEGATE_KEYS.has(prop) || prop.startsWith('$')) {
+          return Reflect.get(target, prop);
+        }
+
+        return Reflect.get(target, prop);
       },
     }) as PrismaService;
   }

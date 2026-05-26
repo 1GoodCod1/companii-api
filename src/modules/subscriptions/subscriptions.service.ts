@@ -19,7 +19,7 @@ export class SubscriptionsService {
     private readonly cache: CacheService,
     private readonly audit: AuditService,
     private readonly companyAuth: CompanyAuthorizationService,
-  ) {}
+  ) { }
 
   listPlans() {
     return this.cache.getOrSet(
@@ -45,7 +45,9 @@ export class SubscriptionsService {
 
     const usage = await this.cache.getOrSet(
       this.buildUsageKey(companyId),
-      () => this.computeUsage(companyId),
+      () => {
+        return this.computeUsage(companyId);
+      },
       SUBSCRIPTION_USAGE_TTL_SEC,
     );
 
@@ -68,7 +70,6 @@ export class SubscriptionsService {
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
     const now = new Date();
-
     const rows = await this.prisma.$queryRaw<
       Array<{
         active_technicians: bigint;
@@ -77,18 +78,18 @@ export class SubscriptionsService {
       }>
     >`
       SELECT
-        (SELECT COUNT(*) FROM "CompanyMember" cm
-           WHERE cm."companyId" = ${companyId}
+        (SELECT COUNT(*) FROM company_members cm
+           WHERE cm.company_id = ${companyId}
              AND cm.status = 'ACTIVE'
              AND cm.role = 'MEMBER') AS active_technicians,
-        (SELECT COUNT(*) FROM "CompanyInvitation" ci
-           WHERE ci."companyId" = ${companyId}
+        (SELECT COUNT(*) FROM company_invitations ci
+           WHERE ci.company_id = ${companyId}
              AND ci.status = 'PENDING'
              AND ci.role = 'MEMBER'
-             AND ci."expiresAt" > ${now}) AS pending_invites,
-        (SELECT COUNT(*) FROM "Intervention" i
-           WHERE i."companyId" = ${companyId}
-             AND i."createdAt" >= ${startOfMonth}) AS interventions_this_month
+             AND ci.expires_at > ${now}) AS pending_invites,
+        (SELECT COUNT(*) FROM interventions i
+           WHERE i.company_id = ${companyId}
+             AND i.created_at >= ${startOfMonth}) AS interventions_this_month
     `;
 
     const row = rows[0] ?? {

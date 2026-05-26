@@ -51,7 +51,7 @@ export class EstimatesController {
   @Get('projects/:id')
   @UseGuards(CompanyGuard, SubscriptionGuard)
   @RequiresFeature('estimates')
-  @CompanyRoles('OWNER', 'MANAGER')
+  @CompanyRoles('OWNER', 'MANAGER', 'MEMBER')
   getProject(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.estimates.getProject(user, id);
   }

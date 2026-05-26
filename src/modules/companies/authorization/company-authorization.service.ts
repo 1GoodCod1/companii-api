@@ -102,15 +102,15 @@ export class CompanyAuthorizationService {
       Array<{ active_members: bigint; pending_invites: bigint }>
     >`
       SELECT
-        (SELECT COUNT(*) FROM "CompanyMember" cm
-           WHERE cm."companyId" = ${companyId}
+        (SELECT COUNT(*) FROM company_members cm
+           WHERE cm.company_id = ${companyId}
              AND cm.status = 'ACTIVE'
              AND cm.role = 'MEMBER') AS active_members,
-        (SELECT COUNT(*) FROM "CompanyInvitation" ci
-           WHERE ci."companyId" = ${companyId}
+        (SELECT COUNT(*) FROM company_invitations ci
+           WHERE ci.company_id = ${companyId}
              AND ci.status = 'PENDING'
              AND ci.role = 'MEMBER'
-             AND ci."expiresAt" > ${now}) AS pending_invites
+             AND ci.expires_at > ${now}) AS pending_invites
     `;
     const row = rows[0] ?? { active_members: 0n, pending_invites: 0n };
     const used = Number(row.active_members) + Number(row.pending_invites);

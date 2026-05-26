@@ -8,6 +8,7 @@ import { EstimatesContextService } from '../context/estimates-context.service';
 import { EstimatePricingEngine } from '../pricing/pricing-engine.service';
 import type { Plan2dData } from '../pricing/pricing-engine.service';
 import { EstimateProjectAccessService } from './estimate-project-access.service';
+import type { EstimateBlueprintConfig } from '../../../../prisma/estimate-blueprints';
 
 @Injectable()
 export class EstimateProjectsService {
@@ -35,7 +36,7 @@ export class EstimateProjectsService {
   async get(user: JwtPayload, id: string) {
     const project = await this.access.findProjectOrThrow(user, id);
     if (this.ctx.isTechnician(user)) {
-      throw AppErrors.forbidden(AppErrorMessages.COMPANY_ACCESS_DENIED);
+      return this.sanitizeEstimateForTechnician(project);
     }
     return project;
   }
@@ -134,7 +135,12 @@ export class EstimateProjectsService {
     },
   ) {
     this.ctx.assertManagement(user);
-    await this.access.findProjectOrThrow(user, id);
+    const project = await this.access.findProjectOrThrow(user, id);
+
+    if (data.diagnosticAnswers && project.blueprint) {
+      const config = this.ctx.parseBlueprintConfig(project.blueprint.config);
+      this.validateCustomFields(config, data.diagnosticAnswers);
+    }
 
     return this.prisma.estimateProject.update({
       where: { id },
@@ -194,5 +200,84 @@ export class EstimateProjectsService {
     }
     await this.prisma.estimateProject.delete({ where: { id } });
     return { success: true };
+  }
+
+  validateCustomFields(config: EstimateBlueprintConfig, answers: Record<string, any>) {
+    if (!config.customFields) return;
+
+    for (const field of config.customFields) {
+      const val = answers[field.key] ?? field.defaultValue;
+
+      if (field.required && (val === undefined || val === null || val === '')) {
+        throw AppErrors.badRequest(`Câmpul "${field.label}" este obligatoriu pentru această categorie.`);
+      }
+
+      if (val !== undefined && val !== null) {
+        if (field.type === 'number') {
+          const numVal = Number(val);
+          if (isNaN(numVal)) {
+            throw AppErrors.badRequest(`Câmpul "${field.label}" trebuie să fie un număr valid.`);
+          }
+          if (field.validation) {
+            if (field.validation.min !== undefined && numVal < field.validation.min) {
+              throw AppErrors.badRequest(`Câmpul "${field.label}" nu poate fi mai mic de ${field.validation.min}.`);
+            }
+            if (field.validation.max !== undefined && numVal > field.validation.max) {
+              throw AppErrors.badRequest(`Câmpul "${field.label}" nu poate depăși valoarea de ${field.validation.max}.`);
+            }
+          }
+        }
+
+        if (field.type === 'select' && field.options && !field.options.includes(val)) {
+          throw AppErrors.badRequest(`Opțiunea selectată pentru "${field.label}" este invalidă.`);
+        }
+      }
+    }
+  }
+
+  private sanitizeEstimateForTechnician(project: any) {
+    return {
+      id: project.id,
+      number: project.number,
+      title: project.title,
+      status: project.status,
+      siteType: project.siteType,
+      address: project.address,
+      notes: project.notes,
+      createdAt: project.createdAt,
+      customer: {
+        fullName: project.customer?.fullName,
+        phone: project.customer?.phone,
+        address: project.customer?.address,
+      },
+      category: {
+        name: project.category?.name,
+        slug: project.category?.slug,
+      },
+      sitePlan: project.sitePlan,
+      measurements: project.measurements?.map((m: any) => ({
+        key: m.key,
+        label: m.label,
+        value: m.value,
+        unit: m.unit,
+      })),
+      stages: project.stages?.map((stage: any) => ({
+        id: stage.id,
+        name: stage.name,
+        code: stage.code,
+        kind: stage.kind,
+        description: stage.description,
+        durationDays: stage.durationDays,
+        checklist: stage.checklist,
+        lines: stage.lines?.map((line: any) => ({
+          id: line.id,
+          description: line.description,
+          qty: line.qty,
+          unit: line.unit,
+          source: line.source,
+          materialStore: line.materialStore,
+        })),
+      })),
+    };
   }
 }
