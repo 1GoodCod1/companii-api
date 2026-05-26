@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { Request } from 'express';
+import { randomBytes } from 'crypto';
+import { ConfigService } from '@nestjs/config';
 import { AppErrors, AppErrorMessages } from '../../common/errors';
 import { extractRequestContext } from '../shared/utils/request-context.util';
 import { AuditAction } from '../audit/audit-action.enum';
@@ -11,6 +13,9 @@ import { PrismaService } from '../shared/database/prisma.service';
 import type { JwtPayload } from './types/jwt-payload';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { TokenService } from './services/token.service';
 import { AuthLockoutService } from './services/auth-lockout.service';
 import {
@@ -18,6 +23,7 @@ import {
   EndClientLinkService,
 } from '../portal/end-client-link.service';
 import { TeamInviteService } from '../companies/team-invite.service';
+import { EmailService } from '../email/email.service';
 import { isEmailLogin, normalizePhone, phoneVariants } from '../../common/utils/phone.util';
 import { rlsContextFromUserId } from '../../common/rls/rls-context.util';
 
@@ -30,6 +36,8 @@ export class AuthService {
     private readonly lockout: AuthLockoutService,
     private readonly endClientLink: EndClientLinkService,
     private readonly teamInvite: TeamInviteService,
+    private readonly email: EmailService,
+    private readonly configService: ConfigService,
   ) {}
 
   async register(dto: RegisterDto, rememberMe?: boolean) {
@@ -330,6 +338,141 @@ export class AuthService {
         return payload;
       },
     );
+  }
+
+  async forgotPassword(dto: ForgotPasswordDto) {
+    const email = dto.email.toLowerCase().trim();
+    const user = await this.prisma.user.findUnique({ where: { email } });
+
+    // Pentru securitate, întotdeauna întoarcem succes, chiar dacă nu există utilizatorul
+    if (!user) {
+      return {
+        message: 'Dacă adresa de email există în baza de date, a fost trimis un link de resetare.',
+      };
+    }
+
+    if (!user.isActive) {
+      throw AppErrors.badRequest(AppErrorMessages.AUTH_ACCOUNT_DISABLED);
+    }
+
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 1); // Valid 1 oră
+
+    // Ștergem token-urile nefolosite anterioare ale acestui utilizator
+    await this.prisma.passwordResetToken.deleteMany({
+      where: {
+        userId: user.id,
+        used: false,
+      },
+    });
+
+    // Salvăm noul token
+    await this.prisma.passwordResetToken.create({
+      data: {
+        token,
+        userId: user.id,
+        expiresAt,
+      },
+    });
+
+    const frontendUrl = this.configService.get<string>('frontendUrl') || this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+    const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
+
+    await this.email.sendPasswordResetEmail({
+      to: user.email,
+      resetUrl,
+    });
+
+    void this.audit.log({
+      userId: user.id,
+      action: AuditAction.PASSWORD_RESET_REQUESTED,
+      entityType: AuditEntityType.User,
+      entityId: user.id,
+    });
+
+    return {
+      message: 'Dacă adresa de email există în baza de date, a fost trimis un link de resetare.',
+    };
+  }
+
+  async resetPassword(dto: ResetPasswordDto) {
+    const { token, password } = dto;
+
+    const resetToken = await this.prisma.passwordResetToken.findUnique({
+      where: { token },
+      include: { user: true },
+    });
+
+    if (!resetToken) {
+      throw AppErrors.notFound(AppErrorMessages.RESET_TOKEN_INVALID);
+    }
+
+    if (resetToken.used) {
+      throw AppErrors.badRequest(AppErrorMessages.RESET_TOKEN_USED);
+    }
+
+    if (resetToken.expiresAt < new Date()) {
+      await this.prisma.passwordResetToken.delete({ where: { id: resetToken.id } });
+      throw AppErrors.badRequest(AppErrorMessages.RESET_TOKEN_EXPIRED);
+    }
+
+    if (!resetToken.user || !resetToken.user.isActive) {
+      throw AppErrors.badRequest(AppErrorMessages.AUTH_ACCOUNT_DISABLED);
+    }
+
+    const passwordHash = await argon2.hash(password);
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: resetToken.userId },
+        data: { passwordHash },
+      });
+
+      await tx.passwordResetToken.update({
+        where: { id: resetToken.id },
+        data: { used: true },
+      });
+    });
+
+    // Ștergem restul token-urilor nefolosite ale acestui utilizator
+    await this.prisma.passwordResetToken.deleteMany({
+      where: {
+        userId: resetToken.userId,
+        used: false,
+      },
+    });
+
+    void this.audit.log({
+      userId: resetToken.userId,
+      action: AuditAction.PASSWORD_RESET_COMPLETED,
+      entityType: AuditEntityType.User,
+      entityId: resetToken.userId,
+    });
+
+    return {
+      message: 'Parola a fost resetată cu succes.',
+    };
+  }
+
+  async changePassword(userId: string, dto: ChangePasswordDto) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !user.passwordHash) {
+      throw AppErrors.unauthorized(AppErrorMessages.AUTH_UNAUTHORIZED);
+    }
+
+    const ok = await argon2.verify(user.passwordHash, dto.currentPassword);
+    if (!ok) {
+      throw AppErrors.badRequest('Parola curentă este incorectă.');
+    }
+
+    const passwordHash = await argon2.hash(dto.newPassword);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+
+    return { message: 'Parola a fost modificată cu succes.' };
   }
 
   private async issueSession(payload: JwtPayload, rememberMe: boolean) {

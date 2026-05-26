@@ -63,6 +63,9 @@ export const AppErrorMessages = {
   INTERVENTION_INVALID_TECHNICIAN: 'Only active technicians can be assigned to a job',
   STATUS_TRANSITION_INVALID: 'Schimbarea de status nu este permisă',
   STATUS_LOCKED: 'Statusul este final și nu poate fi modificat',
+  RESET_TOKEN_INVALID: 'Token invalid sau inexistent',
+  RESET_TOKEN_USED: 'Acest token a fost deja folosit',
+  RESET_TOKEN_EXPIRED: 'Tokenul a expirat',
 } as const;
 
 export const AppErrorTemplates = {

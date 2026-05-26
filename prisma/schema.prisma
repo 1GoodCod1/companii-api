@@ -147,6 +147,7 @@ model User {
   auditLogs          AuditLog[]
   uploadedFiles      File[]
   companyReviews     CompanyReview[] @relation("ReviewAuthor")
+  passwordResetTokens PasswordResetToken[]
 
   @@map("users")
 }
@@ -821,4 +822,20 @@ model EstimateMeasurement {
 
   @@index([projectId, key])
   @@map("estimate_measurements")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
 }

@@ -5,6 +5,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuditModule } from '../audit/audit.module';
 import { PortalModule } from '../portal/portal.module';
 import { TeamInviteModule } from '../companies/team-invite.module';
+import { EmailModule } from '../email/email.module';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { RefreshCookieService } from './services/refresh-cookie.service';
@@ -18,6 +19,7 @@ import { SubscriptionGuard } from './guards/subscription.guard';
     AuditModule,
     PortalModule,
     TeamInviteModule,
+    EmailModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],

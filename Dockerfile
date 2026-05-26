@@ -28,6 +28,7 @@ ENV NODE_ENV=production NODE_OPTIONS="--use-system-ca"
 COPY --chown=nodejs:nodejs --from=dependencies /app/node_modules ./node_modules
 COPY --chown=nodejs:nodejs --from=builder /app/dist ./dist
 COPY --chown=nodejs:nodejs --from=builder /app/prisma ./prisma
+COPY --chown=nodejs:nodejs --from=builder /app/assets ./assets
 COPY --chown=nodejs:nodejs --from=builder /app/prisma.config.ts ./
 COPY --chown=nodejs:nodejs package*.json ./
 EXPOSE 4100

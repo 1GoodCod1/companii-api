@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import path from 'path';
 import PDFDocument from 'pdfkit';
 import type { Company, CompanyCustomer, CompanyInvoice, Intervention } from '@prisma/client';
 
@@ -13,6 +14,13 @@ type InvoicePdfData = CompanyInvoice & {
 export class InvoicePdfService {
   async build(data: InvoicePdfData): Promise<Buffer> {
     const doc = new PDFDocument({ size: 'A4', margin: 48 });
+
+    const fontRegularPath = path.join(process.cwd(), 'assets', 'fonts', 'Arial-Regular.ttf');
+    const fontBoldPath = path.join(process.cwd(), 'assets', 'fonts', 'Arial-Bold.ttf');
+    doc.registerFont('Arial', fontRegularPath);
+    doc.registerFont('Arial-Bold', fontBoldPath);
+    doc.font('Arial');
+
     const chunks: Buffer[] = [];
 
     doc.on('data', (chunk: Buffer) => chunks.push(chunk));
@@ -30,12 +38,12 @@ export class InvoicePdfService {
 
     // Header band
     doc.rect(0, 0, doc.page.width, 120).fill('#6D28D9');
-    doc.fillColor('#FFFFFF').fontSize(22).font('Helvetica-Bold').text('FACTURĂ / CHITANȚĂ', 48, 42);
-    doc.fontSize(11).font('Helvetica').text(data.company.name, 48, 72);
+    doc.fillColor('#FFFFFF').fontSize(22).font('Arial-Bold').text('FACTURĂ / CHITANȚĂ', 48, 42);
+    doc.fontSize(11).font('Arial').text(data.company.name, 48, 72);
     doc.fontSize(10).text(`Nr. ${data.number}`, 48, 92);
 
-    doc.fillColor('#111827').font('Helvetica-Bold').fontSize(10).text('EMITENT', 48, 140);
-    doc.font('Helvetica').fontSize(9).fillColor('#374151');
+    doc.fillColor('#111827').font('Arial-Bold').fontSize(10).text('EMITENT', 48, 140);
+    doc.font('Arial').fontSize(9).fillColor('#374151');
     doc.text(data.company.legalName || data.company.name, 48, 156);
     if (data.company.idno) doc.text(`IDNO: ${data.company.idno}`, 48, doc.y + 2);
     if (data.company.legalAddress) doc.text(data.company.legalAddress, 48, doc.y + 2);
@@ -45,8 +53,8 @@ export class InvoicePdfService {
     }
 
     const rightX = 320;
-    doc.fillColor('#111827').font('Helvetica-Bold').fontSize(10).text('CLIENT', rightX, 140);
-    doc.font('Helvetica').fontSize(9).fillColor('#374151');
+    doc.fillColor('#111827').font('Arial-Bold').fontSize(10).text('CLIENT', rightX, 140);
+    doc.font('Arial').fontSize(9).fillColor('#374151');
     if (customer) {
       doc.text(customer.fullName, rightX, 156);
       doc.text(customer.phone, rightX, doc.y + 2);
@@ -56,8 +64,8 @@ export class InvoicePdfService {
 
     doc.moveDown(2);
     const metaY = doc.y + 8;
-    doc.fillColor('#111827').font('Helvetica-Bold').fontSize(10).text('Detalii document', 48, metaY);
-    doc.font('Helvetica').fontSize(9).fillColor('#374151');
+    doc.fillColor('#111827').font('Arial-Bold').fontSize(10).text('Detalii document', 48, metaY);
+    doc.font('Arial').fontSize(9).fillColor('#374151');
     doc.text(`Data emiterii: ${formatDate(data.issuedAt)}`, 48, metaY + 18);
     if (data.dueDate) doc.text(`Scadență: ${formatDate(data.dueDate)}`, 48, doc.y + 4);
     doc.text(`Status plată: ${data.paymentStatus}`, 48, doc.y + 4);
@@ -67,7 +75,7 @@ export class InvoicePdfService {
 
     const tableTop = doc.y + 24;
     doc.rect(48, tableTop, doc.page.width - 96, 28).fill('#F5F3FF');
-    doc.fillColor('#4C1D95').font('Helvetica-Bold').fontSize(9);
+    doc.fillColor('#4C1D95').font('Arial-Bold').fontSize(9);
     doc.text('Descriere', 56, tableTop + 9);
     doc.text('Sumă', 420, tableTop + 9, { width: 100, align: 'right' });
 
@@ -75,23 +83,23 @@ export class InvoicePdfService {
     const description = intervention
       ? `Servicii ${intervention.type} (${intervention.number})`
       : 'Servicii prestate';
-    doc.fillColor('#111827').font('Helvetica').fontSize(9);
+    doc.fillColor('#111827').font('Arial').fontSize(9);
     doc.text(description, 56, rowY, { width: 340 });
     doc.text(formatMoney(base), 420, rowY, { width: 100, align: 'right' });
 
     const totalsY = rowY + 48;
-    doc.font('Helvetica').fillColor('#374151');
+    doc.font('Arial').fillColor('#374151');
     doc.text('Bază impozabilă:', 320, totalsY);
     doc.text(formatMoney(base), 420, totalsY, { width: 100, align: 'right' });
     doc.text(`TVA (${Number(data.tvaRate)}%):`, 320, totalsY + 16);
     doc.text(formatMoney(tva), 420, totalsY + 16, { width: 100, align: 'right' });
 
     doc.rect(48, totalsY + 36, doc.page.width - 96, 32).fill('#EDE9FE');
-    doc.fillColor('#5B21B6').font('Helvetica-Bold').fontSize(11);
+    doc.fillColor('#5B21B6').font('Arial-Bold').fontSize(11);
     doc.text('TOTAL DE PLATĂ', 56, totalsY + 46);
     doc.text(formatMoney(total), 420, totalsY + 46, { width: 100, align: 'right' });
 
-    doc.fillColor('#6B7280').font('Helvetica').fontSize(8);
+    doc.fillColor('#6B7280').font('Arial').fontSize(8);
     doc.text(
       'Document generat electronic prin Faber Companii. Acest document servește ca dovadă fiscală simplificată.',
       48,

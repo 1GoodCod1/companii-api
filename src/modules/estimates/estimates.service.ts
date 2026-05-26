@@ -28,6 +28,7 @@ const projectInclude = {
   blueprint: true,
   sitePlan: true,
   quote: true,
+  sourceLead: true,
   measurements: { orderBy: { key: 'asc' as const } },
   stages: {
     orderBy: { sortOrder: 'asc' as const },

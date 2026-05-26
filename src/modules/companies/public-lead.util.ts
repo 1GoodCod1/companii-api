@@ -36,7 +36,7 @@ export async function ensureCompanyCustomerFromContact(
   if (existing) {
     const updates: Prisma.CompanyCustomerUpdateInput = {};
     if (email && !existing.email) updates.email = email;
-    if (contact.address?.trim() && existing.address === existing.fullName) {
+    if (contact.address?.trim() && (!existing.address || existing.address === existing.fullName)) {
       updates.address = contact.address.trim();
     }
     if (options?.portalUserId && !existing.portalUserId) {
