@@ -422,8 +422,15 @@ function genericBlueprint(categoryName: string, slug: string): EstimateBlueprint
   });
 }
 
+export function categoryHasEstimateBlueprint(slug: string): boolean {
+  return Object.prototype.hasOwnProperty.call(CATEGORY_BLUEPRINTS, slug);
+}
+
 export function buildBlueprintConfig(category: { name: string; slug: string }): EstimateBlueprintConfig {
-  return CATEGORY_BLUEPRINTS[category.slug] ?? genericBlueprint(category.name, category.slug);
+  if (!categoryHasEstimateBlueprint(category.slug)) {
+    throw new Error(`No estimate blueprint configured for category slug: ${category.slug}`);
+  }
+  return CATEGORY_BLUEPRINTS[category.slug]!;
 }
 
 export function buildBlueprintName(categoryName: string): string {

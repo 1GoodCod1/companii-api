@@ -11,7 +11,11 @@ import {
   PLAN_MARKETING_FEATURES,
 } from '../src/common/constants/plan-entitlements.constants';
 import { withSeedRlsContext } from './seed-rls';
-import { buildBlueprintConfig, buildBlueprintName } from './estimate-blueprints';
+import {
+  buildBlueprintConfig,
+  buildBlueprintName,
+  categoryHasEstimateBlueprint,
+} from './estimate-blueprints';
 
 const SEED_TERMS_VERSION = '2026-05-25';
 
@@ -195,6 +199,39 @@ const CATEGORIES: CategorySeed[] = [
     slug: 'pavaj',
     translations: { ro: { name: 'Pavaj și amenajări exterioare' }, ru: { name: 'Мощение и благоустройство' } },
   },
+  {
+    name: 'SMM și publicitate',
+    slug: 'smm-marketing',
+    translations: { ro: { name: 'SMM și publicitate' }, ru: { name: 'SMM и реклама' } },
+  },
+  {
+    name: 'Design grafic',
+    slug: 'design-grafic',
+    translations: { ro: { name: 'Design grafic' }, ru: { name: 'Графический дизайн' } },
+  },
+  {
+    name: 'Frumusețe și îngrijire (machiaj, manichiură, pedichiură)',
+    slug: 'frumusete-ingrijire',
+    translations: {
+      ro: { name: 'Frumusețe și îngrijire (machiaj, manichiură, pedichiură)' },
+      ru: { name: 'Красота и уход (макияж, маникюр, педикюр)' },
+    },
+  },
+  {
+    name: 'Asigurări',
+    slug: 'asigurari',
+    translations: { ro: { name: 'Asigurări' }, ru: { name: 'Страхование' } },
+  },
+  {
+    name: 'Servicii juridice',
+    slug: 'servicii-juridice',
+    translations: { ro: { name: 'Servicii juridice' }, ru: { name: 'Юридические услуги' } },
+  },
+  {
+    name: 'Service auto',
+    slug: 'avto',
+    translations: { ro: { name: 'Service auto' }, ru: { name: 'Автосервис' } },
+  },
 ];
 
 async function main() {
@@ -205,12 +242,16 @@ async function main() {
     await seedEstimateBlueprints(tx);
     await seedAdmin(tx);
 
+    const estimateBlueprintCount = CATEGORIES.filter((c) =>
+      categoryHasEstimateBlueprint(c.slug),
+    ).length;
+
     console.log('Seed OK', {
       adminEmail: process.env.SEED_ADMIN_EMAIL ?? 'admin@companii.local',
       cities: CITIES.length,
       categories: CATEGORIES.length,
       plans: PLAN_CODES.length,
-      estimateBlueprints: CATEGORIES.length,
+      estimateBlueprints: estimateBlueprintCount,
     });
   });
 }
@@ -262,6 +303,7 @@ async function seedCategories(tx: Prisma.TransactionClient) {
 
 async function seedEstimateBlueprints(tx: Prisma.TransactionClient) {
   for (const category of CATEGORIES) {
+    if (!categoryHasEstimateBlueprint(category.slug)) continue;
     const row = await tx.category.findUnique({ where: { slug: category.slug } });
     if (!row) continue;
     const config = buildBlueprintConfig(category);
