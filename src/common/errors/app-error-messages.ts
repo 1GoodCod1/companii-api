@@ -38,6 +38,7 @@ export const AppErrorMessages = {
   FILES_NOT_FOUND: 'File not found',
   FILES_ACCESS_DENIED: 'File access denied',
   FILES_INVALID_CONTENT: 'Invalid file content',
+  FILES_TOO_LARGE: 'File exceeds the allowed size limit',
   REVIEW_ALREADY_EXISTS: 'Review already submitted for this work order',
   REVIEW_INTERVENTION_NOT_FOUND: 'Work order not found',
   REVIEW_INTERVENTION_NOT_REVIEWABLE: 'Review is only allowed after work completion',

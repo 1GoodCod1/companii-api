@@ -7,8 +7,8 @@ import { findLeadsForEndClient } from '../../common/utils/client-leads.util';
 import { PrismaService } from '../shared/database/prisma.service';
 import type { JwtPayload } from '../auth/types/jwt-payload';
 import { REVIEWABLE_INTERVENTION_STATUSES } from '../reviews/reviews.types';
-import { InvoicePdfService } from '../fsm/invoice-pdf.service';
-import { EstimatePdfService } from '../fsm/estimate-pdf.service';
+import { InvoicePdfService } from '../fsm/pdf/invoice-pdf.service';
+import { EstimatePdfService } from '../fsm/pdf/estimate-pdf.service';
 import { EmailService } from '../email/email.service';
 
 const PORTAL_INVITE_TTL_MS = 2 * 60 * 60 * 1000;

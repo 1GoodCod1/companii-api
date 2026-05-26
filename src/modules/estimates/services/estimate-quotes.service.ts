@@ -1,0 +1,128 @@
+import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { EstimateProjectStatus, QuoteStatus } from '@prisma/client';
+import { AppErrorMessages, AppErrors } from '../../../common/errors';
+import { PrismaService } from '../../shared/database/prisma.service';
+import type { JwtPayload } from '../../auth/types/jwt-payload';
+import { EmailService } from '../../email/email.service';
+import { EstimatePdfService } from '../../fsm/pdf/estimate-pdf.service';
+import { projectInclude } from '../estimate.constants';
+import { EstimatesContextService } from '../context/estimates-context.service';
+import { EstimateProjectAccessService } from './estimate-project-access.service';
+import { EstimateStagesService } from './estimate-stages.service';
+
+@Injectable()
+export class EstimateQuotesService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ctx: EstimatesContextService,
+    private readonly access: EstimateProjectAccessService,
+    private readonly stages: EstimateStagesService,
+    private readonly email: EmailService,
+    private readonly config: ConfigService,
+    private readonly estimatePdf: EstimatePdfService,
+  ) {}
+
+  async generateQuote(user: JwtPayload, id: string) {
+    this.ctx.assertManagement(user);
+    let project = await this.access.findProjectOrThrow(user, id);
+    if (project.quoteId) {
+      throw AppErrors.conflict('Quote already generated for this estimate');
+    }
+    if (
+      project.status !== EstimateProjectStatus.CALCULATED &&
+      project.status !== EstimateProjectStatus.APPROVED
+    ) {
+      project = await this.stages.calculate(user, id);
+    }
+
+    const cid = this.ctx.companyId(user);
+
+    return this.prisma.$transaction(async (tx) => {
+      const count = await tx.quote.count({ where: { companyId: cid } });
+      let number = `QTE-${String(count + 1).padStart(5, '0')}`;
+      for (let attempt = 0; attempt < 15; attempt++) {
+        const exists = await tx.quote.findUnique({ where: { number } });
+        if (!exists) break;
+        number = `QTE-${String(count + 1 + attempt).padStart(5, '0')}`;
+      }
+
+      const lines = project.stages.flatMap((stage) =>
+        stage.lines.map((line) => ({
+          description: `[${stage.name}] ${line.description}`,
+          qty: Number(line.qty),
+          unitPrice: Number(line.unitPrice),
+        })),
+      );
+
+      const total = lines.reduce((acc, line) => acc + line.qty * line.unitPrice, 0);
+      const quote = await tx.quote.create({
+        data: {
+          companyId: cid,
+          customerId: project.customerId,
+          number,
+          total,
+          validUntil: project.validUntil ?? undefined,
+          status: QuoteStatus.DRAFT,
+          lines: { create: lines },
+        },
+      });
+
+      return tx.estimateProject.update({
+        where: { id },
+        data: {
+          quoteId: quote.id,
+          status: EstimateProjectStatus.APPROVED,
+        },
+        include: projectInclude,
+      });
+    });
+  }
+
+  async sendToClient(user: JwtPayload, id: string) {
+    this.ctx.assertManagement(user);
+    const project = await this.access.findProjectOrThrow(user, id);
+    if (
+      project.status !== EstimateProjectStatus.CALCULATED &&
+      project.status !== EstimateProjectStatus.APPROVED &&
+      project.status !== EstimateProjectStatus.SENT
+    ) {
+      throw AppErrors.badRequest('Calculați smeta înainte de trimitere.');
+    }
+
+    const updated = await this.prisma.estimateProject.update({
+      where: { id },
+      data: { status: EstimateProjectStatus.SENT },
+      include: projectInclude,
+    });
+
+    const frontendUrl = this.config.get<string>('frontendUrl') || 'http://localhost:5174';
+    const portalUrl = `${frontendUrl}/portal/smete`;
+
+    if (project.customer.email) {
+      const company = await this.prisma.runOutsideRlsContext(() =>
+        this.prisma.company.findUnique({
+          where: { id: this.ctx.companyId(user) },
+          select: { name: true },
+        }),
+      );
+      void this.email.sendEstimateEmail({
+        to: project.customer.email,
+        companyName: company?.name ?? 'Companie',
+        estimateNumber: project.number,
+        title: project.title,
+        total: Number(project.grandTotal),
+        portalUrl,
+      });
+    }
+
+    return { project: updated, emailSent: !!project.customer.email };
+  }
+
+  async getProjectPdf(user: JwtPayload, id: string) {
+    this.ctx.assertManagement(user);
+    const project = await this.access.loadProjectForPdf(this.ctx.companyId(user), id);
+    const buffer = await this.estimatePdf.build(project);
+    return { buffer, filename: `${project.number}.pdf` };
+  }
+}

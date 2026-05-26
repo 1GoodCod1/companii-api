@@ -22,7 +22,7 @@ import {
   CURRENT_TERMS_VERSION,
   EndClientLinkService,
 } from '../portal/end-client-link.service';
-import { TeamInviteService } from '../companies/team-invite.service';
+import { TeamInviteService } from '../companies/team/team-invite.service';
 import { EmailService } from '../email/email.service';
 import { isEmailLogin, normalizePhone, phoneVariants } from '../../common/utils/phone.util';
 import { rlsContextFromUserId } from '../../common/rls/rls-context.util';

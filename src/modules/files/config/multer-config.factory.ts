@@ -1,17 +1,17 @@
+import { randomUUID } from 'crypto';
 import { extname } from 'path';
 import { diskStorage } from 'multer';
-import { v4 as uuidv4 } from 'uuid';
 import type { ConfigService } from '@nestjs/config';
-import { FILES_MAX_FILE_SIZE_BYTES } from '../../../common/constants';
+import { FILES_UPLOAD_MAX_BYTES } from '../../../common/constants';
 
-const ALLOWED_EXTENSIONS = /jpeg|jpg|png|gif|webp|pdf|doc|docx/;
+const ALLOWED_EXTENSIONS = /jpeg|jpg|png|gif|webp|pdf|doc|docx|mp4|mov|webm/;
 
 export function createMulterOptions(configService: ConfigService) {
   const uploadDir =
     configService.get<string>('files.uploadDir') ?? './uploads';
 
   return {
-    limits: { fileSize: FILES_MAX_FILE_SIZE_BYTES },
+    limits: { fileSize: FILES_UPLOAD_MAX_BYTES },
     fileFilter: (
       _req: unknown,
       file: Express.Multer.File,
@@ -25,7 +25,7 @@ export function createMulterOptions(configService: ConfigService) {
     storage: diskStorage({
       destination: uploadDir,
       filename: (_req, file, cb) => {
-        cb(null, `${uuidv4()}${extname(file.originalname)}`);
+        cb(null, `${randomUUID()}${extname(file.originalname)}`);
       },
     }),
   };

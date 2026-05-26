@@ -4,7 +4,7 @@ import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuditModule } from '../audit/audit.module';
 import { PortalModule } from '../portal/portal.module';
-import { TeamInviteModule } from '../companies/team-invite.module';
+import { TeamInviteModule } from '../companies/team/team-invite.module';
 import { EmailModule } from '../email/email.module';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';

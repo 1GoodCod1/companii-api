@@ -5,7 +5,7 @@ import { Public } from '../../common/decorators/public.decorator';
 import { PrismaService } from '../shared/database/prisma.service';
 import { CompanyGuard } from '../companies/guards/company.guard';
 import { CompanyRoles } from '../companies/decorators/company-roles.decorator';
-import { CompanyAuthorizationService } from '../companies/company-authorization.service';
+import { CompanyAuthorizationService } from '../companies/authorization/company-authorization.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../auth/types/jwt-payload';
 

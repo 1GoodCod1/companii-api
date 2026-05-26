@@ -8,7 +8,7 @@ import { AuditService } from '../audit/audit.service';
 import { CacheService } from '../shared/cache/cache.service';
 import { PrismaService } from '../shared/database/prisma.service';
 import type { JwtPayload } from '../auth/types/jwt-payload';
-import { CompanyAuthorizationService } from '../companies/company-authorization.service';
+import { CompanyAuthorizationService } from '../companies/authorization/company-authorization.service';
 
 @Injectable()
 export class SubscriptionsService {

@@ -1,4 +1,5 @@
 import { open, unlink } from 'fs/promises';
+import { ALLOWED_UPLOAD_EXTENSIONS } from '../../../common/constants/file-media.constants';
 
 const MAGIC: { buf: number[]; exts: string[] }[] = [
   { buf: [0xff, 0xd8, 0xff], exts: ['jpg', 'jpeg'] },
@@ -9,17 +10,6 @@ const MAGIC: { buf: number[]; exts: string[] }[] = [
   { buf: [0xd0, 0xcf, 0x11, 0xe0], exts: ['doc'] },
   { buf: [0x50, 0x4b, 0x03, 0x04], exts: ['docx'] },
 ];
-
-const ALLOWED_EXTS = new Set([
-  'jpeg',
-  'jpg',
-  'png',
-  'gif',
-  'webp',
-  'pdf',
-  'doc',
-  'docx',
-]);
 
 const HEAD_BYTES = 12;
 
@@ -44,7 +34,7 @@ export function validateMagicFromBuffer(
   originalname: string,
 ): void {
   const ext = getExt(originalname);
-  if (!ALLOWED_EXTS.has(ext)) {
+  if (!ALLOWED_UPLOAD_EXTENSIONS.has(ext)) {
     throw new Error('Invalid file extension');
   }
 
@@ -61,6 +51,28 @@ export function validateMagicFromBuffer(
   ) {
     if (ext === 'webp') return;
     throw new Error(`File content (webp) does not match extension .${ext}`);
+  }
+
+  if (
+    head.length >= 8 &&
+    head[4] === 0x66 &&
+    head[5] === 0x74 &&
+    head[6] === 0x79 &&
+    head[7] === 0x70
+  ) {
+    if (ext === 'mp4' || ext === 'mov') return;
+    throw new Error(`File content (mp4) does not match extension .${ext}`);
+  }
+
+  if (
+    head.length >= 4 &&
+    head[0] === 0x1a &&
+    head[1] === 0x45 &&
+    head[2] === 0xdf &&
+    head[3] === 0xa3
+  ) {
+    if (ext === 'webm') return;
+    throw new Error(`File content (webm) does not match extension .${ext}`);
   }
 
   for (const { buf, exts } of MAGIC) {
