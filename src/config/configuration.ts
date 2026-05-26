@@ -1,8 +1,16 @@
+import { resolveUseHttpOnlyCookie } from './http-only-cookie';
+
 export default () => ({
   nodeEnv: process.env.NODE_ENV || 'development',
   port: parseInt(process.env.PORT || '4100', 10),
-  apiUrl: process.env.API_URL || 'http://localhost:4100',
-  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5174',
+  apiUrl:
+    process.env.API_URL ||
+    (process.env.NODE_ENV === 'production'
+      ? ''
+      : 'http://localhost:4100'),
+  frontendUrl:
+    process.env.FRONTEND_URL ||
+    (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5174'),
   requestTimeoutMs: parseInt(process.env.REQUEST_TIMEOUT_MS || '30000', 10),
   database: {
     url: process.env.DATABASE_URL,
@@ -15,7 +23,7 @@ export default () => ({
     expiresIn: process.env.JWT_EXPIRES_IN || '15m',
   },
   auth: {
-    useHttpOnlyCookie: process.env.USE_HTTPONLY_COOKIE !== 'false',
+    useHttpOnlyCookie: resolveUseHttpOnlyCookie(),
     refreshCookieName:
       process.env.REFRESH_COOKIE_NAME ||
       process.env.JWT_REFRESH_COOKIE_NAME ||
@@ -23,15 +31,14 @@ export default () => ({
     cookieDomain: process.env.COOKIE_DOMAIN || '',
   },
   security: {
-    cookieOriginCheckEnabled: process.env.COOKIE_ORIGIN_CHECK !== 'false',
+    cookieOriginCheckEnabled:
+      process.env.NODE_ENV === 'production'
+        ? process.env.COOKIE_ORIGIN_CHECK !== 'false'
+        : process.env.COOKIE_ORIGIN_CHECK === 'true',
   },
   audit: {
     httpEnabled: process.env.AUDIT_HTTP_ENABLED !== 'false',
   },
-  corsOrigins: (process.env.CORS_ORIGINS || 'http://localhost:5174,http://127.0.0.1:5174')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean),
   files: {
     uploadDir: process.env.FILES_UPLOAD_DIR || './uploads',
   },

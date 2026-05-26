@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { AppErrorMessages, AppErrors } from '../../common/errors';
 import { RLS_SYSTEM_CONTEXT } from '../../common/rls/rls-system.util';
 import { normalizePhone, phoneVariants, phonesMatch, splitFullName } from '../../common/utils/phone.util';
+import { timingSafeStringEquals } from '../../common/utils/timing-safe.util';
 import { PrismaService } from '../shared/database/prisma.service';
 
 export const CURRENT_TERMS_VERSION = '2026-05-25';
@@ -17,7 +18,12 @@ export class EndClientLinkService {
         include: { customer: true },
       });
 
-      if (!invite || invite.status !== 'PENDING' || invite.expiresAt < new Date()) {
+      if (
+        !invite ||
+        invite.status !== 'PENDING' ||
+        invite.expiresAt < new Date() ||
+        !timingSafeStringEquals(invite.token, token)
+      ) {
         throw AppErrors.notFound(AppErrorMessages.PORTAL_INVITE_INVALID);
       }
 

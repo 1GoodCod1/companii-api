@@ -6,13 +6,12 @@ import { getCorsOrigins } from '../../config';
 
 @Injectable()
 export class CookieOriginGuard implements CanActivate {
+  private static cachedAllowed: Set<string> | null = null;
+
   constructor(private readonly config: ConfigService) {}
 
   canActivate(context: ExecutionContext): boolean {
     if (!this.config.get<boolean>('security.cookieOriginCheckEnabled')) {
-      return true;
-    }
-    if (!this.config.get<boolean>('auth.useHttpOnlyCookie')) {
       return true;
     }
 
@@ -23,7 +22,13 @@ export class CookieOriginGuard implements CanActivate {
 
     const cookieName =
       this.config.get<string>('auth.refreshCookieName') ?? 'companii_refresh';
-    if (!req.cookies?.[cookieName]) {
+    const hasRefreshCookie =
+      !!req.cookies?.[cookieName] || !!req.cookies?.[`__Host-${cookieName}`];
+    const hasBearer =
+      typeof req.headers.authorization === 'string' &&
+      req.headers.authorization.startsWith('Bearer ');
+
+    if (!hasRefreshCookie && !hasBearer) {
       return true;
     }
 
@@ -31,11 +36,28 @@ export class CookieOriginGuard implements CanActivate {
       (typeof req.headers.origin === 'string' && req.headers.origin) ||
       this.refererToOrigin(req.headers.referer);
 
-    const allowed = new Set(getCorsOrigins().map((o) => o.replace(/\/$/, '')));
-    if (!origin || !allowed.has(origin.replace(/\/$/, ''))) {
+    if (!origin || !this.allowedOrigins().has(this.canonical(origin))) {
       throw AppErrors.forbidden(AppErrorMessages.GUARD_INVALID_ORIGIN);
     }
     return true;
+  }
+
+  private allowedOrigins(): Set<string> {
+    if (!CookieOriginGuard.cachedAllowed) {
+      const raw = getCorsOrigins();
+      CookieOriginGuard.cachedAllowed = new Set(
+        (Array.isArray(raw) ? raw : [raw]).map((o) => this.canonical(o)),
+      );
+    }
+    return CookieOriginGuard.cachedAllowed;
+  }
+
+  private canonical(origin: string): string {
+    try {
+      return new URL(origin).origin;
+    } catch {
+      return origin.replace(/\/$/, '');
+    }
   }
 
   private refererToOrigin(referer: string | undefined): string | undefined {

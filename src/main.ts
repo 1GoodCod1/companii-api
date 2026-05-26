@@ -28,6 +28,17 @@ process.on('warning', (warning) => {
   console.warn(warning.stack);
 });
 
+process.on('unhandledRejection', (reason) => {
+  const logger = new Logger('UnhandledRejection');
+  logger.error(reason instanceof Error ? reason.stack : reason);
+});
+
+process.on('uncaughtException', (err) => {
+  const logger = new Logger('UncaughtException');
+  logger.error(err.stack ?? err.message);
+  setTimeout(() => process.exit(1), 1000).unref();
+});
+
 const isShuttingDownRef = { current: false };
 
 async function bootstrap() {
@@ -39,6 +50,11 @@ async function bootstrap() {
     bufferLogs: true,
     cors: false,
   });
+
+  const expressInstance = app.getHttpAdapter().getInstance() as {
+    set: (key: string, value: unknown) => void;
+  };
+  expressInstance.set('trust proxy', isProd ? 1 : 'loopback');
 
   app.useLogger(WinstonModule.createLogger(winstonConfig));
   app.use(requestIdMiddleware);
@@ -96,7 +112,11 @@ async function bootstrap() {
   process.on('SIGINT', () => void shutdown('SIGINT'));
 
   bootstrapLogger.log(`Companii API listening on http://localhost:${port}`);
+  bootstrapLogger.log(`Environment: ${config.get<string>('nodeEnv')}`);
   bootstrapLogger.log(`REST base: /api/v1 | Health: /health`);
+  if (isProd) {
+    bootstrapLogger.log(`Frontend URL: ${config.get<string>('frontendUrl')}`);
+  }
   if (!isProd) bootstrapLogger.log(`Swagger: http://localhost:${port}/docs`);
 }
 

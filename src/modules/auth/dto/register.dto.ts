@@ -9,13 +9,13 @@ import {
   MinLength,
   ValidateIf,
 } from 'class-validator';
+import { IsStrongPassword } from '../../../common/decorators/is-strong-password.decorator';
 
 export class RegisterDto {
   @IsEmail()
   email!: string;
 
-  @IsString()
-  @MinLength(8)
+  @IsStrongPassword()
   password!: string;
 
   @IsEnum(AccountKind)

@@ -5,6 +5,7 @@ import { AccountKind, CompanyRole } from '@prisma/client';
 import { AppErrorMessages, AppErrors } from '../../../common/errors';
 import { RLS_SYSTEM_CONTEXT } from '../../../common/rls/rls-system.util';
 import { isEmailLogin, normalizePhone, phoneVariants } from '../../../common/utils/phone.util';
+import { timingSafeStringEquals } from '../../../common/utils/timing-safe.util';
 import { EmailService } from '../../email/email.service';
 import { PrismaService } from '../../shared/database/prisma.service';
 import { CompanyAuthorizationService } from '../authorization/company-authorization.service';
@@ -177,7 +178,12 @@ export class TeamInviteService {
         },
       });
 
-      if (!invite || invite.status !== 'PENDING' || invite.expiresAt < new Date()) {
+      if (
+        !invite ||
+        invite.status !== 'PENDING' ||
+        invite.expiresAt < new Date() ||
+        !timingSafeStringEquals(invite.token, token)
+      ) {
         throw AppErrors.notFound(AppErrorMessages.TEAM_INVITE_INVALID);
       }
 
@@ -213,7 +219,12 @@ export class TeamInviteService {
         include: { company: true },
       });
 
-      if (!invite || invite.status !== 'PENDING' || invite.expiresAt < new Date()) {
+      if (
+        !invite ||
+        invite.status !== 'PENDING' ||
+        invite.expiresAt < new Date() ||
+        !timingSafeStringEquals(invite.token, token)
+      ) {
         throw AppErrors.notFound(AppErrorMessages.TEAM_INVITE_INVALID);
       }
 

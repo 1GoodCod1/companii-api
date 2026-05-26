@@ -1,12 +1,11 @@
-import { IsNotEmpty, IsString, MinLength } from 'class-validator';
+import { IsNotEmpty, IsString } from 'class-validator';
+import { IsStrongPassword } from '../../../common/decorators/is-strong-password.decorator';
 
 export class ResetPasswordDto {
   @IsString()
   @IsNotEmpty()
   token!: string;
 
-  @IsString()
-  @IsNotEmpty()
-  @MinLength(8, { message: 'Password must be at least 8 characters' })
+  @IsStrongPassword()
   password!: string;
 }

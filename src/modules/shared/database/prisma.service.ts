@@ -12,12 +12,27 @@ import { rlsTxStorage } from '../../../common/rls/rls.storage';
 import { wrapSerialTransactionClient } from '../../../common/rls/rls-tx-serial.util';
 import type { RlsContext } from '../../../common/types/rls-context';
 
+function resolvePoolMax(): number {
+  const fromEnv = parseInt(process.env.PG_POOL_MAX ?? '', 10);
+  if (Number.isFinite(fromEnv) && fromEnv > 0) return fromEnv;
+  switch (process.env.NODE_ENV) {
+    case 'test':
+      return 3;
+    case 'production':
+      return 20;
+    default:
+      return 10;
+  }
+}
+
 function createPgPool(connectionString: string): Pool {
   return new Pool({
     connectionString,
-    max: process.env.NODE_ENV === 'test' ? 3 : 20,
+    max: resolvePoolMax(),
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 10_000,
+    maxLifetimeSeconds: 30 * 60,
+    keepAlive: true,
   });
 }
 
@@ -41,7 +56,6 @@ export class PrismaService
 {
   private readonly logger = new Logger(PrismaService.name);
   readonly pool: Pool;
-  /** Bound before the request proxy wraps `$transaction` (Prisma needs `this`). */
   private readonly boundTransaction: PrismaClient['$transaction'];
 
   constructor(configService: ConfigService) {
@@ -171,12 +185,10 @@ export class PrismaService
     );
   }
 
-  /** Queries that must not reuse the request-scoped RLS transaction (e.g. cache invalidation). */
   runOutsideRlsContext<T>(work: () => Promise<T>): Promise<T> {
     return rlsTxStorage.run(undefined, work);
   }
 
-  /** Run Prisma queries one-at-a-time (pg client inside RLS tx is not concurrent-safe). */
   async inSerial<T extends readonly unknown[]>(
     factories: readonly [...{ [K in keyof T]: () => Promise<T[K]> }],
   ): Promise<T> {
@@ -187,7 +199,6 @@ export class PrismaService
     return results as unknown as T;
   }
 
-  /** Fire-and-forget side effects that must never touch the RLS transaction client. */
   deferOutsideRlsContext(work: () => Promise<void>): void {
     void this.runOutsideRlsContext(work).catch((err) => {
       this.logger.warn('Deferred DB side-effect failed', err);

@@ -5,8 +5,12 @@ import type { AuditLogData } from './types/audit.types';
 @Injectable()
 export class AuditService {
   constructor(private readonly writer: AuditLogWriterService) {}
+  log(data: AuditLogData): Promise<void> {
+    this.writer.log(data);
+    return Promise.resolve();
+  }
 
-  log(data: AuditLogData) {
-    return this.writer.log(data);
+  flush(): Promise<void> {
+    return this.writer.flush();
   }
 }

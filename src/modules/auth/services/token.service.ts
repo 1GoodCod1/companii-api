@@ -4,7 +4,14 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { AppErrors, AppErrorMessages } from '../../../common/errors';
 import { PrismaService } from '../../shared/database/prisma.service';
+import { RedisService } from '../../shared/redis/redis.service';
 import type { JwtPayload } from '../types/jwt-payload';
+
+const LOGOUT_SINCE_KEY = (userId: string): string =>
+  `companii:auth:logout-since:${userId}`;
+const ACTIVE_CACHE_KEY = (userId: string): string =>
+  `companii:auth:active:${userId}`;
+const LOGOUT_SINCE_TTL_SEC = 24 * 60 * 60;
 
 @Injectable()
 export class TokenService {
@@ -14,6 +21,7 @@ export class TokenService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
+    private readonly redis: RedisService,
   ) {}
 
   signAccessToken(payload: JwtPayload): string {
@@ -106,5 +114,17 @@ export class TokenService {
 
   async revokeAllForUser(userId: string): Promise<void> {
     await this.prisma.refreshToken.deleteMany({ where: { userId } });
+    try {
+      const client = this.redis.getClient();
+      await client.set(
+        LOGOUT_SINCE_KEY(userId),
+        String(Date.now()),
+        'EX',
+        LOGOUT_SINCE_TTL_SEC,
+      );
+      await client.del(ACTIVE_CACHE_KEY(userId));
+    } catch (err) {
+      this.logger.warn('revokeAllForUser: Redis blacklist write failed', err);
+    }
   }
 }

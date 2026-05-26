@@ -1,5 +1,5 @@
 import { createReadStream, existsSync } from 'fs';
-import { join, normalize } from 'path';
+import { isAbsolute, join, relative, resolve, sep } from 'path';
 import { Injectable, StreamableFile } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Response } from 'express';
@@ -31,9 +31,7 @@ export class FilesService {
     config: ConfigService,
   ) {
     const dir = config.get<string>('files.uploadDir') ?? './uploads';
-    this.uploadRoot = normalize(
-      dir.startsWith('/') ? dir : join(process.cwd(), dir),
-    );
+    this.uploadRoot = resolve(isAbsolute(dir) ? dir : join(process.cwd(), dir));
   }
 
   async uploadFile(
@@ -122,7 +120,15 @@ export class FilesService {
     );
     res.setHeader('Cache-Control', 'private, no-store');
 
-    return new StreamableFile(createReadStream(absolutePath));
+    const stream = createReadStream(absolutePath);
+    stream.on('error', () => {
+      try {
+        stream.destroy();
+      } catch {
+        /* ignore */
+      }
+    });
+    return new StreamableFile(stream);
   }
 
   private normalizeFileUrl(file: Express.Multer.File): string {
@@ -133,12 +139,20 @@ export class FilesService {
   }
 
   private resolveSafeLocalPath(publicPath: string): string {
-    const relative = publicPath.replace(/^\/+/, '');
-    const absolute = normalize(join(process.cwd(), relative));
-    if (!absolute.startsWith(this.uploadRoot)) {
+    if (
+      !publicPath ||
+      publicPath.includes('\0') ||
+      /^[a-z][a-z0-9+.-]*:\/\//i.test(publicPath)
+    ) {
       throw AppErrors.forbidden(AppErrorMessages.FILES_ACCESS_DENIED);
     }
-    return absolute;
+    const stripped = publicPath.replace(/^\/+/, '');
+    const candidate = resolve(this.uploadRoot, stripped);
+    const rel = relative(this.uploadRoot, candidate);
+    if (rel.startsWith('..') || rel.split(sep).includes('..') || isAbsolute(rel)) {
+      throw AppErrors.forbidden(AppErrorMessages.FILES_ACCESS_DENIED);
+    }
+    return candidate;
   }
 
   async deleteFileIfOwned(fileId: string, userId: string): Promise<void> {

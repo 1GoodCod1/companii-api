@@ -13,6 +13,7 @@ import { TeamMembersService } from './team/team-members.service';
 import { CompaniesCoreService } from './services/companies-core.service';
 import { CompaniesLeadsService } from './services/companies-leads.service';
 import { CompaniesPublicService } from './services/companies-public.service';
+import { COMPANIES_USE_CASE_PROVIDERS } from './use-cases/companies-use-cases.providers';
 
 @Module({
   imports: [AuthModule, AuditModule, PortalModule, TeamInviteModule, CompanyAuthorizationModule],
@@ -21,6 +22,7 @@ import { CompaniesPublicService } from './services/companies-public.service';
     CompaniesCoreService,
     CompaniesPublicService,
     CompaniesLeadsService,
+    ...COMPANIES_USE_CASE_PROVIDERS,
     CompaniesService,
     TeamMembersService,
     CompanyGuard,

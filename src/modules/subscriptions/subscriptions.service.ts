@@ -10,6 +10,8 @@ import { PrismaService } from '../shared/database/prisma.service';
 import type { JwtPayload } from '../auth/types/jwt-payload';
 import { CompanyAuthorizationService } from '../companies/authorization/company-authorization.service';
 
+const SUBSCRIPTION_USAGE_TTL_SEC = 60;
+
 @Injectable()
 export class SubscriptionsService {
   constructor(
@@ -41,41 +43,72 @@ export class SubscriptionsService {
     });
     if (!subscription) return null;
 
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
-
-    const [activeTechnicians, pendingTechnicianInvites, interventionsThisMonth] =
-      await this.prisma.inSerial([
-        () =>
-          this.prisma.companyMember.count({
-            where: { companyId, status: 'ACTIVE', role: 'MEMBER' },
-          }),
-        () =>
-          this.prisma.companyInvitation.count({
-            where: {
-              companyId,
-              status: 'PENDING',
-              role: 'MEMBER',
-              expiresAt: { gt: new Date() },
-            },
-          }),
-        () =>
-          this.prisma.intervention.count({
-            where: { companyId, createdAt: { gte: startOfMonth } },
-          }),
-      ]);
+    const usage = await this.cache.getOrSet(
+      this.buildUsageKey(companyId),
+      () => this.computeUsage(companyId),
+      SUBSCRIPTION_USAGE_TTL_SEC,
+    );
 
     return {
       ...subscription,
       usage: {
-        activeTechnicians,
-        pendingTechnicianInvites,
-        interventionsThisMonth,
+        ...usage,
         maxTechnicians: subscription.plan.maxTechnicians,
         maxInterventionsPerMonth: subscription.plan.maxInterventionsPerMonth,
       },
     };
+  }
+
+  private async computeUsage(companyId: string): Promise<{
+    activeTechnicians: number;
+    pendingTechnicianInvites: number;
+    interventionsThisMonth: number;
+  }> {
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+    const now = new Date();
+
+    const rows = await this.prisma.$queryRaw<
+      Array<{
+        active_technicians: bigint;
+        pending_invites: bigint;
+        interventions_this_month: bigint;
+      }>
+    >`
+      SELECT
+        (SELECT COUNT(*) FROM "CompanyMember" cm
+           WHERE cm."companyId" = ${companyId}
+             AND cm.status = 'ACTIVE'
+             AND cm.role = 'MEMBER') AS active_technicians,
+        (SELECT COUNT(*) FROM "CompanyInvitation" ci
+           WHERE ci."companyId" = ${companyId}
+             AND ci.status = 'PENDING'
+             AND ci.role = 'MEMBER'
+             AND ci."expiresAt" > ${now}) AS pending_invites,
+        (SELECT COUNT(*) FROM "Intervention" i
+           WHERE i."companyId" = ${companyId}
+             AND i."createdAt" >= ${startOfMonth}) AS interventions_this_month
+    `;
+
+    const row = rows[0] ?? {
+      active_technicians: 0n,
+      pending_invites: 0n,
+      interventions_this_month: 0n,
+    };
+    return {
+      activeTechnicians: Number(row.active_technicians),
+      pendingTechnicianInvites: Number(row.pending_invites),
+      interventionsThisMonth: Number(row.interventions_this_month),
+    };
+  }
+
+  private buildUsageKey(companyId: string): string {
+    return `cache:companii:subscription:usage:${companyId}`;
+  }
+
+  invalidateUsage(companyId: string): Promise<void> {
+    return this.cache.del(this.buildUsageKey(companyId));
   }
 
   async adminSetPlan(

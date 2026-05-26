@@ -21,6 +21,6 @@ export function buildPasswordResetEmail(params: {
     subject,
     text,
     html,
-    devLog: `[PASSWORD RESET] ${params.resetUrl}`,
+    devLog: `[PASSWORD RESET requested]`,
   };
 }

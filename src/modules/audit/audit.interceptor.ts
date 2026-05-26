@@ -17,7 +17,11 @@ interface RequestWithUser extends Request {
   user?: { sub?: string };
 }
 
-const SENSITIVE = ['password', 'token', 'secret', 'passwordHash'];
+const SENSITIVE_KEY_PATTERN =
+  /pass(word)?|token|secret|otp|^pin$|^code$|api[-_]?key|authorization|^hash$/i;
+const SANITIZE_MAX_DEPTH = 6;
+const REDACTED = '***REDACTED***';
+const AUDITED_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 @Injectable()
 export class AuditInterceptor implements NestInterceptor {
@@ -68,6 +72,8 @@ export class AuditInterceptor implements NestInterceptor {
   }
 
   private shouldSkip(path: string, method: string): boolean {
+    if (!AUDITED_METHODS.has(method)) return true;
+
     const p = path.split('?')[0] ?? path;
     if (p.startsWith('/health') || p.startsWith('/docs') || p.startsWith('/metrics')) {
       return true;
@@ -75,18 +81,31 @@ export class AuditInterceptor implements NestInterceptor {
     if (
       p.includes('/auth/login') ||
       p.includes('/auth/register') ||
-      method === 'GET' && p.includes('/auth/')
+      p.includes('/auth/refresh') ||
+      p.includes('/auth/forgot-password') ||
+      p.includes('/auth/reset-password') ||
+      p.includes('/auth/logout')
     ) {
       return true;
     }
     return false;
   }
 
-  private sanitize(body: unknown): unknown {
-    if (!body || typeof body !== 'object') return body;
-    const out = { ...(body as Record<string, unknown>) };
-    for (const key of SENSITIVE) {
-      if (key in out && out[key] != null) out[key] = '***REDACTED***';
+  private sanitize(input: unknown, depth = 0): unknown {
+    if (input == null) return input;
+    if (depth > SANITIZE_MAX_DEPTH) return '[depth-truncated]';
+    if (Array.isArray(input)) {
+      return input.map((item) => this.sanitize(item, depth + 1));
+    }
+    if (typeof input !== 'object') return input;
+    const obj = input as Record<string, unknown>;
+    const out: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (SENSITIVE_KEY_PATTERN.test(key)) {
+        out[key] = value == null ? value : REDACTED;
+      } else {
+        out[key] = this.sanitize(value, depth + 1);
+      }
     }
     return out;
   }

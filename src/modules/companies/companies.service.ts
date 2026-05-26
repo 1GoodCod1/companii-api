@@ -4,62 +4,80 @@ import { CreateCompanyDto } from './dto/create-company.dto';
 import { AddGalleryImageDto } from './dto/add-gallery-image.dto';
 import { ClientProjectRequestDto } from './dto/client-project-request.dto';
 import { ClientServiceRequestDto } from './dto/client-service-request.dto';
-import { CompaniesCoreService } from './services/companies-core.service';
-import { CompaniesLeadsService } from './services/companies-leads.service';
-import { CompaniesPublicService } from './services/companies-public.service';
+import { FindCitiesUseCase } from './use-cases/find-cities.use-case';
+import { FindCategoriesUseCase } from './use-cases/find-categories.use-case';
+import { CreateCompanyUseCase } from './use-cases/create-company.use-case';
+import { FindMeUseCase } from './use-cases/find-me.use-case';
+import {
+  FindPublicListUseCase,
+  type FindPublicListParams,
+} from './use-cases/find-public-list.use-case';
+import { FindCompanyBySlugUseCase } from './use-cases/find-company-by-slug.use-case';
+import { PublishCompanyUseCase } from './use-cases/publish-company.use-case';
+import { UpdateCompanyUseCase } from './use-cases/update-company.use-case';
+import { AddGalleryImageUseCase } from './use-cases/add-gallery-image.use-case';
+import { RemoveGalleryImageUseCase } from './use-cases/remove-gallery-image.use-case';
+import { RequestPublicServiceUseCase } from './use-cases/request-public-service.use-case';
+import { RequestPublicProjectUseCase } from './use-cases/request-public-project.use-case';
 
-/** Facade — сохраняет публичный API для CompaniesController. */
+export type { FindPublicListParams };
+
+/** Facade — публичный API для контроллеров; сценарии в `use-cases/`. */
 @Injectable()
 export class CompaniesService {
   constructor(
-    private readonly core: CompaniesCoreService,
-    private readonly publicCatalog: CompaniesPublicService,
-    private readonly leads: CompaniesLeadsService,
+    private readonly findCitiesUc: FindCitiesUseCase,
+    private readonly findCategoriesUc: FindCategoriesUseCase,
+    private readonly createCompanyUc: CreateCompanyUseCase,
+    private readonly findMeUc: FindMeUseCase,
+    private readonly findPublicListUc: FindPublicListUseCase,
+    private readonly findCompanyBySlugUc: FindCompanyBySlugUseCase,
+    private readonly publishCompanyUc: PublishCompanyUseCase,
+    private readonly updateCompanyUc: UpdateCompanyUseCase,
+    private readonly addGalleryImageUc: AddGalleryImageUseCase,
+    private readonly removeGalleryImageUc: RemoveGalleryImageUseCase,
+    private readonly requestPublicServiceUc: RequestPublicServiceUseCase,
+    private readonly requestPublicProjectUc: RequestPublicProjectUseCase,
   ) {}
 
   findCities() {
-    return this.publicCatalog.findCities();
+    return this.findCitiesUc.execute();
   }
 
   findCategories() {
-    return this.publicCatalog.findCategories();
+    return this.findCategoriesUc.execute();
   }
 
   create(user: JwtPayload, dto: CreateCompanyDto) {
-    return this.core.create(user, dto);
+    return this.createCompanyUc.execute(user, dto);
   }
 
   findMe(user: JwtPayload) {
-    return this.core.findMe(user);
+    return this.findMeUc.execute(user);
   }
 
-  findPublicList(params: {
-    cityId?: string;
-    categoryId?: string;
-    page?: number;
-    limit?: number;
-  }) {
-    return this.publicCatalog.findPublicList(params);
+  findPublicList(params: FindPublicListParams) {
+    return this.findPublicListUc.execute(params);
   }
 
   findBySlug(slug: string) {
-    return this.publicCatalog.findBySlug(slug);
+    return this.findCompanyBySlugUc.execute(slug);
   }
 
   publish(user: JwtPayload, companyId: string) {
-    return this.core.publish(user, companyId);
+    return this.publishCompanyUc.execute(user, companyId);
   }
 
   update(user: JwtPayload, companyId: string, data: Partial<CreateCompanyDto>) {
-    return this.core.update(user, companyId, data);
+    return this.updateCompanyUc.execute(user, companyId, data);
   }
 
   addGalleryImage(user: JwtPayload, companyId: string, dto: AddGalleryImageDto) {
-    return this.core.addGalleryImage(user, companyId, dto);
+    return this.addGalleryImageUc.execute(user, companyId, dto);
   }
 
   removeGalleryImage(user: JwtPayload, companyId: string, imageId: string) {
-    return this.core.removeGalleryImage(user, companyId, imageId);
+    return this.removeGalleryImageUc.execute(user, companyId, imageId);
   }
 
   requestPublicService(
@@ -68,14 +86,10 @@ export class CompaniesService {
     serviceId: string,
     body: ClientServiceRequestDto,
   ) {
-    return this.leads.requestPublicService(user, companySlug, serviceId, body);
+    return this.requestPublicServiceUc.execute(user, companySlug, serviceId, body);
   }
 
-  requestPublicProject(
-    user: JwtPayload,
-    companySlug: string,
-    body: ClientProjectRequestDto,
-  ) {
-    return this.leads.requestPublicProject(user, companySlug, body);
+  requestPublicProject(user: JwtPayload, companySlug: string, body: ClientProjectRequestDto) {
+    return this.requestPublicProjectUc.execute(user, companySlug, body);
   }
 }

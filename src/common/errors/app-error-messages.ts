@@ -7,6 +7,8 @@ export const AppErrorMessages = {
   AUTH_REFRESH_TOKEN_EXPIRED: 'Refresh token expired',
   AUTH_ACCOUNT_LOCKED: 'Too many failed login attempts. Try again later.',
   AUTH_EMAIL_ALREADY_REGISTERED: 'Email already registered',
+  AUTH_REGISTRATION_CONFLICT:
+    'We could not complete the registration with the provided details. If you already have an account, please sign in or reset your password.',
   GUARD_INVALID_ORIGIN: 'Invalid request origin',
   GUARD_USER_NOT_AUTHENTICATED: 'Authentication required',
   GUARD_ACCESS_DENIED: 'Access denied',

@@ -12,17 +12,22 @@ export class RefreshCookieService {
   }
 
   private get cookieName(): string {
-    return (
+    const isProd = this.configService.get<string>('nodeEnv') === 'production';
+    const domain = this.configService.get<string>('auth.cookieDomain') || '';
+    const configured =
       this.configService.get<string>('auth.refreshCookieName') ||
-      'companii_refresh'
-    );
+      'companii_refresh';
+    if (isProd && !domain && !configured.startsWith('__Host-')) {
+      return `__Host-${configured}`;
+    }
+    return configured;
   }
 
   private authCookieEnv(): {
     setBase: {
       httpOnly: true;
       secure: boolean;
-      sameSite: 'lax';
+      sameSite: 'strict' | 'lax';
       path: string;
       domain?: string;
     };
@@ -30,19 +35,21 @@ export class RefreshCookieService {
       path: string;
       httpOnly: boolean;
       secure: boolean;
-      sameSite: 'lax';
+      sameSite: 'strict' | 'lax';
       domain?: string;
     };
   } {
     const isProd = this.configService.get<string>('nodeEnv') === 'production';
-    const domain =
-      this.configService.get<string>('auth.cookieDomain') || undefined;
-    const withDomain = domain ? { domain } : {};
+    const explicitDomain =
+      this.configService.get<string>('auth.cookieDomain') || '';
+    const sameSite: 'strict' | 'lax' =
+      isProd && !explicitDomain ? 'strict' : 'lax';
+    const withDomain = explicitDomain ? { domain: explicitDomain } : {};
     return {
       setBase: {
         httpOnly: true,
         secure: isProd,
-        sameSite: 'lax',
+        sameSite,
         path: '/',
         ...withDomain,
       },
@@ -50,7 +57,7 @@ export class RefreshCookieService {
         path: '/',
         httpOnly: true,
         secure: isProd,
-        sameSite: 'lax',
+        sameSite,
         ...withDomain,
       },
     };

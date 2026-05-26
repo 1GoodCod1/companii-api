@@ -8,4 +8,6 @@ export interface JwtPayload {
   memberId?: string;
   customerId?: string;
   companyRole?: CompanyRole;
+  iat?: number;
+  exp?: number;
 }

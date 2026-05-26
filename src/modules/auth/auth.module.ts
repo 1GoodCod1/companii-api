@@ -12,7 +12,11 @@ import { RefreshCookieService } from './services/refresh-cookie.service';
 import { TokenService } from './services/token.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { AuthLockoutService } from './services/auth-lockout.service';
+import { AuthJwtPayloadService } from './services/auth-jwt-payload.service';
+import { AuthSessionService } from './services/auth-session.service';
+import { AuthUserLookupService } from './services/auth-user-lookup.service';
 import { SubscriptionGuard } from './guards/subscription.guard';
+import { AUTH_USE_CASE_PROVIDERS } from './use-cases/auth-use-cases.providers';
 
 @Module({
   imports: [
@@ -33,11 +37,15 @@ import { SubscriptionGuard } from './guards/subscription.guard';
   controllers: [AuthController],
   providers: [
     AuthService,
+    AuthJwtPayloadService,
+    AuthSessionService,
+    AuthUserLookupService,
     TokenService,
     RefreshCookieService,
     AuthLockoutService,
     JwtStrategy,
     SubscriptionGuard,
+    ...AUTH_USE_CASE_PROVIDERS,
   ],
   exports: [AuthService, JwtModule, PassportModule, SubscriptionGuard, RefreshCookieService],
 })

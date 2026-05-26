@@ -5,7 +5,25 @@ import {
   AUTH_LOCKOUT_TTL_SEC,
   AUTH_LOCKOUT_WINDOW_TTL_SEC,
 } from '../../../common/constants';
+import { isEmailLogin, normalizePhone } from '../../../common/utils/phone.util';
 import { RedisService } from '../../shared/redis/redis.service';
+
+/**
+ * Canonical identifier used for lockout bookkeeping.
+ * - Email: lowercased + trimmed.
+ * - Phone: normalized to +373XXXXXXXX form (see phone.util).
+ * - Anything else: trimmed (kept as-is). This prevents the same user being
+ *   tracked under multiple bucket keys (e.g. `+37360...` vs `060...`).
+ */
+function canonicalIdentifier(raw: string | undefined | null): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  if (isEmailLogin(trimmed)) return trimmed.toLowerCase();
+  const normalized = normalizePhone(trimmed);
+  if (normalized) return normalized;
+  return trimmed.toLowerCase();
+}
 
 @Injectable()
 export class AuthLockoutService {
@@ -13,24 +31,44 @@ export class AuthLockoutService {
 
   constructor(private readonly redis: RedisService) {}
 
-  private keyEmail(email: string): string {
-    return `companii:lockout:email:${email.toLowerCase().trim()}`;
+  private keyCount(id: string): string {
+    return `companii:lockout:id:${id}`;
+  }
+
+  private keyLocked(id: string): string {
+    return `companii:lockout:locked:id:${id}`;
   }
 
   private keyIp(ip: string): string {
     return `companii:lockout:ip:${ip.trim()}`;
   }
 
-  async checkLocked(email: string, ipAddress?: string): Promise<void> {
+  private keyIpLocked(ip: string): string {
+    return `companii:lockout:locked:ip:${ip.trim()}`;
+  }
+
+  async checkLocked(rawLogin: string | undefined, ipAddress?: string): Promise<void> {
+    const id = canonicalIdentifier(rawLogin);
     try {
       const client = this.redis.getClient();
-      const raw = await client.get(this.keyEmail(email));
-      const count = raw !== null ? parseInt(raw, 10) || 0 : 0;
-      if (count >= AUTH_LOCKOUT_THRESHOLD) {
-        throw AppErrors.forbidden(AppErrorMessages.AUTH_ACCOUNT_LOCKED);
+
+      if (id) {
+        const locked = await client.get(this.keyLocked(id));
+        if (locked) {
+          throw AppErrors.forbidden(AppErrorMessages.AUTH_ACCOUNT_LOCKED);
+        }
+        const raw = await client.get(this.keyCount(id));
+        const count = raw !== null ? parseInt(raw, 10) || 0 : 0;
+        if (count >= AUTH_LOCKOUT_THRESHOLD) {
+          throw AppErrors.forbidden(AppErrorMessages.AUTH_ACCOUNT_LOCKED);
+        }
       }
 
       if (ipAddress) {
+        const ipLocked = await client.get(this.keyIpLocked(ipAddress));
+        if (ipLocked) {
+          throw AppErrors.forbidden(AppErrorMessages.AUTH_ACCOUNT_LOCKED);
+        }
         const ipRaw = await client.get(this.keyIp(ipAddress));
         const ipCount = ipRaw !== null ? parseInt(ipRaw, 10) || 0 : 0;
         if (ipCount >= AUTH_LOCKOUT_THRESHOLD * 2) {
@@ -43,14 +81,18 @@ export class AuthLockoutService {
     }
   }
 
-  async recordFailed(email: string | undefined, ipAddress?: string): Promise<void> {
+  async recordFailed(rawLogin: string | undefined, ipAddress?: string): Promise<void> {
+    const id = canonicalIdentifier(rawLogin);
     try {
       const client = this.redis.getClient();
-      if (email) {
-        const key = this.keyEmail(email);
+      if (id) {
+        const key = this.keyCount(id);
         const count = await client.incr(key);
         if (count === 1) {
           await client.expire(key, AUTH_LOCKOUT_WINDOW_TTL_SEC);
+        }
+        if (count >= AUTH_LOCKOUT_THRESHOLD) {
+          await client.set(this.keyLocked(id), '1', 'EX', AUTH_LOCKOUT_TTL_SEC);
         }
       }
       if (ipAddress) {
@@ -59,17 +101,25 @@ export class AuthLockoutService {
         if (count === 1) {
           await client.expire(key, AUTH_LOCKOUT_WINDOW_TTL_SEC);
         }
+        if (count >= AUTH_LOCKOUT_THRESHOLD * 2) {
+          await client.set(this.keyIpLocked(ipAddress), '1', 'EX', AUTH_LOCKOUT_TTL_SEC);
+        }
       }
     } catch (err) {
       this.logger.warn('recordFailed lockout skipped', err);
     }
   }
 
-  async clearOnSuccess(email: string, ipAddress?: string): Promise<void> {
+  async clearOnSuccess(rawLogin: string | undefined, ipAddress?: string): Promise<void> {
+    const id = canonicalIdentifier(rawLogin);
     try {
       const client = this.redis.getClient();
-      await client.del(this.keyEmail(email));
-      if (ipAddress) await client.del(this.keyIp(ipAddress));
+      if (id) {
+        await client.del(this.keyCount(id), this.keyLocked(id));
+      }
+      if (ipAddress) {
+        await client.del(this.keyIp(ipAddress), this.keyIpLocked(ipAddress));
+      }
     } catch {
       /* ignore */
     }
