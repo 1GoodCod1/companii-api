@@ -42,6 +42,15 @@ export default () => ({
   files: {
     uploadDir: process.env.FILES_UPLOAD_DIR || './uploads',
   },
+  b2: {
+    applicationKeyId: process.env.B2_APPLICATION_KEY_ID || '',
+    applicationKey: process.env.B2_APPLICATION_KEY || '',
+    publicBucket: process.env.B2_PUBLIC_BUCKET || '',
+    privateBucket: process.env.B2_PRIVATE_BUCKET || '',
+    region: process.env.B2_REGION || 'eu-central-003',
+    endpoint: process.env.B2_ENDPOINT || '',
+    publicBaseUrl: process.env.B2_PUBLIC_BASE_URL || '',
+  },
   email: {
     enabled: process.env.EMAIL_ENABLED !== 'false',
     from: process.env.EMAIL_FROM || 'Faber Companii <noreply@faber.md>',

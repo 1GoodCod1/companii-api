@@ -1,8 +1,6 @@
-import { createReadStream, existsSync } from 'fs';
-import { isAbsolute, join, relative, resolve, sep } from 'path';
-import { Injectable, StreamableFile } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Injectable, Logger, StreamableFile } from '@nestjs/common';
 import type { Response } from 'express';
+import { FileVisibility } from '@prisma/client';
 import {
   AppErrorMessages,
   AppErrors,
@@ -10,7 +8,7 @@ import {
 import { PrismaService } from '../../shared/database/prisma.service';
 import type { JwtPayload } from '../../auth/types/jwt-payload';
 import { FilesValidationService } from './files-validation.service';
-import { unlinkIfExists } from '../../shared/utils/file-magic';
+import { StorageService } from './storage.service';
 
 export type UploadedFileDto = {
   id: string;
@@ -19,140 +17,88 @@ export type UploadedFileDto = {
   filename: string;
   size: number;
   mimetype: string;
+  visibility: FileVisibility;
+};
+
+type MulterS3File = Express.Multer.File & {
+  location?: string;
+  bucket?: string;
+  key?: string;
 };
 
 @Injectable()
 export class FilesService {
-  private readonly uploadRoot: string;
+  private readonly logger = new Logger(FilesService.name);
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly validation: FilesValidationService,
-    config: ConfigService,
-  ) {
-    const dir = config.get<string>('files.uploadDir') ?? './uploads';
-    this.uploadRoot = resolve(isAbsolute(dir) ? dir : join(process.cwd(), dir));
-  }
+    private readonly storage: StorageService,
+  ) {}
 
   async uploadFile(
     file: Express.Multer.File,
     userId: string,
+    visibility: FileVisibility = FileVisibility.PRIVATE,
   ): Promise<UploadedFileDto> {
     this.validation.assertFilePresent(file);
-    await this.validation.assertValidFileContent(file);
 
-    const fileUrl = this.normalizeFileUrl(file);
+    const storedPath = await this.persistMulterResult(file);
+    try {
+      await this.validation.assertValidUpload(file, storedPath, this.storage);
+    } catch (err) {
+      await this.storage.deleteByStoredPath(storedPath);
+      throw err;
+    }
+
     const record = await this.prisma.file.create({
       data: {
         filename: file.originalname,
-        path: fileUrl,
+        path: storedPath,
         mimetype: file.mimetype,
         size: file.size,
+        visibility,
         uploadedById: userId,
       },
     });
 
-    return {
-      id: record.id,
-      path: fileUrl,
-      url: fileUrl,
-      filename: record.filename,
-      size: record.size,
-      mimetype: record.mimetype,
-    };
+    return this.toDto(record);
   }
 
   async uploadMany(
     files: Express.Multer.File[],
     userId: string,
+    visibility: FileVisibility = FileVisibility.PRIVATE,
   ): Promise<UploadedFileDto[]> {
     this.validation.assertMaxFiles(files);
     const results: UploadedFileDto[] = [];
     for (const f of files) {
-      results.push(await this.uploadFile(f, userId));
+      results.push(await this.uploadFile(f, userId, visibility));
     }
     return results;
   }
 
   async downloadFile(
     fileId: string,
-    user: JwtPayload,
+    user: JwtPayload | undefined,
     res: Response,
-  ): Promise<StreamableFile> {
+  ): Promise<StreamableFile | void> {
     const file = await this.prisma.file.findUnique({ where: { id: fileId } });
     if (!file) throw AppErrors.notFound(AppErrorMessages.FILES_NOT_FOUND);
 
-    if (user.accountKind !== 'PLATFORM_ADMIN') {
-      if (file.uploadedById && file.uploadedById === user.sub) {
-        // Uploader has access
-      } else {
-        // Check if file is a receipt linked to an estimate line of a project they have access to
-        const isReceiptForLine = await this.prisma.estimateLine.findFirst({
-          where: {
-            receiptFileKey: fileId,
-            stage: {
-              project: {
-                OR: [
-                  { companyId: user.activeCompanyId },
-                  { customer: { portalUserId: user.sub } },
-                ],
-              },
-            },
-          },
-        });
-        if (!isReceiptForLine) {
-          throw AppErrors.forbidden(AppErrorMessages.FILES_ACCESS_DENIED);
-        }
+    if (file.visibility === FileVisibility.PUBLIC) {
+      const publicUrl = this.buildPublicUrl(file.path);
+      if (publicUrl) {
+        res.setHeader('Cache-Control', 'public, max-age=3600');
+        res.redirect(302, publicUrl);
+        return;
       }
+      return this.streamFile(file, res, /* isPrivate */ false);
     }
 
-    const absolutePath = this.resolveSafeLocalPath(file.path);
-    if (!existsSync(absolutePath)) {
-      throw AppErrors.notFound(AppErrorMessages.FILES_NOT_FOUND);
-    }
-
-    const safeName = file.filename.replace(/[^\w.\-()+ ]/g, '_');
-    res.setHeader('Content-Type', file.mimetype);
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${safeName}"`,
-    );
-    res.setHeader('Cache-Control', 'private, no-store');
-
-    const stream = createReadStream(absolutePath);
-    stream.on('error', () => {
-      try {
-        stream.destroy();
-      } catch {
-        /* ignore */
-      }
-    });
-    return new StreamableFile(stream);
-  }
-
-  private normalizeFileUrl(file: Express.Multer.File): string {
-    const normalized = file.path.replace(/\\/g, '/');
-    if (normalized.startsWith('uploads/')) return `/${normalized}`;
-    const base = normalized.split('/').pop() ?? 'file';
-    return `/uploads/${base}`;
-  }
-
-  private resolveSafeLocalPath(publicPath: string): string {
-    if (
-      !publicPath ||
-      publicPath.includes('\0') ||
-      /^[a-z][a-z0-9+.-]*:\/\//i.test(publicPath)
-    ) {
-      throw AppErrors.forbidden(AppErrorMessages.FILES_ACCESS_DENIED);
-    }
-    const stripped = publicPath.replace(/^\/+/, '');
-    const candidate = resolve(this.uploadRoot, stripped);
-    const rel = relative(this.uploadRoot, candidate);
-    if (rel.startsWith('..') || rel.split(sep).includes('..') || isAbsolute(rel)) {
-      throw AppErrors.forbidden(AppErrorMessages.FILES_ACCESS_DENIED);
-    }
-    return candidate;
+    if (!user) throw AppErrors.unauthorized(AppErrorMessages.AUTH_UNAUTHORIZED);
+    await this.assertPrivateAccess(file, user);
+    return this.streamFile(file, res, /* isPrivate */ true);
   }
 
   async deleteFileIfOwned(fileId: string, userId: string): Promise<void> {
@@ -161,8 +107,137 @@ export class FilesService {
     if (file.uploadedById !== userId) {
       throw AppErrors.forbidden(AppErrorMessages.FILES_ACCESS_DENIED);
     }
-    const absolutePath = this.resolveSafeLocalPath(file.path);
     await this.prisma.file.delete({ where: { id: fileId } });
-    await unlinkIfExists(absolutePath);
+    try {
+      await this.storage.deleteByStoredPath(file.path);
+    } catch (err) {
+      this.logger.warn(
+        `Storage delete failed for orphaned object "${file.path}" (file row already removed): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+  }
+
+  private async persistMulterResult(file: Express.Multer.File): Promise<string> {
+    const s3file = file as MulterS3File;
+    if (s3file.bucket && s3file.key) {
+      return this.storage.encodeB2(s3file.bucket, s3file.key);
+    }
+
+    const localPath = file.path?.replace(/\\/g, '/') ?? '';
+    if (!localPath) {
+      throw AppErrors.badRequest(AppErrorMessages.FILES_NONE_UPLOADED);
+    }
+    if (localPath.startsWith('uploads/')) return `/${localPath}`;
+    const base = localPath.split('/').pop() ?? 'file';
+    return `/uploads/${base}`;
+  }
+
+  private buildPublicUrl(storedPath: string): string | null {
+    if (storedPath.startsWith('b2://')) {
+      const decoded = this.storage.decodeStoredPath(storedPath);
+      if (decoded.kind !== 'b2') return null;
+      return this.storage.publicUrlFor(decoded.key);
+    }
+    return null;
+  }
+
+  private async streamFile(
+    file: {
+      id: string;
+      path: string;
+      filename: string;
+      mimetype: string;
+      visibility: FileVisibility;
+    },
+    res: Response,
+    isPrivate: boolean,
+  ): Promise<StreamableFile> {
+    const opened = await this.storage.openReadStream(file.path);
+    const safeName = file.filename.replace(/[^\w.\-()+ ]/g, '_');
+
+    res.setHeader('Content-Type', opened.contentType ?? file.mimetype);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${safeName}"`,
+    );
+    res.setHeader(
+      'Cache-Control',
+      isPrivate ? 'private, no-store' : 'public, max-age=3600',
+    );
+    if (opened.size > 0) {
+      res.setHeader('Content-Length', String(opened.size));
+    }
+
+    const stream = opened.stream as unknown as NodeJS.ReadableStream & {
+      on: (ev: string, cb: () => void) => void;
+      destroy?: () => void;
+    };
+    stream.on('error', () => {
+      try {
+        stream.destroy?.();
+      } catch {
+        /* ignore */
+      }
+    });
+    return new StreamableFile(stream as unknown as import('stream').Readable);
+  }
+
+  private async assertPrivateAccess(
+    file: { id: string; uploadedById: string | null },
+    user: JwtPayload,
+  ): Promise<void> {
+    if (user.accountKind === 'PLATFORM_ADMIN') return;
+    if (file.uploadedById && file.uploadedById === user.sub) return;
+
+    const isReceiptForLine = await this.prisma.estimateLine.findFirst({
+      where: {
+        receiptFileKey: file.id,
+        stage: {
+          project: {
+            OR: [
+              { companyId: user.activeCompanyId },
+              { customer: { portalUserId: user.sub } },
+            ],
+          },
+        },
+      },
+    });
+    if (!isReceiptForLine) {
+      throw AppErrors.forbidden(AppErrorMessages.FILES_ACCESS_DENIED);
+    }
+  }
+
+  private toDto(record: {
+    id: string;
+    filename: string;
+    path: string;
+    mimetype: string;
+    size: number;
+    visibility: FileVisibility;
+  }): UploadedFileDto {
+    const url =
+      record.visibility === FileVisibility.PUBLIC && record.path.startsWith('b2://')
+        ? this.buildPublicUrlFromStoredPath(record.path) ?? record.path
+        : record.path;
+
+    return {
+      id: record.id,
+      path: record.path,
+      url,
+      filename: record.filename,
+      size: record.size,
+      mimetype: record.mimetype,
+      visibility: record.visibility,
+    };
+  }
+
+  private buildPublicUrlFromStoredPath(storedPath: string): string | null {
+    if (!storedPath.startsWith('b2://')) return null;
+    const decoded = this.storage.decodeStoredPath(storedPath);
+    if (decoded.kind !== 'b2') return null;
+    return this.storage.publicUrlFor(decoded.key);
   }
 }

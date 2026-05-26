@@ -8,6 +8,14 @@ import type { JwtPayload } from '../../auth/types/jwt-payload';
 
 export const COMPANY_ROLES_KEY = 'company_roles';
 
+export interface CompanyContext {
+  companyId: string;
+  memberId: string;
+  role: CompanyRole;
+}
+
+export const COMPANY_CONTEXT_KEY = 'companyContext';
+
 @Injectable()
 export class CompanyGuard implements CanActivate {
   constructor(
@@ -24,6 +32,7 @@ export class CompanyGuard implements CanActivate {
     const req = context.switchToHttp().getRequest<{
       user: JwtPayload;
       headers: Record<string, string | string[] | undefined>;
+      [COMPANY_CONTEXT_KEY]?: CompanyContext;
     }>();
     const user = req.user;
     if (user.accountKind === 'PLATFORM_ADMIN') return true;
@@ -44,7 +53,11 @@ export class CompanyGuard implements CanActivate {
     if (roles?.length && !roles.includes(member.role)) {
       throw AppErrors.forbidden(AppErrorMessages.COMPANY_ACCESS_DENIED);
     }
-
+    req[COMPANY_CONTEXT_KEY] = {
+      companyId,
+      memberId: member.id,
+      role: member.role,
+    };
     user.activeCompanyId = companyId;
     user.memberId = member.id;
     user.companyRole = member.role;

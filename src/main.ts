@@ -22,10 +22,16 @@ import {
 } from './config';
 
 process.on('warning', (warning) => {
-  if (warning.name === 'DeprecationWarning' && warning.message.includes('client.query')) {
-    return;
-  }
-  console.warn(warning.stack);
+  // Suppress the noisy "client.query" deprecation that pg emits while still
+  // using the recommended `query` overload. Everything else — including
+  // other deprecations, ExperimentalWarning, MaxListenersExceededWarning —
+  // is still surfaced so we don't accidentally hide useful signal.
+  const isPgClientQueryDeprecation =
+    warning.name === 'DeprecationWarning' &&
+    warning.message.includes('client.query') &&
+    warning.message.toLowerCase().includes('pg');
+  if (isPgClientQueryDeprecation) return;
+  console.warn(warning.stack ?? warning.message);
 });
 
 process.on('unhandledRejection', (reason) => {

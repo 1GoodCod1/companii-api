@@ -121,9 +121,11 @@ export class RegisterUseCase {
     if (user.accountKind === 'COMPANY_STAFF' && teamInviteToken) {
       await this.teamInvite.acceptInviteToken(teamInviteToken, user.id);
     }
-
-    const enriched = await this.jwtPayload.enrichPayload(this.jwtPayload.buildPayload(user));
-    const result = await this.session.issue(enriched, rememberMe ?? true);
+    const rememberMeResolved = rememberMe ?? false;
+    const enriched = await this.jwtPayload.enrichPayload(
+      this.jwtPayload.buildPayload(user),
+    );
+    const result = await this.session.issue(enriched, rememberMeResolved);
     void this.audit.log({
       userId: user.id,
       action: AuditAction.USER_REGISTERED,
@@ -131,6 +133,6 @@ export class RegisterUseCase {
       entityId: user.id,
       newData: { email: user.email, accountKind: user.accountKind, phone: user.phone },
     });
-    return { ...result, rememberMe: rememberMe ?? true };
+    return { ...result, rememberMe: rememberMeResolved };
   }
 }

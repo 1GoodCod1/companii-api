@@ -20,6 +20,7 @@ import { AuditModule } from './modules/audit/audit.module';
 import { PrismaModule } from './modules/shared/database/prisma.module';
 import { RedisModule } from './modules/shared/redis/redis.module';
 import { CacheModule } from './modules/shared/cache/cache.module';
+import { MaintenanceModule } from './modules/shared/maintenance/maintenance.module';
 import { FilesModule } from './modules/files/files.module';
 import { EmailModule } from './modules/email/email.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -32,6 +33,8 @@ import { PaymentsModule } from './modules/payments/payments.module';
 import { ConsentModule } from './modules/consent/consent.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
 import { EstimatesModule } from './modules/estimates/estimates.module';
+import { SeoModule } from './modules/seo/seo.module';
+import { WebVitalsModule } from './modules/web-vitals/web-vitals.module';
 import { RlsModule } from './common/rls/rls.module';
 import { HealthController } from './health.controller';
 import { AUTH_THROTTLER_NAME } from './common/constants';
@@ -67,6 +70,7 @@ const isProd = process.env.NODE_ENV === 'production';
     RlsModule,
     RedisModule,
     CacheModule,
+    MaintenanceModule,
     FilesModule,
     EmailModule,
     AuditModule,
@@ -80,6 +84,8 @@ const isProd = process.env.NODE_ENV === 'production';
     ConsentModule,
     ReviewsModule,
     EstimatesModule,
+    SeoModule,
+    WebVitalsModule,
   ],
   controllers: [HealthController],
   providers: [

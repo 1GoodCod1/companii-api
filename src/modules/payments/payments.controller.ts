@@ -5,16 +5,12 @@ import { Public } from '../../common/decorators/public.decorator';
 import { PrismaService } from '../shared/database/prisma.service';
 import { CompanyGuard } from '../companies/guards/company.guard';
 import { CompanyRoles } from '../companies/decorators/company-roles.decorator';
-import { CompanyAuthorizationService } from '../companies/authorization/company-authorization.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../auth/types/jwt-payload';
 
 @Controller(CONTROLLER_PATH.payments)
 export class PaymentsController {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly companyAuth: CompanyAuthorizationService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   @Post('subscription/checkout')
   @UseGuards(CompanyGuard)
@@ -23,7 +19,6 @@ export class PaymentsController {
     @CurrentUser() user: JwtPayload,
     @Body() body: { planCode: string; amount: number },
   ) {
-    await this.companyAuth.assertCompanyOwner(user);
     return this.prisma.payment.create({
       data: {
         companyId: user.activeCompanyId,

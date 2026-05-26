@@ -129,6 +129,18 @@ export class HttpExceptionFilter implements ExceptionFilter {
           status: HttpStatus.NOT_FOUND,
           message: { message: 'Record not found' },
         };
+      case 'P2003':
+        return {
+          status: HttpStatus.CONFLICT,
+          message: {
+            message: 'Referenced record does not exist or is locked',
+          },
+        };
+      case 'P2034':
+        return {
+          status: HttpStatus.CONFLICT,
+          message: { message: 'Concurrent update conflict, please retry' },
+        };
       default:
         return {
           status: HttpStatus.INTERNAL_SERVER_ERROR,

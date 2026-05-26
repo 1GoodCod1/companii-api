@@ -152,19 +152,26 @@ model User {
   @@map("users")
 }
 
+enum FileVisibility {
+  PUBLIC
+  PRIVATE
+}
+
 model File {
-  id           String   @id @default(uuid())
+  id           String         @id @default(uuid())
   filename     String
-  path         String   @unique
+  path         String         @unique
   mimetype     String
   size         Int
-  uploadedById String?  @map("uploaded_by_id")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  visibility   FileVisibility @default(PRIVATE)
+  uploadedById String?        @map("uploaded_by_id")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
 
   uploader User? @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
 
   @@index([mimetype])
+  @@index([visibility])
   @@map("files")
 }
 

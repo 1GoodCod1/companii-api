@@ -2,6 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 import { AppErrors, AppErrorMessages } from '../../../common/errors';
+import {
+  AUTH_REMEMBER_ME_DAYS,
+  AUTH_SESSION_DAYS,
+} from '../../../common/constants';
 
 @Injectable()
 export class RefreshCookieService {
@@ -81,15 +85,10 @@ export class RefreshCookieService {
     return undefined;
   }
 
-  private static readonly REMEMBER_ME_DAYS = 30;
-  private static readonly SESSION_DAYS = 1;
-
   attachIfEnabled(res: Response, token: string, rememberMe?: boolean): void {
     if (!this.isEnabled || !token) return;
     const { setBase } = this.authCookieEnv();
-    const days = rememberMe
-      ? RefreshCookieService.REMEMBER_ME_DAYS
-      : RefreshCookieService.SESSION_DAYS;
+    const days = rememberMe ? AUTH_REMEMBER_ME_DAYS : AUTH_SESSION_DAYS;
     const maxAgeMs = days * 24 * 60 * 60 * 1000;
 
     res.cookie(this.cookieName, token, {
@@ -117,7 +116,10 @@ export class RefreshCookieService {
   handleAuthSuccess<
     T extends { refreshToken?: string; rememberMe?: boolean },
   >(result: T, res: Response): Omit<T, 'refreshToken' | 'rememberMe'> {
-    this.attachIfEnabled(res, result.refreshToken ?? '', result.rememberMe);
+    const refreshToken = result.refreshToken?.trim();
+    if (refreshToken) {
+      this.attachIfEnabled(res, refreshToken, result.rememberMe);
+    }
     const { rememberMe: _rm, ...withoutRememberMe } = result;
     void _rm;
     return this.stripRefreshFromPayload(withoutRememberMe) as Omit<

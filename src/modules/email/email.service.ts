@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
@@ -15,7 +15,7 @@ import {
 } from './templates';
 
 @Injectable()
-export class EmailService {
+export class EmailService implements OnModuleInit {
   private readonly logger = new Logger(EmailService.name);
   private readonly transporter: Transporter | null = null;
 
@@ -35,10 +35,25 @@ export class EmailService {
         port: smtp.port,
         secure: smtp.secure,
         auth: { user: smtp.user, pass: smtp.pass },
+        pool: true,
+        maxConnections: 3,
+        maxMessages: 100,
       });
       this.logger.log(`Email SMTP ready (${smtp.host}:${smtp.port})`);
     } else {
       this.logger.warn('Email disabled or SMTP incomplete — messages will be logged only');
+    }
+  }
+
+  async onModuleInit(): Promise<void> {
+    if (!this.transporter) return;
+    try {
+      await this.transporter.verify();
+      this.logger.log('SMTP connection verified');
+    } catch (err) {
+      this.logger.error(
+        `SMTP verify failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 

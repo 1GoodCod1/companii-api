@@ -1,4 +1,4 @@
-name: Companii API CI/CD
+name: Backend CI/CD
 
 on:
   push:
@@ -9,21 +9,48 @@ on:
 env:
   NODE_VERSION: '22'
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}/companii-api
+  IMAGE_NAME: ${{ github.repository }}/backend
 
 jobs:
   lint-and-test:
+    name: Lint and Test
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run prisma:generate
+      - run: npm run lint
+      - run: npm run test:cov
+        env:
+          NODE_OPTIONS: ''
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: lint-and-test
     services:
       postgres:
         image: postgres:18
         env:
-          POSTGRES_DB: companii_test
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: companii
-        ports: ['5433:5432']
+          POSTGRES_DB: test_db
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+        ports: [5432:5432]
         options: >-
-          --health-cmd "pg_isready -U postgres"
+          --health-cmd "pg_isready -U test_user -d test_db"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports: [6379:6379]
+        options: >-
+          --health-cmd "redis-cli ping"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -32,19 +59,23 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: npm
+          cache: 'npm'
           cache-dependency-path: package-lock.json
       - run: npm ci
       - run: npm run prisma:generate
-      - run: npm run test:cov
-        env:
-          NODE_OPTIONS: ''
       - run: npx prisma migrate deploy
         env:
-          DATABASE_URL: postgresql://postgres:companii@localhost:5433/companii_test
-      - run: npm run build
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+      - run: npm run test:e2e
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: test-jwt-secret-key-32chars-for-ci
+          NODE_ENV: test
+          NODE_OPTIONS: ''
 
   build-docker:
+    name: Build Docker Image
     runs-on: ubuntu-latest
     needs: lint-and-test
     if: github.event_name == 'push'
@@ -77,3 +108,23 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: NODE_ENV=production
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build-docker, integration-tests]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+    steps:
+      - uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          script: |
+            cd ~/companii/companii-api
+            git pull origin main
+            docker compose -f docker-compose.prod.yml pull api
+            docker compose -f docker-compose.prod.yml up -d api
+            docker compose -f docker-compose.prod.yml exec -T api npx prisma migrate deploy

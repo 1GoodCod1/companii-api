@@ -16,6 +16,8 @@ export const CONTROLLER_PATH = {
   consent: 'consent',
   reviews: 'reviews',
   estimates: 'estimates',
+  seo: 'seo',
+  webVitals: 'web-vitals',
 } as const;
 
 export type ControllerPath =

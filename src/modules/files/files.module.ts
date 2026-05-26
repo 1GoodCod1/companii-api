@@ -4,6 +4,7 @@ import { MulterModule } from '@nestjs/platform-express';
 import { FilesController } from './files.controller';
 import { FilesService } from './services/files.service';
 import { FilesValidationService } from './services/files-validation.service';
+import { StorageService } from './services/storage.service';
 import { createMulterOptions } from './config/multer-config.factory';
 
 @Module({
@@ -15,7 +16,7 @@ import { createMulterOptions } from './config/multer-config.factory';
     }),
   ],
   controllers: [FilesController],
-  providers: [FilesService, FilesValidationService],
-  exports: [FilesService],
+  providers: [FilesService, FilesValidationService, StorageService],
+  exports: [FilesService, StorageService],
 })
 export class FilesModule {}

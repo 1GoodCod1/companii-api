@@ -3,6 +3,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { AppErrors, AppErrorMessages } from '../../../common/errors';
+import {
+  AUTH_REMEMBER_ME_DAYS,
+  AUTH_SESSION_DAYS,
+} from '../../../common/constants';
 import { PrismaService } from '../../shared/database/prisma.service';
 import { RedisService } from '../../shared/redis/redis.service';
 import type { JwtPayload } from '../types/jwt-payload';
@@ -31,9 +35,6 @@ export class TokenService {
     });
   }
 
-  private static readonly REMEMBER_ME_DAYS = 30;
-  private static readonly SESSION_DAYS = 1;
-
   private hashToken(token: string): string {
     return createHash('sha256').update(token).digest('hex');
   }
@@ -44,9 +45,7 @@ export class TokenService {
   ): Promise<string> {
     const token = randomBytes(40).toString('hex');
     const tokenHash = this.hashToken(token);
-    const days = rememberMe
-      ? TokenService.REMEMBER_ME_DAYS
-      : TokenService.SESSION_DAYS;
+    const days = rememberMe ? AUTH_REMEMBER_ME_DAYS : AUTH_SESSION_DAYS;
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + days);
 
@@ -87,7 +86,7 @@ export class TokenService {
 
     const daysValid =
       (record.expiresAt.getTime() - record.createdAt.getTime()) / 86_400_000;
-    const rememberMe = daysValid > TokenService.SESSION_DAYS + 0.5;
+    const rememberMe = daysValid > AUTH_SESSION_DAYS + 0.5;
 
     await this.prisma.refreshToken.deleteMany({ where: { id: record.id } });
     const newRefreshToken = await this.generateRefreshToken(

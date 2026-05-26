@@ -3,6 +3,7 @@ import {
   ExecutionContext,
   Injectable,
   NestInterceptor,
+  StreamableFile,
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
@@ -34,13 +35,30 @@ export class TransformInterceptor<T> implements NestInterceptor<
     }
 
     return next.handle().pipe(
-      map((data: T) => ({
-        success: true as const,
-        data,
-        timestamp: new Date().toISOString(),
-        path: request.url,
-        ...(requestId ? { requestId } : {}),
-      })),
+      map((data: T) => {
+        if (
+          data instanceof StreamableFile ||
+          isNodeReadable(data) ||
+          Buffer.isBuffer(data)
+        ) {
+          return data as unknown as ApiSuccessResponse<T>;
+        }
+        return {
+          success: true as const,
+          data,
+          timestamp: new Date().toISOString(),
+          path: request.url,
+          ...(requestId ? { requestId } : {}),
+        };
+      }),
     );
   }
+}
+
+function isNodeReadable(value: unknown): boolean {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as { pipe?: unknown }).pipe === 'function'
+  );
 }

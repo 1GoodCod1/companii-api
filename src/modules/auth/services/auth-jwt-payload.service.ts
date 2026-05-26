@@ -24,24 +24,31 @@ export class AuthJwtPayloadService {
     payload: JwtPayload,
     options?: { preferredCompanyId?: string },
   ): Promise<JwtPayload> {
+    // Treat the input as read-only so callers can rely on referential
+    // equality and tests don't see surprise mutations. All enrichment
+    // returns a fresh object built from the original.
+    const base: JwtPayload = { ...payload };
     return this.prisma.withRlsContext(
-      rlsContextFromUserId(payload.sub, payload.accountKind, {
-        companyId: options?.preferredCompanyId ?? payload.activeCompanyId,
+      rlsContextFromUserId(base.sub, base.accountKind, {
+        companyId: options?.preferredCompanyId ?? base.activeCompanyId,
       }),
       async () => {
-        if (payload.accountKind === 'END_CLIENT') {
+        if (base.accountKind === 'END_CLIENT') {
           const customer = await this.prisma.companyCustomer.findUnique({
-            where: { portalUserId: payload.sub },
+            where: { portalUserId: base.sub },
             select: { id: true, companyId: true },
           });
           if (customer) {
-            payload.customerId = customer.id;
-            payload.activeCompanyId = customer.companyId;
+            return {
+              ...base,
+              customerId: customer.id,
+              activeCompanyId: customer.companyId,
+            };
           }
-          return payload;
+          return base;
         }
 
-        return this.enrichCompanyMember(payload, options?.preferredCompanyId);
+        return this.enrichCompanyMember(base, options?.preferredCompanyId);
       },
     );
   }
@@ -51,7 +58,8 @@ export class AuthJwtPayloadService {
     preferredCompanyIdHint?: string,
   ): Promise<JwtPayload> {
     const userId = payload.sub;
-    const preferredCompanyId = preferredCompanyIdHint ?? payload.activeCompanyId ?? '';
+    const preferredCompanyId =
+      preferredCompanyIdHint ?? payload.activeCompanyId ?? '';
 
     const rows = await this.prisma.$queryRaw<
       Array<{
@@ -119,20 +127,24 @@ export class AuthJwtPayloadService {
     const row = rows[0];
     if (!row) return payload;
 
-    payload.activeCompanyId = row.company_id;
-    if (row.member_id) payload.memberId = row.member_id;
-    payload.companyRole = row.company_role ?? 'OWNER';
+    let memberId: string | undefined = row.member_id ?? payload.memberId;
+    let companyRole: CompanyRole = row.company_role ?? 'OWNER';
     if (!row.member_id && row.is_owner) {
       const ownerMembership = await this.prisma.companyMember.findFirst({
         where: { companyId: row.company_id, userId, status: 'ACTIVE' },
         select: { id: true, role: true },
       });
       if (ownerMembership) {
-        payload.memberId = ownerMembership.id;
-        payload.companyRole = ownerMembership.role;
+        memberId = ownerMembership.id;
+        companyRole = ownerMembership.role;
       }
     }
 
-    return payload;
+    return {
+      ...payload,
+      activeCompanyId: row.company_id,
+      memberId,
+      companyRole,
+    };
   }
 }

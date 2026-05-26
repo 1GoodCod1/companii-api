@@ -13,7 +13,11 @@ import {
 import {
   unlinkIfExists,
   validateFileMagic,
+  validateMagicFromBuffer,
 } from '../../shared/utils/file-magic';
+import type { StorageService } from './storage.service';
+
+const MAGIC_HEAD_BYTES = 32;
 
 function fileExtension(originalname: string): string {
   const i = originalname.lastIndexOf('.');
@@ -22,13 +26,29 @@ function fileExtension(originalname: string): string {
 
 @Injectable()
 export class FilesValidationService {
-  async assertValidFileContent(file: Express.Multer.File): Promise<void> {
-    if (!file.path) return;
+  async assertValidUpload(
+    file: Express.Multer.File,
+    storedPath: string,
+    storage: StorageService,
+  ): Promise<void> {
+    this.assertFileSize(file);
     try {
-      this.assertFileSize(file);
-      await validateFileMagic(file.path, file.originalname);
+      if (storedPath.startsWith('b2://')) {
+        const head = await storage.getFileHead(storedPath, MAGIC_HEAD_BYTES);
+        if (!head) {
+          throw new Error(AppErrorMessages.FILES_INVALID_CONTENT);
+        }
+        validateMagicFromBuffer(head, file.originalname);
+        return;
+      }
+
+      if (file.path) {
+        await validateFileMagic(file.path, file.originalname);
+        return;
+      }
+      throw new Error(AppErrorMessages.FILES_INVALID_CONTENT);
     } catch (e) {
-      await unlinkIfExists(file.path);
+      if (file.path) await unlinkIfExists(file.path);
       if (e instanceof BadRequestException) throw e;
       throw AppErrors.badRequest(
         AppErrorTemplates.invalidFileContent(
