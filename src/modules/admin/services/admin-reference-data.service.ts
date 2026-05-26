@@ -20,7 +20,11 @@ export class AdminReferenceDataService {
     const baseSlug = dto.slug?.trim() || slugifyCatalogName(dto.name);
     const slug = await uniqueCatalogSlug(this.prisma, 'city', baseSlug);
     return this.prisma.city.create({
-      data: { name: dto.name.trim(), slug },
+      data: {
+        name: dto.name.trim(),
+        slug,
+        ...(dto.translations ? { translations: dto.translations } : {}),
+      },
       include: { _count: { select: { companies: true } } },
     });
   }
@@ -29,13 +33,14 @@ export class AdminReferenceDataService {
     const existing = await this.prisma.city.findUnique({ where: { id } });
     if (!existing) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
 
-    const data: { name?: string; slug?: string } = {};
+    const data: { name?: string; slug?: string; translations?: Record<string, { name?: string }> } = {};
     if (dto.name?.trim()) data.name = dto.name.trim();
     if (dto.slug?.trim()) {
       data.slug = await uniqueCatalogSlug(this.prisma, 'city', dto.slug.trim(), id);
     } else if (dto.name?.trim()) {
       data.slug = await uniqueCatalogSlug(this.prisma, 'city', slugifyCatalogName(dto.name.trim()), id);
     }
+    if (dto.translations) data.translations = dto.translations;
 
     return this.prisma.city.update({
       where: { id },
@@ -68,7 +73,11 @@ export class AdminReferenceDataService {
     const baseSlug = dto.slug?.trim() || slugifyCatalogName(dto.name);
     const slug = await uniqueCatalogSlug(this.prisma, 'category', baseSlug);
     return this.prisma.category.create({
-      data: { name: dto.name.trim(), slug },
+      data: {
+        name: dto.name.trim(),
+        slug,
+        ...(dto.translations ? { translations: dto.translations } : {}),
+      },
       include: { _count: { select: { companies: true, companyServices: true } } },
     });
   }
@@ -77,13 +86,19 @@ export class AdminReferenceDataService {
     const existing = await this.prisma.category.findUnique({ where: { id } });
     if (!existing) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
 
-    const data: { name?: string; slug?: string } = {};
+    const data: { name?: string; slug?: string; translations?: Record<string, { name?: string }> } = {};
     if (dto.name?.trim()) data.name = dto.name.trim();
     if (dto.slug?.trim()) {
       data.slug = await uniqueCatalogSlug(this.prisma, 'category', dto.slug.trim(), id);
     } else if (dto.name?.trim()) {
-      data.slug = await uniqueCatalogSlug(this.prisma, 'category', slugifyCatalogName(dto.name.trim()), id);
+      data.slug = await uniqueCatalogSlug(
+        this.prisma,
+        'category',
+        slugifyCatalogName(dto.name.trim()),
+        id,
+      );
     }
+    if (dto.translations) data.translations = dto.translations;
 
     return this.prisma.category.update({
       where: { id },

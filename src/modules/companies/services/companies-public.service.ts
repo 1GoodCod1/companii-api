@@ -84,7 +84,7 @@ export class CompaniesPublicService {
             members: { where: { status: 'ACTIVE', isActive: true } },
             services: {
               where: { isPublished: true },
-              include: { category: { select: { id: true, name: true, slug: true } } },
+              include: { category: { select: { id: true, name: true, slug: true, translations: true } } },
               orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
             },
             badges: { where: { isActive: true } },

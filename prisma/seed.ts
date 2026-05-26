@@ -21,43 +21,180 @@ if (!url) throw new Error('DATABASE_URL required');
 const pool = new Pool({ connectionString: url });
 const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
 
-const CITIES: { name: string; slug: string }[] = [
-  { name: 'Chișinău', slug: 'chisinau' },
-  { name: 'Bălți', slug: 'balti' },
-  { name: 'Cahul', slug: 'cahul' },
-  { name: 'Comrat', slug: 'comrat' },
-  { name: 'Ungheni', slug: 'ungeni' },
-  { name: 'Orhei', slug: 'orhei' },
-  { name: 'Soroca', slug: 'soroca' },
-  { name: 'Hîncești', slug: 'hincesti' },
-  { name: 'Florești', slug: 'floresti' },
-  { name: 'Edineț', slug: 'edinet' },
-  { name: 'Strășeni', slug: 'straseni' },
-  { name: 'Ceadîr-Lunga', slug: 'ceadir-lunga' },
-  { name: 'Taraclia', slug: 'taraclia' },
-  { name: 'Cantemir', slug: 'cantemir' },
-  { name: 'Căușeni', slug: 'causeni' },
-  { name: 'Ialoveni', slug: 'ialoveni' },
-  { name: 'Călărași', slug: 'calarasi' },
-  { name: 'Criuleni', slug: 'criuleni' },
-  { name: 'Briceni', slug: 'briceni' },
-  { name: 'Anenii Noi', slug: 'anenii-noi' },
+type CatalogTranslation = { ro: { name: string }; ru: { name: string } };
+
+type CitySeed = { name: string; slug: string; translations: CatalogTranslation };
+type CategorySeed = { name: string; slug: string; translations: CatalogTranslation };
+
+const CITIES: CitySeed[] = [
+  {
+    name: 'Chișinău',
+    slug: 'chisinau',
+    translations: { ro: { name: 'Chișinău' }, ru: { name: 'Кишинёв' } },
+  },
+  {
+    name: 'Bălți',
+    slug: 'balti',
+    translations: { ro: { name: 'Bălți' }, ru: { name: 'Бельцы' } },
+  },
+  {
+    name: 'Cahul',
+    slug: 'cahul',
+    translations: { ro: { name: 'Cahul' }, ru: { name: 'Кагул' } },
+  },
+  {
+    name: 'Comrat',
+    slug: 'comrat',
+    translations: { ro: { name: 'Comrat' }, ru: { name: 'Комрат' } },
+  },
+  {
+    name: 'Ungheni',
+    slug: 'ungeni',
+    translations: { ro: { name: 'Ungheni' }, ru: { name: 'Унгены' } },
+  },
+  {
+    name: 'Orhei',
+    slug: 'orhei',
+    translations: { ro: { name: 'Orhei' }, ru: { name: 'Орхей' } },
+  },
+  {
+    name: 'Soroca',
+    slug: 'soroca',
+    translations: { ro: { name: 'Soroca' }, ru: { name: 'Сорока' } },
+  },
+  {
+    name: 'Hîncești',
+    slug: 'hincesti',
+    translations: { ro: { name: 'Hîncești' }, ru: { name: 'Хынчешть' } },
+  },
+  {
+    name: 'Florești',
+    slug: 'floresti',
+    translations: { ro: { name: 'Florești' }, ru: { name: 'Флорешть' } },
+  },
+  {
+    name: 'Edineț',
+    slug: 'edinet',
+    translations: { ro: { name: 'Edineț' }, ru: { name: 'Единец' } },
+  },
+  {
+    name: 'Strășeni',
+    slug: 'straseni',
+    translations: { ro: { name: 'Strășeni' }, ru: { name: 'Стрэшень' } },
+  },
+  {
+    name: 'Ceadîr-Lunga',
+    slug: 'ceadir-lunga',
+    translations: { ro: { name: 'Ceadîr-Lunga' }, ru: { name: 'Чадыр-Лунга' } },
+  },
+  {
+    name: 'Taraclia',
+    slug: 'taraclia',
+    translations: { ro: { name: 'Taraclia' }, ru: { name: 'Тараклия' } },
+  },
+  {
+    name: 'Cantemir',
+    slug: 'cantemir',
+    translations: { ro: { name: 'Cantemir' }, ru: { name: 'Кантемир' } },
+  },
+  {
+    name: 'Căușeni',
+    slug: 'causeni',
+    translations: { ro: { name: 'Căușeni' }, ru: { name: 'Кэушень' } },
+  },
+  {
+    name: 'Ialoveni',
+    slug: 'ialoveni',
+    translations: { ro: { name: 'Ialoveni' }, ru: { name: 'Яловены' } },
+  },
+  {
+    name: 'Călărași',
+    slug: 'calarasi',
+    translations: { ro: { name: 'Călărași' }, ru: { name: 'Кэлэраш' } },
+  },
+  {
+    name: 'Criuleni',
+    slug: 'criuleni',
+    translations: { ro: { name: 'Criuleni' }, ru: { name: 'Криулень' } },
+  },
+  {
+    name: 'Briceni',
+    slug: 'briceni',
+    translations: { ro: { name: 'Briceni' }, ru: { name: 'Бричень' } },
+  },
+  {
+    name: 'Anenii Noi',
+    slug: 'anenii-noi',
+    translations: { ro: { name: 'Anenii Noi' }, ru: { name: 'Анений-Ной' } },
+  },
 ];
 
-const CATEGORIES: { name: string; slug: string }[] = [
-  { name: 'Instalații sanitare', slug: 'santehnika' },
-  { name: 'Electricitate', slug: 'elektrika' },
-  { name: 'Climatizare și încălzire', slug: 'clima' },
-  { name: 'Lucrări de finisaj', slug: 'lucrari-finisaj' },
-  { name: 'Acoperișuri', slug: 'acoperis' },
-  { name: 'Fațade', slug: 'fatade' },
-  { name: 'Ferestre și uși', slug: 'okna-dveri' },
-  { name: 'Mobilier', slug: 'mobila' },
-  { name: 'Servicii de curățenie', slug: 'cleaning' },
-  { name: 'Servicii IT și Securitate', slug: 'it-networks' },
-  { name: 'Panouri solare', slug: 'panouri-solare' },
-  { name: 'Construcții generale', slug: 'constructii' },
-  { name: 'Pavaj și amenajări exterioare', slug: 'pavaj' },
+const CATEGORIES: CategorySeed[] = [
+  {
+    name: 'Instalații sanitare',
+    slug: 'santehnika',
+    translations: { ro: { name: 'Instalații sanitare' }, ru: { name: 'Сантехника' } },
+  },
+  {
+    name: 'Electricitate',
+    slug: 'elektrika',
+    translations: { ro: { name: 'Electricitate' }, ru: { name: 'Электрика' } },
+  },
+  {
+    name: 'Climatizare și încălzire',
+    slug: 'clima',
+    translations: { ro: { name: 'Climatizare și încălzire' }, ru: { name: 'Климатизация и отопление' } },
+  },
+  {
+    name: 'Lucrări de finisaj',
+    slug: 'lucrari-finisaj',
+    translations: { ro: { name: 'Lucrări de finisaj' }, ru: { name: 'Отделочные работы' } },
+  },
+  {
+    name: 'Acoperișuri',
+    slug: 'acoperis',
+    translations: { ro: { name: 'Acoperișuri' }, ru: { name: 'Кровля' } },
+  },
+  {
+    name: 'Fațade',
+    slug: 'fatade',
+    translations: { ro: { name: 'Fațade' }, ru: { name: 'Фасады' } },
+  },
+  {
+    name: 'Ferestre și uși',
+    slug: 'okna-dveri',
+    translations: { ro: { name: 'Ferestre și uși' }, ru: { name: 'Окна и двери' } },
+  },
+  {
+    name: 'Mobilier',
+    slug: 'mobila',
+    translations: { ro: { name: 'Mobilier' }, ru: { name: 'Мебель' } },
+  },
+  {
+    name: 'Servicii de curățenie',
+    slug: 'cleaning',
+    translations: { ro: { name: 'Servicii de curățenie' }, ru: { name: 'Уборка и клининг' } },
+  },
+  {
+    name: 'Servicii IT și Securitate',
+    slug: 'it-networks',
+    translations: { ro: { name: 'Servicii IT și Securitate' }, ru: { name: 'IT и безопасность' } },
+  },
+  {
+    name: 'Panouri solare',
+    slug: 'panouri-solare',
+    translations: { ro: { name: 'Panouri solare' }, ru: { name: 'Солнечные панели' } },
+  },
+  {
+    name: 'Construcții generale',
+    slug: 'constructii',
+    translations: { ro: { name: 'Construcții generale' }, ru: { name: 'Общее строительство' } },
+  },
+  {
+    name: 'Pavaj și amenajări exterioare',
+    slug: 'pavaj',
+    translations: { ro: { name: 'Pavaj și amenajări exterioare' }, ru: { name: 'Мощение и благоустройство' } },
+  },
 ];
 
 async function main() {
@@ -108,7 +245,7 @@ async function seedCities(tx: Prisma.TransactionClient) {
     await tx.city.upsert({
       where: { slug: city.slug },
       create: city,
-      update: { name: city.name },
+      update: { name: city.name, translations: city.translations },
     });
   }
 }
@@ -118,7 +255,7 @@ async function seedCategories(tx: Prisma.TransactionClient) {
     await tx.category.upsert({
       where: { slug: category.slug },
       create: category,
-      update: { name: category.name },
+      update: { name: category.name, translations: category.translations },
     });
   }
 }

@@ -1,4 +1,7 @@
-import { IsOptional, IsString, Matches, MinLength } from 'class-validator';
+import { IsObject, IsOptional, IsString, Matches, MinLength } from 'class-validator';
+import type { CatalogTranslationPayload } from './admin-city.dto';
+
+export type { CatalogTranslationPayload };
 
 export class CreateAdminCategoryDto {
   @IsString()
@@ -9,6 +12,10 @@ export class CreateAdminCategoryDto {
   @IsString()
   @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
   slug?: string;
+
+  @IsOptional()
+  @IsObject()
+  translations?: Record<string, CatalogTranslationPayload>;
 }
 
 export class UpdateAdminCategoryDto {
@@ -21,4 +28,8 @@ export class UpdateAdminCategoryDto {
   @IsString()
   @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
   slug?: string;
+
+  @IsOptional()
+  @IsObject()
+  translations?: Record<string, CatalogTranslationPayload>;
 }

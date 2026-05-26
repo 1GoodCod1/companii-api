@@ -15,6 +15,8 @@ export type SeoUrlsPage = {
   totalPages: number;
 };
 
+const SEO_LOCALES = ['ro', 'ru'] as const;
+
 @Injectable()
 export class SeoService {
   constructor(private readonly prisma: PrismaService) {}
@@ -37,50 +39,53 @@ export class SeoService {
       }
     }
   }
+
   private async getCompanyUrls(
     page: number,
     limit: number,
   ): Promise<SeoUrlsPage> {
-    const where = { isPublished: true };
-    const [total, rows] = await Promise.all([
-      this.prisma.company.count({ where }),
-      this.prisma.company.findMany({
-        where,
-        select: { id: true, updatedAt: true },
-        orderBy: { updatedAt: 'desc' },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-    ]);
+    const where = { isPublished: true, isVerified: true };
+    const rows = await this.prisma.company.findMany({
+      where,
+      select: { slug: true, updatedAt: true },
+      orderBy: { updatedAt: 'desc' },
+    });
 
-    const items: SeoUrlItem[] = rows.map((c) => ({
-      path: `/companies/${c.id}`,
-      lastmod: c.updatedAt.toISOString(),
-    }));
+    const all: SeoUrlItem[] = [];
+    for (const locale of SEO_LOCALES) {
+      for (const company of rows) {
+        if (!company.slug) continue;
+        all.push({
+          path: `/${locale}/companies/${encodeURIComponent(company.slug)}`,
+          lastmod: company.updatedAt.toISOString(),
+        });
+      }
+    }
 
-    return this.buildPage(items, page, limit, total);
+    return this.buildPage(all, page, limit, all.length);
   }
 
   private async getCategoryUrls(
     page: number,
     limit: number,
   ): Promise<SeoUrlsPage> {
-    const [total, rows] = await Promise.all([
-      this.prisma.category.count(),
-      this.prisma.category.findMany({
-        select: { slug: true },
-        orderBy: { name: 'asc' },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-    ]);
+    const rows = await this.prisma.category.findMany({
+      select: { slug: true },
+      orderBy: { name: 'asc' },
+    });
 
-    const items: SeoUrlItem[] = rows.map((c) => ({
-      path: `/companies?category=${encodeURIComponent(c.slug)}`,
-    }));
+    const all: SeoUrlItem[] = [];
+    for (const locale of SEO_LOCALES) {
+      for (const category of rows) {
+        all.push({
+          path: `/${locale}/companies?category=${encodeURIComponent(category.slug)}`,
+        });
+      }
+    }
 
-    return this.buildPage(items, page, limit, total);
+    return this.buildPage(all, page, limit, all.length);
   }
+
   private async getLandingUrls(
     page: number,
     limit: number,
@@ -97,20 +102,19 @@ export class SeoService {
     ]);
 
     const all: SeoUrlItem[] = [];
-    for (const category of categories) {
-      for (const city of cities) {
-        const params = new URLSearchParams({
-          category: category.slug,
-          city: city.slug,
-        });
-        all.push({ path: `/companies?${params.toString()}` });
+    for (const locale of SEO_LOCALES) {
+      for (const category of categories) {
+        for (const city of cities) {
+          const params = new URLSearchParams({
+            category: category.slug,
+            city: city.slug,
+          });
+          all.push({ path: `/${locale}/companies?${params.toString()}` });
+        }
       }
     }
 
-    const total = all.length;
-    const start = (page - 1) * limit;
-    const items = all.slice(start, start + limit);
-    return this.buildPage(items, page, limit, total);
+    return this.buildPage(all, page, limit, all.length);
   }
 
   private buildPage(
@@ -119,8 +123,10 @@ export class SeoService {
     limit: number,
     total: number,
   ): SeoUrlsPage {
+    const start = (page - 1) * limit;
+    const pageItems = items.slice(start, start + limit);
     return {
-      items,
+      items: pageItems,
       page,
       limit,
       total,

@@ -1,4 +1,8 @@
-import { IsOptional, IsString, Matches, MinLength } from 'class-validator';
+import { IsObject, IsOptional, IsString, Matches, MinLength } from 'class-validator';
+
+export type CatalogTranslationPayload = {
+  name?: string;
+};
 
 export class CreateAdminCityDto {
   @IsString()
@@ -9,6 +13,10 @@ export class CreateAdminCityDto {
   @IsString()
   @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
   slug?: string;
+
+  @IsOptional()
+  @IsObject()
+  translations?: Record<string, CatalogTranslationPayload>;
 }
 
 export class UpdateAdminCityDto {
@@ -21,4 +29,8 @@ export class UpdateAdminCityDto {
   @IsString()
   @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
   slug?: string;
+
+  @IsOptional()
+  @IsObject()
+  translations?: Record<string, CatalogTranslationPayload>;
 }

@@ -209,18 +209,20 @@ model RefreshToken {
 }
 
 model City {
-  id        String    @id @default(uuid())
-  name      String
-  slug      String    @unique
-  companies Company[]
+  id           String    @id @default(uuid())
+  name         String
+  slug         String    @unique
+  translations Json?
+  companies    Company[]
 
   @@map("cities")
 }
 
 model Category {
-  id        String    @id @default(uuid())
-  name      String
-  slug      String    @unique
+  id           String    @id @default(uuid())
+  name         String
+  slug         String    @unique
+  translations Json?
   companies          Company[]
   companyServices    CompanyService[]
   estimateBlueprints EstimateBlueprint[]
