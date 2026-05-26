@@ -24,6 +24,8 @@ export const AppErrorMessages = {
   RECORD_NOT_FOUND: 'Record not found',
   CATALOG_IN_USE: 'Cannot delete: item is used by existing records',
   SERVICE_NOT_FOUND: 'Service not found',
+  CLIENT_REQUEST_END_CLIENT_ONLY: 'Only registered client accounts can submit requests',
+  CLIENT_PHONE_REQUIRED: 'Add a phone number to your profile before submitting a request',
   PORTAL_NOT_LINKED: 'Portal profile not linked',
   PORTAL_INVITE_INVALID: 'Portal invitation is invalid or expired',
   PORTAL_ALREADY_LINKED: 'Portal profile is already linked to another company client',

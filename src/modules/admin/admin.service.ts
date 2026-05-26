@@ -236,19 +236,17 @@ export class AdminService {
   }
 
   stats() {
-    return this.prisma
-      .$transaction([
-        this.prisma.company.count(),
-        this.prisma.user.count(),
-        this.prisma.intervention.count(),
-        this.prisma.companyWaitlist.count(),
-      ])
-      .then(([companies, users, interventions, waitlist]) => ({
-        companies,
-        users,
-        interventions,
-        waitlist,
-      }));
+    return this.prisma.inSerial([
+      () => this.prisma.company.count(),
+      () => this.prisma.user.count(),
+      () => this.prisma.intervention.count(),
+      () => this.prisma.companyWaitlist.count(),
+    ]).then(([companies, users, interventions, waitlist]) => ({
+      companies,
+      users,
+      interventions,
+      waitlist,
+    }));
   }
 
   listCompanies() {

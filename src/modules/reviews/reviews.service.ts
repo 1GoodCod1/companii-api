@@ -116,26 +116,28 @@ export class ReviewsService {
       const safeLimit = Math.min(50, Math.max(1, limit));
       const skip = (safePage - 1) * safeLimit;
 
-      const [items, total] = await Promise.all([
-        this.prisma.companyReview.findMany({
-          where: { companyId, status: ReviewStatus.VISIBLE },
-          orderBy: { createdAt: 'desc' },
-          skip,
-          take: safeLimit,
-          select: {
-            id: true,
-            rating: true,
-            comment: true,
-            clientName: true,
-            createdAt: true,
-            intervention: {
-              select: { id: true, number: true, type: true },
+      const [items, total] = await this.prisma.inSerial([
+        () =>
+          this.prisma.companyReview.findMany({
+            where: { companyId, status: ReviewStatus.VISIBLE },
+            orderBy: { createdAt: 'desc' },
+            skip,
+            take: safeLimit,
+            select: {
+              id: true,
+              rating: true,
+              comment: true,
+              clientName: true,
+              createdAt: true,
+              intervention: {
+                select: { id: true, number: true, type: true },
+              },
             },
-          },
-        }),
-        this.prisma.companyReview.count({
-          where: { companyId, status: ReviewStatus.VISIBLE },
-        }),
+          }),
+        () =>
+          this.prisma.companyReview.count({
+            where: { companyId, status: ReviewStatus.VISIBLE },
+          }),
       ]);
 
       return {
@@ -165,26 +167,28 @@ export class ReviewsService {
     const safeLimit = Math.min(50, Math.max(1, limit));
     const skip = (safePage - 1) * safeLimit;
 
-    const [items, total] = await Promise.all([
-      this.prisma.companyReview.findMany({
-        where: { companyId: user.activeCompanyId, status: ReviewStatus.VISIBLE },
-        orderBy: { createdAt: 'desc' },
-        skip,
-        take: safeLimit,
-        select: {
-          id: true,
-          rating: true,
-          comment: true,
-          clientName: true,
-          createdAt: true,
-          intervention: {
-            select: { id: true, number: true, type: true },
+    const [items, total] = await this.prisma.inSerial([
+      () =>
+        this.prisma.companyReview.findMany({
+          where: { companyId: user.activeCompanyId, status: ReviewStatus.VISIBLE },
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: safeLimit,
+          select: {
+            id: true,
+            rating: true,
+            comment: true,
+            clientName: true,
+            createdAt: true,
+            intervention: {
+              select: { id: true, number: true, type: true },
+            },
           },
-        },
-      }),
-      this.prisma.companyReview.count({
-        where: { companyId: user.activeCompanyId, status: ReviewStatus.VISIBLE },
-      }),
+        }),
+      () =>
+        this.prisma.companyReview.count({
+          where: { companyId: user.activeCompanyId, status: ReviewStatus.VISIBLE },
+        }),
     ]);
 
     return {

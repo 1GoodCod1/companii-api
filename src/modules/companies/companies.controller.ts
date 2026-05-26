@@ -31,10 +31,14 @@ const RESERVED_COMPANY_SLUGS = new Set([
   'categories',
 ]);
 import { Public } from '../../common/decorators/public.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { RolesGuard } from '../../common/guards/roles.guard';
 import { CompanyGuard } from './guards/company.guard';
 import { CompanyRoles } from './decorators/company-roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../auth/types/jwt-payload';
+import { ClientProjectRequestDto } from './dto/client-project-request.dto';
+import { ClientServiceRequestDto } from './dto/client-service-request.dto';
 
 @Controller(CONTROLLER_PATH.companies)
 export class CompaniesController {
@@ -88,24 +92,33 @@ export class CompaniesController {
     return this.companies.findCategories();
   }
 
-  @Public()
-  @Post(':slug/services/:serviceId/request')
-  requestService(
+  @UseGuards(RolesGuard)
+  @Roles('END_CLIENT')
+  @Post(':slug/request-project')
+  requestProject(
+    @CurrentUser() user: JwtPayload,
     @Param('slug') slug: string,
-    @Param('serviceId') serviceId: string,
-    @Body()
-    body: {
-      customerName: string;
-      customerPhone: string;
-      customerEmail?: string;
-      message?: string;
-      scheduledAt?: string;
-    },
+    @Body() body: ClientProjectRequestDto,
   ) {
     if (RESERVED_COMPANY_SLUGS.has(slug)) {
       throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
     }
-    return this.companies.requestPublicService(slug, serviceId, body);
+    return this.companies.requestPublicProject(user, slug, body);
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles('END_CLIENT')
+  @Post(':slug/services/:serviceId/request')
+  requestService(
+    @CurrentUser() user: JwtPayload,
+    @Param('slug') slug: string,
+    @Param('serviceId') serviceId: string,
+    @Body() body: ClientServiceRequestDto,
+  ) {
+    if (RESERVED_COMPANY_SLUGS.has(slug)) {
+      throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
+    }
+    return this.companies.requestPublicService(user, slug, serviceId, body);
   }
 
   @Public()

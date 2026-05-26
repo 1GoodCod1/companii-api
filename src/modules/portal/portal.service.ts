@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import { EstimateProjectStatus } from '@prisma/client';
 import { AppErrorMessages, AppErrors } from '../../common/errors';
 import { findPortalCustomerForUser } from '../../common/utils/portal-customer.util';
+import { findLeadsForEndClient } from '../../common/utils/client-leads.util';
 import { PrismaService } from '../shared/database/prisma.service';
 import type { JwtPayload } from '../auth/types/jwt-payload';
 import { REVIEWABLE_INTERVENTION_STATUSES } from '../reviews/reviews.types';
@@ -33,60 +34,65 @@ export class PortalService {
 
   async dashboard(user: JwtPayload) {
     const customer = await findPortalCustomerForUser(this.prisma, user.sub);
-    const [interventions, quotes, invoices, reviews, estimates] = await Promise.all([
-      this.prisma.intervention.findMany({
-        where: { customerId: customer.id },
-        orderBy: { updatedAt: 'desc' },
-        take: 20,
-        include: {
-          company: {
-            select: { id: true, name: true, slug: true },
-          },
-          review: {
-            select: {
-              id: true,
-              rating: true,
-              comment: true,
-              createdAt: true,
+    const [interventions, quotes, invoices, reviews, estimates] = await this.prisma.inSerial([
+      () =>
+        this.prisma.intervention.findMany({
+          where: { customerId: customer.id },
+          orderBy: { updatedAt: 'desc' },
+          take: 20,
+          include: {
+            company: {
+              select: { id: true, name: true, slug: true },
+            },
+            review: {
+              select: {
+                id: true,
+                rating: true,
+                comment: true,
+                createdAt: true,
+              },
             },
           },
-        },
-      }),
-      this.prisma.quote.findMany({
-        where: { customerId: customer.id, status: { in: ['SENT', 'ACCEPTED', 'CONVERTED'] } },
-        orderBy: { createdAt: 'desc' },
-      }),
-      this.prisma.companyInvoice.findMany({
-        where: { intervention: { customerId: customer.id } },
-        orderBy: { issuedAt: 'desc' },
-      }),
-      this.prisma.companyReview.findMany({
-        where: { customerId: customer.id },
-        orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          rating: true,
-          comment: true,
-          clientName: true,
-          createdAt: true,
-          companyId: true,
-          interventionId: true,
-          intervention: {
-            select: { id: true, number: true, type: true },
+        }),
+      () =>
+        this.prisma.quote.findMany({
+          where: { customerId: customer.id, status: { in: ['SENT', 'ACCEPTED', 'CONVERTED'] } },
+          orderBy: { createdAt: 'desc' },
+        }),
+      () =>
+        this.prisma.companyInvoice.findMany({
+          where: { intervention: { customerId: customer.id } },
+          orderBy: { issuedAt: 'desc' },
+        }),
+      () =>
+        this.prisma.companyReview.findMany({
+          where: { customerId: customer.id },
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            rating: true,
+            comment: true,
+            clientName: true,
+            createdAt: true,
+            companyId: true,
+            interventionId: true,
+            intervention: {
+              select: { id: true, number: true, type: true },
+            },
           },
-        },
-      }),
-      this.prisma.estimateProject.findMany({
-        where: {
-          customerId: customer.id,
-          status: { in: ['SENT', 'ACCEPTED', 'IN_EXECUTION', 'DONE'] },
-        },
-        orderBy: { updatedAt: 'desc' },
-        include: {
-          category: { select: { id: true, name: true } },
-          company: { select: { id: true, name: true, slug: true } },
-        },
-      }),
+        }),
+      () =>
+        this.prisma.estimateProject.findMany({
+          where: {
+            customerId: customer.id,
+            status: { in: ['SENT', 'ACCEPTED', 'IN_EXECUTION', 'DONE'] },
+          },
+          orderBy: { updatedAt: 'desc' },
+          include: {
+            category: { select: { id: true, name: true } },
+            company: { select: { id: true, name: true, slug: true } },
+          },
+        }),
     ]);
 
     const interventionsWithReviewMeta = interventions.map((item) => ({
@@ -104,6 +110,23 @@ export class PortalService {
       reviews,
       estimates,
     };
+  }
+
+  async listMyLeads(user: JwtPayload) {
+    const leads = await findLeadsForEndClient(this.prisma, user.sub);
+    return leads.map((lead) => ({
+      id: lead.id,
+      status: lead.status,
+      source: lead.source,
+      serviceTitle: lead.serviceTitle,
+      message: lead.message,
+      address: lead.address,
+      estimatedBudget: lead.estimatedBudget ? Number(lead.estimatedBudget) : null,
+      createdAt: lead.createdAt,
+      updatedAt: lead.updatedAt,
+      category: lead.category,
+      company: lead.company,
+    }));
   }
 
   async updateEstimateStatus(user: JwtPayload, projectId: string, status: 'ACCEPTED' | 'REJECTED') {

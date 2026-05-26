@@ -72,8 +72,24 @@ async function bootstrap() {
     SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, swagger));
   }
 
+  app.enableShutdownHooks();
+
   const port = config.get<number>('port') ?? 4100;
-  await app.listen(port);
+  try {
+    await app.listen(port, '0.0.0.0');
+  } catch (err: unknown) {
+    const code =
+      err && typeof err === 'object' && 'code' in err
+        ? String((err as NodeJS.ErrnoException).code)
+        : undefined;
+    // nest --watch in Docker (volume mounts on Windows) can spawn a second process
+    // before the first releases the port; exit quietly — the first instance keeps serving.
+    if (!isProd && code === 'EADDRINUSE') {
+      await app.close();
+      process.exit(0);
+    }
+    throw err;
+  }
 
   const shutdown = createShutdownHandler(app, isShuttingDownRef);
   process.on('SIGTERM', () => void shutdown('SIGTERM'));

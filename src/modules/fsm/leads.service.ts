@@ -13,6 +13,7 @@ import type { JwtPayload } from '../auth/types/jwt-payload';
 const leadInclude = {
   customer: true,
   category: { select: { id: true, name: true, slug: true } },
+  estimateProject: { select: { id: true, number: true, title: true, status: true } },
 } satisfies Prisma.CompanyLeadInclude;
 
 @Injectable()
@@ -27,6 +28,12 @@ export class LeadsService {
       throw AppErrors.forbidden(AppErrorMessages.COMPANY_CONTEXT_REQUIRED);
     }
     return user.activeCompanyId;
+  }
+
+  private assertLeadOpen(status: CompanyLeadStatus) {
+    if (status === 'CONVERTED' || status === 'LOST') {
+      throw AppErrors.badRequest('Cererea este închisă.');
+    }
   }
 
   listLeads(user: JwtPayload, status?: CompanyLeadStatus) {
@@ -95,9 +102,7 @@ export class LeadsService {
     },
   ) {
     const existing = await this.getLead(user, id);
-    if (existing.status === 'CONVERTED') {
-      throw AppErrors.badRequest('Lead-ul a fost deja convertit.');
-    }
+    this.assertLeadOpen(existing.status);
 
     return this.prisma.companyLead.update({
       where: { id },
@@ -121,6 +126,25 @@ export class LeadsService {
     });
   }
 
+  async completeLead(user: JwtPayload, id: string) {
+    const lead = await this.getLead(user, id);
+    if (lead.status === 'CONVERTED') {
+      throw AppErrors.badRequest('Cererea este deja finalizată.');
+    }
+    if (lead.status === 'LOST') {
+      throw AppErrors.badRequest('Cererea este marcată pierdută.');
+    }
+
+    return this.prisma.companyLead.update({
+      where: { id },
+      data: {
+        status: 'CONVERTED',
+        convertedAt: new Date(),
+      },
+      include: leadInclude,
+    });
+  }
+
   async convertLead(
     user: JwtPayload,
     id: string,
@@ -128,9 +152,7 @@ export class LeadsService {
     body?: { categoryId?: string; title?: string },
   ) {
     const lead = await this.getLead(user, id);
-    if (lead.status === 'CONVERTED') {
-      throw AppErrors.badRequest('Lead-ul a fost deja convertit.');
-    }
+    this.assertLeadOpen(lead.status);
 
     const cid = this.companyId(user);
 
@@ -152,15 +174,14 @@ export class LeadsService {
       }
 
       if (mode === 'customer') {
-        await tx.companyLead.update({
+        return tx.companyLead.update({
           where: { id },
           data: {
             customerId,
-            status: 'CONVERTED',
-            convertedAt: new Date(),
+            status: 'QUALIFIED',
           },
+          include: leadInclude,
         });
-        return { customerId, mode };
       }
 
       if (mode === 'intervention') {
@@ -185,6 +206,7 @@ export class LeadsService {
             address: lead.address ?? lead.contactName,
             scheduledAt: lead.scheduledAt ?? undefined,
             status: 'NEW',
+            estimateProjectId: lead.estimateProjectId ?? undefined,
           },
         });
 
@@ -199,16 +221,25 @@ export class LeadsService {
           });
         }
 
+        const keepOpen =
+          lead.source === 'PROJECT_REQUEST' ||
+          lead.estimateProjectId != null ||
+          lead.status === 'IN_PROGRESS';
+
         await tx.companyLead.update({
           where: { id },
           data: {
             customerId,
-            status: 'CONVERTED',
-            convertedAt: new Date(),
+            status: keepOpen ? 'IN_PROGRESS' : 'CONVERTED',
+            convertedAt: keepOpen ? undefined : new Date(),
           },
         });
 
-        return { customerId, intervention, mode };
+        return { customerId, intervention, mode, keptOpen: keepOpen };
+      }
+
+      if (lead.estimateProjectId) {
+        throw AppErrors.badRequest('Cererea are deja o smetă asociată.');
       }
 
       const categoryId = body?.categoryId ?? lead.categoryId;
@@ -216,13 +247,11 @@ export class LeadsService {
         throw AppErrors.badRequest('Selectați categoria pentru smetă.');
       }
 
-      const [customer, category, blueprint] = await Promise.all([
-        tx.companyCustomer.findFirst({ where: { id: customerId, companyId: cid } }),
-        tx.category.findUnique({ where: { id: categoryId } }),
-        tx.estimateBlueprint.findFirst({
-          where: { categoryId, isActive: true },
-        }),
-      ]);
+      const customer = await tx.companyCustomer.findFirst({ where: { id: customerId, companyId: cid } });
+      const category = await tx.category.findUnique({ where: { id: categoryId } });
+      const blueprint = await tx.estimateBlueprint.findFirst({
+        where: { categoryId, isActive: true },
+      });
       if (!customer || !category) {
         throw AppErrors.badRequest('Client sau categorie invalidă.');
       }
@@ -277,12 +306,12 @@ export class LeadsService {
         where: { id },
         data: {
           customerId,
-          status: 'CONVERTED',
-          convertedAt: new Date(),
+          estimateProjectId: project.id,
+          status: 'IN_PROGRESS',
         },
       });
 
-      return { customerId, project, mode };
+      return { customerId, project, mode, keptOpen: true };
     });
   }
 }

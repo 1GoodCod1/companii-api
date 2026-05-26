@@ -46,21 +46,24 @@ export class SubscriptionsService {
     startOfMonth.setHours(0, 0, 0, 0);
 
     const [activeTechnicians, pendingTechnicianInvites, interventionsThisMonth] =
-      await Promise.all([
-        this.prisma.companyMember.count({
-          where: { companyId, status: 'ACTIVE', role: 'MEMBER' },
-        }),
-        this.prisma.companyInvitation.count({
-          where: {
-            companyId,
-            status: 'PENDING',
-            role: 'MEMBER',
-            expiresAt: { gt: new Date() },
-          },
-        }),
-        this.prisma.intervention.count({
-          where: { companyId, createdAt: { gte: startOfMonth } },
-        }),
+      await this.prisma.inSerial([
+        () =>
+          this.prisma.companyMember.count({
+            where: { companyId, status: 'ACTIVE', role: 'MEMBER' },
+          }),
+        () =>
+          this.prisma.companyInvitation.count({
+            where: {
+              companyId,
+              status: 'PENDING',
+              role: 'MEMBER',
+              expiresAt: { gt: new Date() },
+            },
+          }),
+        () =>
+          this.prisma.intervention.count({
+            where: { companyId, createdAt: { gte: startOfMonth } },
+          }),
       ]);
 
     return {
@@ -105,7 +108,7 @@ export class SubscriptionsService {
         activatedByAdminId: adminUserId,
       },
     });
-    void this.cache.invalidatePlans();
+    await this.cache.invalidatePlans();
 
     void this.audit.log({
       userId: adminUserId,
@@ -171,7 +174,7 @@ export class SubscriptionsService {
       include: { plan: true },
     });
 
-    void this.cache.invalidatePlans();
+    await this.cache.invalidatePlans();
     return result;
   }
 }

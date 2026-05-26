@@ -1,8 +1,10 @@
-import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { CompanyLeadSource, Prisma } from '@prisma/client';
 import { AppErrorMessages, AppErrors } from '../../common/errors';
 import { RLS_SYSTEM_CONTEXT } from '../../common/rls/rls-system.util';
 import { normalizePhone } from '../../common/utils/phone.util';
+import { EmailService } from '../email/email.service';
 import { CacheService } from '../shared/cache/cache.service';
 import { PrismaService } from '../shared/database/prisma.service';
 import type { JwtPayload } from '../auth/types/jwt-payload';
@@ -10,6 +12,18 @@ import type { RlsContext } from '../../common/types/rls-context';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { AddGalleryImageDto } from './dto/add-gallery-image.dto';
 import { CompanyAuthorizationService } from './company-authorization.service';
+import { resolveClientContactFromUser } from '../../common/utils/client-contact.util';
+import { ClientProjectRequestDto } from './dto/client-project-request.dto';
+import { ClientServiceRequestDto } from './dto/client-service-request.dto';
+import { createPublicCompanyLead } from './public-lead.util';
+
+const LEAD_SOURCE_LABELS: Record<CompanyLeadSource, string> = {
+  SERVICE_REQUEST: 'Cerere serviciu',
+  PROJECT_REQUEST: 'Cerere proiect',
+  MANUAL: 'Cerere manuală',
+  PHONE: 'Telefon',
+  WEBSITE: 'Site',
+};
 
 function transliterate(text: string): string {
   const map: Record<string, string> = {
@@ -48,10 +62,14 @@ function slugify(name: string): string {
 
 @Injectable()
 export class CompaniesService {
+  private readonly logger = new Logger(CompaniesService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly cache: CacheService,
     private readonly companyAuth: CompanyAuthorizationService,
+    private readonly email: EmailService,
+    private readonly config: ConfigService,
   ) {}
 
   private rls(user: JwtPayload): RlsContext {
@@ -139,7 +157,7 @@ export class CompaniesService {
       });
       return created;
     });
-    void this.cache.invalidatePublicCompanies(company.slug);
+    await this.cache.invalidatePublicCompanies(company.slug);
     return company;
   }
 
@@ -182,19 +200,20 @@ export class CompaniesService {
           ...(params.cityId ? { cityId: params.cityId } : {}),
           ...(params.categoryId ? { categoryId: params.categoryId } : {}),
         };
-        const [items, total] = await Promise.all([
-          this.prisma.company.findMany({
-            where,
-            skip: (page - 1) * limit,
-            take: limit,
-            include: {
-              city: true,
-              category: true,
-              galleryImages: { orderBy: { sortOrder: 'asc' }, take: 1 },
-            },
-            orderBy: { rating: 'desc' },
-          }),
-          this.prisma.company.count({ where }),
+        const [items, total] = await this.prisma.inSerial([
+          () =>
+            this.prisma.company.findMany({
+              where,
+              skip: (page - 1) * limit,
+              take: limit,
+              include: {
+                city: true,
+                category: true,
+                galleryImages: { orderBy: { sortOrder: 'asc' }, take: 1 },
+              },
+              orderBy: { rating: 'desc' },
+            }),
+          () => this.prisma.company.count({ where }),
         ]);
         const filteredItems = items.map((item) => ({
           ...item,
@@ -252,7 +271,7 @@ export class CompaniesService {
       where: { id: companyId },
       data: { isPublished: true },
     });
-    void this.cache.invalidatePublicCompanies(updated.slug);
+    await this.cache.invalidatePublicCompanies(updated.slug);
     return updated;
   }
 
@@ -294,7 +313,7 @@ export class CompaniesService {
       where: { id: companyId },
       data: updateData,
     });
-    void this.cache.invalidatePublicCompanies(updated.slug);
+    await this.cache.invalidatePublicCompanies(updated.slug);
     return updated;
   }
 
@@ -330,21 +349,24 @@ export class CompaniesService {
   }
 
   private async invalidateCompanyCache(companyId: string) {
-    const company = await this.prisma.company.findUnique({ where: { id: companyId } });
-    if (company) void this.cache.invalidatePublicCompanies(company.slug);
+    const company = await this.prisma.runOutsideRlsContext(() =>
+      this.prisma.company.findUnique({ where: { id: companyId }, select: { slug: true } }),
+    );
+    if (company?.slug) await this.cache.invalidatePublicCompanies(company.slug);
   }
 
   async requestPublicService(
+    user: JwtPayload,
     companySlug: string,
     serviceId: string,
-    body: {
-      customerName: string;
-      customerPhone: string;
-      customerEmail?: string;
-      message?: string;
-      scheduledAt?: string;
-    },
+    body: ClientServiceRequestDto,
   ) {
+    const contact = await resolveClientContactFromUser(
+      this.prisma,
+      user.sub,
+      user.accountKind,
+    );
+
     return this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async () => {
       const company = await this.prisma.company.findFirst({
         where: { slug: companySlug, isPublished: true, isVerified: true },
@@ -358,24 +380,202 @@ export class CompaniesService {
       });
       if (!service) throw AppErrors.notFound(AppErrorMessages.SERVICE_NOT_FOUND);
 
-      const phone = normalizePhone(body.customerPhone) ?? body.customerPhone.trim();
-      const lead = await this.prisma.companyLead.create({
-        data: {
-          companyId: company.id,
-          contactName: body.customerName.trim(),
-          contactPhone: phone,
-          contactEmail: body.customerEmail?.trim().toLowerCase(),
-          message: body.message?.trim() || `Cerere serviciu: ${service.name}`,
-          scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : undefined,
-          categoryId: service.categoryId ?? undefined,
-          serviceTitle: service.name,
-          source: 'SERVICE_REQUEST',
-          status: 'NEW',
-        },
-      });
+      const result = await this.prisma.$transaction((tx) =>
+        createPublicCompanyLead(
+          tx,
+          {
+            companyId: company.id,
+            contactName: contact.contactName,
+            contactPhone: contact.contactPhone,
+            contactEmail: contact.contactEmail,
+            message: body.message?.trim() || `Cerere serviciu: ${service.name}`,
+            scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : undefined,
+            categoryId: service.categoryId ?? undefined,
+            serviceTitle: service.name,
+            source: 'SERVICE_REQUEST',
+          },
+          { portalUserId: contact.portalUserId },
+        ),
+      );
 
-      return { leadId: lead.id, service: { id: service.id, name: service.name } };
+      return {
+        response: {
+          leadId: result.lead.id,
+          customerId: result.customerId,
+          customerCreated: result.customerCreated,
+          service: { id: service.id, name: service.name },
+        },
+        notification: {
+          companyId: company.id,
+          lead: {
+            source: 'SERVICE_REQUEST' as const,
+            contactName: result.lead.contactName,
+            contactPhone: result.lead.contactPhone,
+            contactEmail: result.lead.contactEmail,
+            serviceTitle: result.lead.serviceTitle,
+            message: result.lead.message,
+            address: result.lead.address,
+            customerCreated: result.customerCreated,
+          },
+        },
+      };
+    }).then(async ({ response, notification }) => {
+      await this.safeNotifyManagersAboutPublicLead(notification.companyId, notification.lead);
+      return response;
     });
+  }
+
+  async requestPublicProject(
+    user: JwtPayload,
+    companySlug: string,
+    body: ClientProjectRequestDto,
+  ) {
+    const contact = await resolveClientContactFromUser(
+      this.prisma,
+      user.sub,
+      user.accountKind,
+    );
+
+    return this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async () => {
+      const company = await this.prisma.company.findFirst({
+        where: { slug: companySlug, isPublished: true, isVerified: true },
+        select: { id: true, categoryId: true },
+      });
+      if (!company) throw AppErrors.notFound(AppErrorMessages.COMPANY_NOT_FOUND);
+
+      const categoryId = body.categoryId ?? company.categoryId ?? undefined;
+      if (categoryId) {
+        const category = await this.prisma.category.findUnique({ where: { id: categoryId } });
+        if (!category) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
+      }
+
+      const result = await this.prisma.$transaction((tx) =>
+        createPublicCompanyLead(
+          tx,
+          {
+            companyId: company.id,
+            contactName: contact.contactName,
+            contactPhone: contact.contactPhone,
+            contactEmail: contact.contactEmail,
+            message: body.message.trim(),
+            address: body.address,
+            categoryId,
+            serviceTitle: body.projectTitle?.trim() || 'Cerere proiect',
+            estimatedBudget: body.estimatedBudget,
+            source: 'PROJECT_REQUEST',
+          },
+          { portalUserId: contact.portalUserId },
+        ),
+      );
+
+      return {
+        response: {
+          leadId: result.lead.id,
+          customerId: result.customerId,
+          customerCreated: result.customerCreated,
+        },
+        notification: {
+          companyId: company.id,
+          lead: {
+            source: 'PROJECT_REQUEST' as const,
+            contactName: result.lead.contactName,
+            contactPhone: result.lead.contactPhone,
+            contactEmail: result.lead.contactEmail,
+            serviceTitle: result.lead.serviceTitle,
+            message: result.lead.message,
+            address: result.lead.address,
+            estimatedBudget: result.lead.estimatedBudget
+              ? Number(result.lead.estimatedBudget)
+              : null,
+            customerCreated: result.customerCreated,
+          },
+        },
+      };
+    }).then(async ({ response, notification }) => {
+      await this.safeNotifyManagersAboutPublicLead(notification.companyId, notification.lead);
+      return response;
+    });
+  }
+
+  private async safeNotifyManagersAboutPublicLead(
+    companyId: string,
+    lead: {
+      source: CompanyLeadSource;
+      contactName: string;
+      contactPhone: string;
+      contactEmail?: string | null;
+      serviceTitle?: string | null;
+      message?: string | null;
+      address?: string | null;
+      estimatedBudget?: number | null;
+      customerCreated: boolean;
+    },
+  ) {
+    try {
+      await this.notifyManagersAboutPublicLead(companyId, lead);
+    } catch (err) {
+      this.logger.warn(`Lead notification failed for company ${companyId}`, err);
+    }
+  }
+
+  private async notifyManagersAboutPublicLead(
+    companyId: string,
+    lead: {
+      source: CompanyLeadSource;
+      contactName: string;
+      contactPhone: string;
+      contactEmail?: string | null;
+      serviceTitle?: string | null;
+      message?: string | null;
+      address?: string | null;
+      estimatedBudget?: number | null;
+      customerCreated: boolean;
+    },
+  ) {
+    const company = await this.prisma.runOutsideRlsContext(() =>
+      this.prisma.company.findUnique({
+        where: { id: companyId },
+        select: {
+          name: true,
+          contactEmail: true,
+          owner: { select: { email: true } },
+          members: {
+            where: { status: 'ACTIVE', role: { in: ['OWNER', 'MANAGER'] } },
+            select: { user: { select: { email: true } } },
+          },
+        },
+      }),
+    );
+    if (!company) return;
+
+    const recipients = [
+      company.owner.email,
+      company.contactEmail,
+      ...company.members.map((member) => member.user.email),
+    ].filter((email): email is string => Boolean(email));
+    const uniqueRecipients = [...new Set(recipients)];
+    if (!uniqueRecipients.length) return;
+
+    const frontendUrl = this.config.get<string>('frontendUrl') || 'http://localhost:5174';
+    const leadsUrl = `${frontendUrl}/company/cereri`;
+    const sourceLabel = LEAD_SOURCE_LABELS[lead.source] ?? lead.source;
+
+    for (const to of uniqueRecipients) {
+      await this.email.sendNewLeadEmail({
+        to,
+        companyName: company.name,
+        sourceLabel,
+        contactName: lead.contactName,
+        contactPhone: lead.contactPhone,
+        contactEmail: lead.contactEmail,
+        serviceTitle: lead.serviceTitle,
+        message: lead.message,
+        address: lead.address,
+        estimatedBudget: lead.estimatedBudget,
+        customerCreated: lead.customerCreated,
+        leadsUrl,
+      });
+    }
   }
 
   private async assertCompanyAccess(user: JwtPayload, companyId: string) {

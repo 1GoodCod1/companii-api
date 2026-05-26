@@ -82,10 +82,8 @@ export class TeamMembersService {
       throw AppErrors.forbidden(AppErrorMessages.TEAM_MEMBER_CANNOT_DEACTIVATE);
     }
 
-    const [actor, targetUser] = await Promise.all([
-      this.findUserContact(user.sub),
-      this.findUserContact(target.userId),
-    ]);
+    const actor = await this.findUserContact(user.sub);
+    const targetUser = await this.findUserContact(target.userId);
 
     const updated = await this.prisma.$transaction(async (tx) => {
       await this.releaseTechnicianAssignments(tx, memberId);
@@ -133,19 +131,17 @@ export class TeamMembersService {
       throw AppErrors.forbidden(AppErrorMessages.TEAM_OWNER_CANNOT_LEAVE);
     }
 
-    const [leavingUser, ownerUser, managers] = await Promise.all([
-      this.findUserContact(user.sub),
-      company?.ownerUserId ? this.findUserContact(company.ownerUserId) : null,
-      this.prisma.companyMember.findMany({
-        where: {
-          companyId: user.activeCompanyId,
-          status: 'ACTIVE',
-          role: 'MANAGER',
-          userId: { not: user.sub },
-        },
-        include: { user: { select: { email: true } } },
-      }),
-    ]);
+    const leavingUser = await this.findUserContact(user.sub);
+    const ownerUser = company?.ownerUserId ? await this.findUserContact(company.ownerUserId) : null;
+    const managers = await this.prisma.companyMember.findMany({
+      where: {
+        companyId: user.activeCompanyId,
+        status: 'ACTIVE',
+        role: 'MANAGER',
+        userId: { not: user.sub },
+      },
+      include: { user: { select: { email: true } } },
+    });
 
     await this.prisma.$transaction(async (tx) => {
       await this.releaseTechnicianAssignments(tx, user.memberId!);
@@ -242,25 +238,23 @@ export class TeamMembersService {
       select: { name: true },
     });
 
-    const [previousOwner, newOwner] = await Promise.all([
-      this.findUserContact(user.sub),
-      this.findUserContact(newOwnerUserId),
-    ]);
+    const previousOwner = await this.findUserContact(user.sub);
+    const newOwner = await this.findUserContact(newOwnerUserId);
 
-    await this.prisma.$transaction([
-      this.prisma.company.update({
+    await this.prisma.$transaction(async (tx) => {
+      await tx.company.update({
         where: { id: targetCompanyId },
         data: { ownerUserId: newOwnerUserId },
-      }),
-      this.prisma.companyMember.update({
+      });
+      await tx.companyMember.update({
         where: { id: currentOwnerMember.id },
         data: { role: 'MANAGER' },
-      }),
-      this.prisma.companyMember.update({
+      });
+      await tx.companyMember.update({
         where: { id: newOwnerMember.id },
         data: { role: 'OWNER' },
-      }),
-    ]);
+      });
+    });
 
     void this.audit.log({
       userId: user.sub,

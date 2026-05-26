@@ -28,16 +28,16 @@ export class EndClientLinkService {
         throw AppErrors.conflict(AppErrorMessages.PORTAL_ALREADY_LINKED);
       }
 
-      await this.prisma.$transaction([
-        this.prisma.companyCustomer.update({
+      await this.prisma.$transaction(async (tx) => {
+        await tx.companyCustomer.update({
           where: { id: invite.customerId },
           data: { portalUserId: userId },
-        }),
-        this.prisma.portalInvitation.update({
+        });
+        await tx.portalInvitation.update({
           where: { id: invite.id },
           data: { status: 'ACCEPTED' },
-        }),
-      ]);
+        });
+      });
 
       return invite.customer;
     });

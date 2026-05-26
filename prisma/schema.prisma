@@ -109,12 +109,14 @@ enum CompanyLeadStatus {
   NEW
   CONTACTED
   QUALIFIED
+  IN_PROGRESS
   CONVERTED
   LOST
 }
 
 enum CompanyLeadSource {
   SERVICE_REQUEST
+  PROJECT_REQUEST
   MANUAL
   PHONE
   WEBSITE
@@ -465,8 +467,10 @@ model CompanyLead {
   status       CompanyLeadStatus @default(NEW)
   source       CompanyLeadSource @default(MANUAL)
   categoryId   String?           @map("category_id")
-  serviceTitle String?           @map("service_title")
-  scheduledAt  DateTime?         @map("scheduled_at")
+  serviceTitle       String?           @map("service_title")
+  estimatedBudget    Decimal?          @map("estimated_budget") @db.Decimal(12, 2)
+  estimateProjectId  String?           @unique @map("estimate_project_id")
+  scheduledAt        DateTime?         @map("scheduled_at")
   notes        String?
   convertedAt  DateTime?         @map("converted_at")
   createdAt    DateTime          @default(now()) @map("created_at")
@@ -475,6 +479,7 @@ model CompanyLead {
   company       Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   customer      CompanyCustomer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
   category      Category?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  estimateProject EstimateProject? @relation(fields: [estimateProjectId], references: [id], onDelete: SetNull)
   interventions Intervention[]
 
   @@index([companyId, status, createdAt])
@@ -736,6 +741,7 @@ model EstimateProject {
   stages       EstimateStage[]
   measurements EstimateMeasurement[]
   interventions Intervention[]
+  sourceLead   CompanyLead?
 
   @@index([companyId, status, createdAt])
   @@index([categoryId])

@@ -245,9 +245,9 @@ export class TeamInviteService {
         throw AppErrors.conflict(AppErrorMessages.TEAM_INVITE_ALREADY_MEMBER);
       }
 
-      const [member] = await this.prisma.$transaction([
-        existing
-          ? this.prisma.companyMember.update({
+      const member = await this.prisma.$transaction(async (tx) => {
+        const savedMember = existing
+          ? await tx.companyMember.update({
               where: { id: existing.id },
               data: {
                 role: invite.role,
@@ -258,7 +258,7 @@ export class TeamInviteService {
                 phone: user.phone,
               },
             })
-          : this.prisma.companyMember.create({
+          : await tx.companyMember.create({
               data: {
                 companyId: invite.companyId,
                 userId,
@@ -268,12 +268,13 @@ export class TeamInviteService {
                 email: user.email,
                 phone: user.phone,
               },
-            }),
-        this.prisma.companyInvitation.update({
+            });
+        await tx.companyInvitation.update({
           where: { id: invite.id },
           data: { status: 'ACCEPTED', respondedAt: new Date(), invitedUserId: userId },
-        }),
-      ]);
+        });
+        return savedMember;
+      });
 
       return { member, company: invite.company };
     });

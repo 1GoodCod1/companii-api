@@ -18,6 +18,13 @@ export class PortalController {
 
   @UseGuards(RolesGuard)
   @Roles('END_CLIENT')
+  @Get('leads')
+  listLeads(@CurrentUser() user: JwtPayload) {
+    return this.portal.listMyLeads(user);
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles('END_CLIENT')
   @Get('dashboard')
   dashboard(@CurrentUser() user: JwtPayload) {
     return this.portal.dashboard(user);

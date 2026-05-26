@@ -8,13 +8,19 @@ import {
   Post,
   Query,
   Res,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { InterventionStatus, InvoicePaymentStatus, QuoteStatus, CompanyLeadStatus } from '@prisma/client';
 import { FsmService } from './fsm.service';
 import { LeadsService } from './leads.service';
+import { CustomerImportService } from './customer-import/customer-import.service';
+import { ConfirmCustomerImportDto } from './dto/confirm-customer-import.dto';
 import { CONTROLLER_PATH } from '../../common/constants';
+import { AppErrorMessages, AppErrors } from '../../common/errors';
 import { CompanyGuard } from '../companies/guards/company.guard';
 import { CompanyRoles } from '../companies/decorators/company-roles.decorator';
 import { SubscriptionGuard } from '../auth/guards/subscription.guard';
@@ -27,6 +33,7 @@ export class FsmController {
   constructor(
     private readonly fsm: FsmService,
     private readonly leads: LeadsService,
+    private readonly customerImport: CustomerImportService,
   ) {}
 
   // --- CUSTOMERS ---
@@ -36,6 +43,50 @@ export class FsmController {
   @RequiresFeature('customers')
   customers(@CurrentUser() user: JwtPayload) {
     return this.fsm.listCustomers(user);
+  }
+
+  @Get('customers/import/template')
+  @UseGuards(CompanyGuard, SubscriptionGuard)
+  @RequiresFeature('customers')
+  @CompanyRoles('OWNER', 'MANAGER')
+  async customerImportTemplate(
+    @Query('format') format: string | undefined,
+    @Res() res: Response,
+  ) {
+    const resolved = format === 'csv' ? 'csv' : 'xlsx';
+    const template = await this.customerImport.getTemplate(resolved);
+    res.set({
+      'Content-Type': template.contentType,
+      'Content-Disposition': `attachment; filename="${template.filename}"`,
+      'Content-Length': template.buffer.length,
+    });
+    res.send(template.buffer);
+  }
+
+  @Post('customers/import/preview')
+  @UseGuards(CompanyGuard, SubscriptionGuard)
+  @RequiresFeature('customers')
+  @CompanyRoles('OWNER', 'MANAGER')
+  @UseInterceptors(FileInterceptor('file'))
+  previewCustomerImport(
+    @CurrentUser() user: JwtPayload,
+    @UploadedFile() file: Express.Multer.File | undefined,
+  ) {
+    if (!file?.buffer?.length) {
+      throw AppErrors.badRequest(AppErrorMessages.FILES_NONE_UPLOADED);
+    }
+    return this.customerImport.previewFromFile(user, file.buffer, file.originalname);
+  }
+
+  @Post('customers/import/confirm')
+  @UseGuards(CompanyGuard, SubscriptionGuard)
+  @RequiresFeature('customers')
+  @CompanyRoles('OWNER', 'MANAGER')
+  confirmCustomerImport(
+    @CurrentUser() user: JwtPayload,
+    @Body() body: ConfirmCustomerImportDto,
+  ) {
+    return this.customerImport.confirmImport(user, body.rows);
   }
 
   @Get('customers/:id')
@@ -250,7 +301,7 @@ export class FsmController {
       contactEmail?: string;
       message?: string;
       address?: string;
-      source?: 'SERVICE_REQUEST' | 'MANUAL' | 'PHONE' | 'WEBSITE';
+      source?: 'SERVICE_REQUEST' | 'PROJECT_REQUEST' | 'MANUAL' | 'PHONE' | 'WEBSITE';
       categoryId?: string;
       scheduledAt?: string;
       notes?: string;
@@ -289,6 +340,14 @@ export class FsmController {
     @Body() body: { mode: 'customer' | 'intervention' | 'estimate'; categoryId?: string; title?: string },
   ) {
     return this.leads.convertLead(user, id, body.mode, body);
+  }
+
+  @Post('leads/:id/complete')
+  @UseGuards(CompanyGuard, SubscriptionGuard)
+  @RequiresFeature('leads')
+  @CompanyRoles('OWNER', 'MANAGER')
+  completeLead(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    return this.leads.completeLead(user, id);
   }
 
   // --- CALENDAR ---

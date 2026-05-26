@@ -98,18 +98,20 @@ export class CompanyAuthorizationService {
     const max = sub?.plan.maxTechnicians;
 
     if (max == null) return;
-    const [activeMembers, pendingInvites] = await Promise.all([
-      this.prisma.companyMember.count({
-        where: { companyId, status: 'ACTIVE', role: 'MEMBER' },
-      }),
-      this.prisma.companyInvitation.count({
-        where: {
-          companyId,
-          status: 'PENDING',
-          role: 'MEMBER',
-          expiresAt: { gt: new Date() },
-        },
-      }),
+    const [activeMembers, pendingInvites] = await this.prisma.inSerial([
+      () =>
+        this.prisma.companyMember.count({
+          where: { companyId, status: 'ACTIVE', role: 'MEMBER' },
+        }),
+      () =>
+        this.prisma.companyInvitation.count({
+          where: {
+            companyId,
+            status: 'PENDING',
+            role: 'MEMBER',
+            expiresAt: { gt: new Date() },
+          },
+        }),
     ]);
 
     if (activeMembers + pendingInvites >= max) {

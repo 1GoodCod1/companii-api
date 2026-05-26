@@ -49,10 +49,14 @@ services:
     environment:
       TZ: Europe/Chisinau
       NODE_OPTIONS: "--use-system-ca"
+      CHOKIDAR_USEPOLLING: "true"
+      CHOKIDAR_INTERVAL: "1000"
+      WATCHPACK_POLLING: "true"
     env_file:
       - ./.env.docker
     volumes:
       - ./src:/app/src
+      - ./nest-cli.json:/app/nest-cli.json
       - ./prisma:/app/prisma
       - ./logs:/app/logs
       - ./uploads:/app/uploads

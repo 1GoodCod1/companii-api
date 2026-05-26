@@ -6,10 +6,12 @@ import { FsmController } from './fsm.controller';
 import { LeadsService } from './leads.service';
 import { InvoicePdfModule } from './invoice-pdf.module';
 
+import { CustomerImportService } from './customer-import/customer-import.service';
+
 @Module({
   imports: [AuthModule, CompaniesModule, InvoicePdfModule],
   controllers: [FsmController],
-  providers: [FsmService, LeadsService],
-  exports: [FsmService, LeadsService],
+  providers: [FsmService, LeadsService, CustomerImportService],
+  exports: [FsmService, LeadsService, CustomerImportService],
 })
 export class FsmModule {}

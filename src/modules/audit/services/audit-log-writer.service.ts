@@ -3,7 +3,6 @@ import { PrismaService } from '../../shared/database/prisma.service';
 import { RedisService } from '../../shared/redis/redis.service';
 import { SECURITY_ACTION_SET } from '../audit-action.enum';
 import type { AuditLogData } from '../types/audit.types';
-import { rlsTxStorage } from '../../../common/rls/rls.storage';
 
 @Injectable()
 export class AuditLogWriterService {
@@ -15,7 +14,7 @@ export class AuditLogWriterService {
   ) {}
 
   async log(data: AuditLogData) {
-    return rlsTxStorage.run(undefined, async () => {
+    return this.prisma.runOutsideRlsContext(async () => {
       try {
         let userId = data.userId;
         if (userId) {

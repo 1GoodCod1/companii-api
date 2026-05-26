@@ -852,37 +852,40 @@ export class FsmService {
     const fromDate = new Date(from);
     const toDate = new Date(to);
 
-    const [scheduled, unscheduled, openLeads] = await Promise.all([
-      this.prisma.intervention.findMany({
-        where: {
-          companyId: cid,
-          scheduledAt: { gte: fromDate, lte: toDate },
-          ...techFilter,
-        },
-        include: { customer: true, technician: technicianWithUser },
-        orderBy: { scheduledAt: 'asc' },
-      }),
-      this.prisma.intervention.findMany({
-        where: {
-          companyId: cid,
-          scheduledAt: null,
-          status: { in: ['NEW', 'SCHEDULED'] },
-          ...techFilter,
-        },
-        include: { customer: true, technician: technicianWithUser },
-        orderBy: { createdAt: 'desc' },
-        take: 50,
-      }),
-      this.isTechnician(user)
-        ? Promise.resolve([])
-        : this.prisma.companyLead.findMany({
-            where: { companyId: cid, status: { in: ['NEW', 'CONTACTED', 'QUALIFIED'] } },
-            include: {
-              category: { select: { id: true, name: true } },
-            },
-            orderBy: { createdAt: 'desc' },
-            take: 20,
-          }),
+    const [scheduled, unscheduled, openLeads] = await this.prisma.inSerial([
+      () =>
+        this.prisma.intervention.findMany({
+          where: {
+            companyId: cid,
+            scheduledAt: { gte: fromDate, lte: toDate },
+            ...techFilter,
+          },
+          include: { customer: true, technician: technicianWithUser },
+          orderBy: { scheduledAt: 'asc' },
+        }),
+      () =>
+        this.prisma.intervention.findMany({
+          where: {
+            companyId: cid,
+            scheduledAt: null,
+            status: { in: ['NEW', 'SCHEDULED'] },
+            ...techFilter,
+          },
+          include: { customer: true, technician: technicianWithUser },
+          orderBy: { createdAt: 'desc' },
+          take: 50,
+        }),
+      () =>
+        this.isTechnician(user)
+          ? Promise.resolve([])
+          : this.prisma.companyLead.findMany({
+              where: { companyId: cid, status: { in: ['NEW', 'CONTACTED', 'QUALIFIED'] } },
+              include: {
+                category: { select: { id: true, name: true } },
+              },
+              orderBy: { createdAt: 'desc' },
+              take: 20,
+            }),
     ]);
 
     return { scheduled, unscheduled, openLeads };
@@ -911,37 +914,58 @@ export class FsmService {
     });
     if (!customer) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
 
-    const [interventions, quotes, estimates, invoices, leads, notes] = await Promise.all([
-      this.prisma.intervention.findMany({
-        where: { customerId, companyId: cid },
-        orderBy: { createdAt: 'desc' },
-        select: { id: true, number: true, type: true, status: true, createdAt: true, updatedAt: true },
-      }),
-      this.prisma.quote.findMany({
-        where: { customerId, companyId: cid },
-        orderBy: { createdAt: 'desc' },
-        select: { id: true, number: true, status: true, total: true, createdAt: true, updatedAt: true },
-      }),
-      this.prisma.estimateProject.findMany({
-        where: { customerId, companyId: cid },
-        orderBy: { createdAt: 'desc' },
-        select: { id: true, number: true, title: true, status: true, grandTotal: true, createdAt: true, updatedAt: true },
-      }),
-      this.prisma.companyInvoice.findMany({
-        where: { companyId: cid, intervention: { customerId } },
-        orderBy: { issuedAt: 'desc' },
-        select: { id: true, number: true, amount: true, paymentStatus: true, issuedAt: true },
-      }),
-      this.prisma.companyLead.findMany({
-        where: { companyId: cid, customerId },
-        orderBy: { createdAt: 'desc' },
-        select: { id: true, contactName: true, status: true, source: true, serviceTitle: true, createdAt: true },
-      }),
-      this.prisma.interventionNote.findMany({
-        where: { intervention: { customerId, companyId: cid }, isInternal: false },
-        orderBy: { createdAt: 'desc' },
-        select: { id: true, body: true, createdAt: true, interventionId: true },
-      }),
+    const [interventions, quotes, estimates, invoices, leads, notes] = await this.prisma.inSerial([
+      () =>
+        this.prisma.intervention.findMany({
+          where: { customerId, companyId: cid },
+          orderBy: { createdAt: 'desc' },
+          select: { id: true, number: true, type: true, status: true, createdAt: true, updatedAt: true },
+        }),
+      () =>
+        this.prisma.quote.findMany({
+          where: { customerId, companyId: cid },
+          orderBy: { createdAt: 'desc' },
+          select: { id: true, number: true, status: true, total: true, createdAt: true, updatedAt: true },
+        }),
+      () =>
+        this.prisma.estimateProject.findMany({
+          where: { customerId, companyId: cid },
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            number: true,
+            title: true,
+            status: true,
+            grandTotal: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        }),
+      () =>
+        this.prisma.companyInvoice.findMany({
+          where: { companyId: cid, intervention: { customerId } },
+          orderBy: { issuedAt: 'desc' },
+          select: { id: true, number: true, amount: true, paymentStatus: true, issuedAt: true },
+        }),
+      () =>
+        this.prisma.companyLead.findMany({
+          where: { companyId: cid, customerId },
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            contactName: true,
+            status: true,
+            source: true,
+            serviceTitle: true,
+            createdAt: true,
+          },
+        }),
+      () =>
+        this.prisma.interventionNote.findMany({
+          where: { intervention: { customerId, companyId: cid }, isInternal: false },
+          orderBy: { createdAt: 'desc' },
+          select: { id: true, body: true, createdAt: true, interventionId: true },
+        }),
     ]);
 
     type TimelineItem = {
@@ -1038,6 +1062,14 @@ export class FsmService {
     return sub?.plan.code ?? 'FREE';
   }
 
+  private async resolveCompanyCategoryId(companyId: string) {
+    const company = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      select: { categoryId: true },
+    });
+    return company?.categoryId ?? null;
+  }
+
   private buildServiceSlug(name: string): string {
     const base = name
       .toLowerCase()
@@ -1048,13 +1080,15 @@ export class FsmService {
   }
 
   private async invalidateServiceCaches(companyId: string) {
-    const company = await this.prisma.company.findUnique({
-      where: { id: companyId },
-      select: { slug: true },
-    });
-    void this.cache.invalidatePublicServices(company?.slug);
+    const company = await this.prisma.runOutsideRlsContext(() =>
+      this.prisma.company.findUnique({
+        where: { id: companyId },
+        select: { slug: true },
+      }),
+    );
+    await this.cache.invalidatePublicServices(company?.slug);
     if (company?.slug) {
-      void this.cache.invalidatePublicCompanies(company.slug);
+      await this.cache.invalidatePublicCompanies(company.slug);
     }
   }
 
@@ -1089,6 +1123,7 @@ export class FsmService {
     const companyId = this.companyId(user);
     const planCode = await this.companyPlanCode(companyId);
     const canEditInternal = planHasFeature(planCode, 'internalServices');
+    const categoryId = await this.resolveCompanyCategoryId(companyId);
 
     const created = await this.prisma.companyService.create({
       data: {
@@ -1096,7 +1131,7 @@ export class FsmService {
         slug: this.buildServiceSlug(data.name),
         name: data.name.trim(),
         description: data.description?.trim() ?? '',
-        categoryId: data.categoryId,
+        categoryId,
         defaultPrice: data.defaultPrice,
         durationMinutes: data.durationMinutes,
         isPublished: Boolean(data.isPublished),
@@ -1106,7 +1141,7 @@ export class FsmService {
       },
       include: this.serviceInclude,
     });
-    void this.invalidateServiceCaches(companyId);
+    await this.invalidateServiceCaches(companyId);
     return created;
   }
 
@@ -1136,6 +1171,7 @@ export class FsmService {
 
     const planCode = await this.companyPlanCode(companyId);
     const canEditInternal = planHasFeature(planCode, 'internalServices');
+    const categoryId = await this.resolveCompanyCategoryId(companyId);
 
     const updated = await this.prisma.companyService.update({
       where: { id },
@@ -1143,7 +1179,7 @@ export class FsmService {
         name: data.name?.trim(),
         defaultPrice: data.defaultPrice,
         description: data.description?.trim(),
-        categoryId: data.categoryId === null ? null : data.categoryId,
+        categoryId,
         durationMinutes: data.durationMinutes === null ? null : data.durationMinutes,
         isPublished: data.isPublished,
         sortOrder: data.sortOrder,
@@ -1156,7 +1192,7 @@ export class FsmService {
       },
       include: this.serviceInclude,
     });
-    void this.invalidateServiceCaches(companyId);
+    await this.invalidateServiceCaches(companyId);
     return updated;
   }
 
@@ -1170,7 +1206,7 @@ export class FsmService {
     });
     if (!existing) throw AppErrors.notFound(AppErrorMessages.SERVICE_NOT_FOUND);
     await this.prisma.companyService.delete({ where: { id } });
-    void this.invalidateServiceCaches(companyId);
+    await this.invalidateServiceCaches(companyId);
     return { success: true };
   }
 

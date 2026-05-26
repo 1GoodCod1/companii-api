@@ -125,14 +125,16 @@ export class EstimatesService {
     this.assertManagement(user);
     const cid = this.companyId(user);
 
-    const [customer, category, blueprint] = await Promise.all([
-      this.prisma.companyCustomer.findFirst({
-        where: { id: data.customerId, companyId: cid },
-      }),
-      this.prisma.category.findUnique({ where: { id: data.categoryId } }),
-      this.prisma.estimateBlueprint.findFirst({
-        where: { categoryId: data.categoryId, isActive: true },
-      }),
+    const [customer, category, blueprint] = await this.prisma.inSerial([
+      () =>
+        this.prisma.companyCustomer.findFirst({
+          where: { id: data.customerId, companyId: cid },
+        }),
+      () => this.prisma.category.findUnique({ where: { id: data.categoryId } }),
+      () =>
+        this.prisma.estimateBlueprint.findFirst({
+          where: { categoryId: data.categoryId, isActive: true },
+        }),
     ]);
 
     if (!customer) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
@@ -736,12 +738,15 @@ export class EstimatesService {
     const portalUrl = `${frontendUrl}/portal/smete`;
 
     if (project.customer.email) {
-      void this.email.sendEstimateEmail({
-        to: project.customer.email,
-        companyName: (await this.prisma.company.findUnique({
+      const company = await this.prisma.runOutsideRlsContext(() =>
+        this.prisma.company.findUnique({
           where: { id: this.companyId(user) },
           select: { name: true },
-        }))?.name ?? 'Companie',
+        }),
+      );
+      void this.email.sendEstimateEmail({
+        to: project.customer.email,
+        companyName: company?.name ?? 'Companie',
         estimateNumber: project.number,
         title: project.title,
         total: Number(project.grandTotal),
