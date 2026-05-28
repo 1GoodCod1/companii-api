@@ -8,6 +8,7 @@ export const ESTIMATE_BLUEPRINT_CATEGORY_SLUGS = [
   'clima',
   'lucrari-finisaj',
   'acoperis',
+  'acoperis-plat',
   'fatade',
   'okna-dveri',
   'mobila',

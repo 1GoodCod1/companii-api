@@ -78,8 +78,24 @@ export function syncGlobalParamsToDiagnostic(
   const gutterPoints = pointsCount('gutter');
   if (gutterPoints > 0) next.gutterLengthM = gutterPoints * 6;
 
+  if (ctx === 'roof') {
+    const chimneyPoints = pointsCount('chimney');
+    if (chimneyPoints > 0 && (next.chimneyCount == null || next.chimneyCount === 0)) {
+      next.chimneyCount = chimneyPoints;
+    }
+  }
+
   const borderPoints = pointsCount('border');
   if (borderPoints > 0) next.borderLengthM = borderPoints * 8;
+
+  // Fațadă: glafuri ferestre (≈ 1.8 m perimetru per fereastră standard).
+  // Auto-fill only if the user hasn't set a value yet — preserves manual override.
+  if (ctx === 'facade') {
+    const windowSlopePoints = pointsCount('window_slope');
+    if (windowSlopePoints > 0 && (next.windowSlopeLengthM == null || next.windowSlopeLengthM === 0)) {
+      next.windowSlopeLengthM = windowSlopePoints * 1.8;
+    }
+  }
 
   // I-03 invariant: sync must not toggle work modules from plan data.
   if (next[ENABLED_WORK_MODULES_KEY] !== currentDiag[ENABLED_WORK_MODULES_KEY]) {

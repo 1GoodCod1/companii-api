@@ -16,6 +16,7 @@ export { genericBlueprint } from './generic';
 export {
   CATEGORY_BLUEPRINTS,
   acoperisBlueprint,
+  acoperisPlatBlueprint,
   cleaningBlueprint,
   climaBlueprint,
   constructiiBlueprint,

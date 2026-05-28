@@ -7,6 +7,7 @@ import { deriveElektrikaMeasurements } from './category/electrical/electrical-me
 import { deriveClimaMeasurements } from './category/climate/climate-measurements.util';
 import { deriveFinisajMeasurements } from './category/finishing/finishing-measurements.util';
 import { deriveAcoperisMeasurements } from './category/roofing/roofing-measurements.util';
+import { deriveFlatRoofMeasurements } from './category/flat-roofing/flat-roofing-measurements.util';
 import { deriveFatadeMeasurements } from './category/facade/facade-measurements.util';
 import { deriveOknaDveriMeasurements } from './category/windows-doors/windows-doors-measurements.util';
 import { deriveMobilaMeasurements } from './category/furniture/furniture-measurements.util';
@@ -131,6 +132,10 @@ export class EstimatePricingEngine {
 
     if (categorySlug === 'acoperis') {
       return deriveAcoperisMeasurements(plan2d, diagnosticAnswers, measurements);
+    }
+
+    if (categorySlug === 'acoperis-plat') {
+      return deriveFlatRoofMeasurements(plan2d, diagnosticAnswers, measurements);
     }
 
     if (categorySlug === 'fatade') {

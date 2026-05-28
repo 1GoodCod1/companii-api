@@ -1,6 +1,7 @@
 import type { EstimateBlueprintConfig } from '../estimate-blueprint-config.types';
 import { validateBlueprintUnits } from './base';
 import { acoperisBlueprint } from './categories/acoperis.blueprint';
+import { acoperisPlatBlueprint } from './categories/acoperis-plat.blueprint';
 import { cleaningBlueprint } from './categories/cleaning.blueprint';
 import { climaBlueprint } from './categories/clima.blueprint';
 import { constructiiBlueprint } from './categories/constructii.blueprint';
@@ -20,6 +21,7 @@ export const CATEGORY_BLUEPRINTS = {
   clima: climaBlueprint,
   'lucrari-finisaj': lucrariFinisajBlueprint,
   acoperis: acoperisBlueprint,
+  'acoperis-plat': acoperisPlatBlueprint,
   fatade: fatadeBlueprint,
   'okna-dveri': oknaDveriBlueprint,
   mobila: mobilaBlueprint,
@@ -36,6 +38,7 @@ for (const [slug, config] of Object.entries(CATEGORY_BLUEPRINTS)) {
 
 export {
   acoperisBlueprint,
+  acoperisPlatBlueprint,
   cleaningBlueprint,
   climaBlueprint,
   constructiiBlueprint,

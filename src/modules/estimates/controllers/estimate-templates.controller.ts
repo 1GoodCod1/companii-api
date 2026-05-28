@@ -67,7 +67,7 @@ export class EstimateTemplatesController {
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
     @Param('projectId') projectId: string,
-    @Body() body?: { mode?: 'overwrite' | 'append' },
+    @Body() body?: { mode?: 'overwrite' | 'append' | 'pricing' },
   ) {
     return this.service.applyTemplate(user, projectId, id, {
       mode: body?.mode,

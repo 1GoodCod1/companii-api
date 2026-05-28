@@ -134,6 +134,16 @@ export function deriveAcoperisMeasurements(
   measurements.ridgeLengthM =
     readNumber(diagnostic, 'ridgeLengthM') ?? round2(Math.sqrt(baseArea) * 2);
 
+  // Soffit length defaults to building perimeter when not set explicitly —
+  // module is gated by requiresQtyKeys/moduleEnabled, so this is safe.
+  measurements.soffitLengthM =
+    readNumber(diagnostic, 'soffitLengthM') ?? Math.max(10, perimeterEstimate);
+
+  // Drip edge along the eave: same length as gutters by definition. Fall back
+  // to gutterLengthM so users don't need to enter the same number twice.
+  measurements.roofDripEdgeLengthM =
+    readNumber(diagnostic, 'roofDripEdgeLengthM') ?? measurements.gutterLengthM;
+
   measurements.chimneyCount =
     readNumber(diagnostic, 'chimneyCount') ?? Math.max(0, pointsCount('chimney'));
 

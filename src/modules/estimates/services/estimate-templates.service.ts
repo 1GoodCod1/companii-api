@@ -127,7 +127,7 @@ export class EstimateTemplatesService {
     user: JwtPayload,
     projectId: string,
     templateId: string,
-    options?: { mode?: 'overwrite' | 'append' },
+    options?: { mode?: 'overwrite' | 'append' | 'pricing' },
   ) {
     this.ctx.assertManagement(user);
     const cid = this.ctx.companyId(user);
@@ -138,6 +138,13 @@ export class EstimateTemplatesService {
     if (!template) throw AppErrors.notFound('Template not found');
 
     const mode = options?.mode ?? 'overwrite';
+
+    // Pricing-only mode: keep existing stage structure, override unitPrice
+    // on lines whose (stage.code, description) match a template line. Lines
+    // without a match keep their blueprint defaults.
+    if (mode === 'pricing') {
+      return this.applyPricingOnly(projectId, template, project);
+    }
 
     return this.prisma.$transaction(async (tx) => {
       // Pessimistic lock
@@ -261,6 +268,135 @@ export class EstimateTemplatesService {
         where: { id: projectId },
         include: projectInclude,
       });
+    });
+  }
+
+  /**
+   * Pricing-only apply: build a price map from template lines keyed by
+   * (stageCode, description) and override unitPrice on the project's existing
+   * lines that match. Stage structure is untouched.
+   *
+   * Lines without a template match keep their current price — safe for partial
+   * overlaps (e.g. template saved from a smaller smeta than the current one).
+   */
+  private async applyPricingOnly(
+    projectId: string,
+    template: { stages: unknown },
+    project: { marginPct: Prisma.Decimal | number; riskReservePct?: Prisma.Decimal | number | null; tvaRate?: Prisma.Decimal | number | null },
+  ) {
+    const templateStages = (template.stages as Array<{
+      code?: string;
+      lines?: Array<{ description?: string; unitPrice?: number }>;
+    }>) ?? [];
+
+    // (stageCode :: description) → unitPrice from template
+    const priceMap = new Map<string, number>();
+    for (const tStage of templateStages) {
+      const stageCode = tStage.code ?? '';
+      for (const line of tStage.lines ?? []) {
+        if (!line.description) continue;
+        const price = Number(line.unitPrice);
+        if (!Number.isFinite(price)) continue;
+        priceMap.set(`${stageCode}::${line.description}`, price);
+      }
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT id FROM estimate_projects WHERE id = ${projectId} FOR UPDATE`;
+
+      const stages = await tx.estimateStage.findMany({
+        where: { projectId },
+        include: { lines: true },
+      });
+
+      let matchedCount = 0;
+      for (const stage of stages) {
+        for (const line of stage.lines) {
+          const key = `${stage.code}::${line.description}`;
+          const newPrice = priceMap.get(key);
+          if (newPrice == null) continue;
+          const currentPrice = Number(line.unitPrice);
+          if (Math.abs(newPrice - currentPrice) < 0.005) continue;
+          await tx.estimateLine.update({
+            where: { id: line.id },
+            data: {
+              unitPrice: new Prisma.Decimal(newPrice),
+              lineTotal: new Prisma.Decimal(round2(Number(line.qty) * newPrice)),
+            },
+          });
+          matchedCount++;
+        }
+      }
+
+      if (matchedCount === 0) {
+        // Nothing to recompute — return the project as-is.
+        const untouched = await tx.estimateProject.findUniqueOrThrow({
+          where: { id: projectId },
+          include: projectInclude,
+        });
+        return { ...untouched, pricingMatchedCount: 0 };
+      }
+
+      // Recompute stage and project totals (mirrors the logic in the
+      // overwrite/append branch above).
+      const refreshedStages = await tx.estimateStage.findMany({
+        where: { projectId },
+        include: { lines: true },
+      });
+      for (const stage of refreshedStages) {
+        const { laborCost, materialCost } = accumulateEstimateLineTotals(
+          stage.lines.map((line) => ({
+            unit: line.unit,
+            description: line.description,
+            lineTotal: line.lineTotal,
+          })),
+        );
+        const stageTotal = round2(laborCost + materialCost);
+        await tx.estimateStage.update({
+          where: { id: stage.id },
+          data: { laborCost, materialCost, stageTotal },
+        });
+      }
+
+      const updatedStages = await tx.estimateStage.findMany({ where: { projectId } });
+      const laborTotal = round2(updatedStages.reduce((acc, s) => acc + Number(s.laborCost), 0));
+      const materialTotal = round2(updatedStages.reduce((acc, s) => acc + Number(s.materialCost), 0));
+      const subtotal = laborTotal + materialTotal;
+      const marginPct = Number(project.marginPct);
+      const riskReservePct = Number(project.riskReservePct ?? 0);
+      const grandTotal = round2(subtotal * (1 + riskReservePct / 100) * (1 + marginPct / 100));
+
+      const allLines = await tx.estimateLine.findMany({ where: { stage: { projectId } } });
+      const priceFactor = (1 + riskReservePct / 100) * (1 + marginPct / 100);
+      let tvaAmount = 0;
+      for (const line of allLines) {
+        const rate =
+          line.vatRate !== null && line.vatRate !== undefined
+            ? Number(line.vatRate)
+            : Number(project.tvaRate ?? 0);
+        tvaAmount += Number(line.lineTotal) * priceFactor * (rate / 100);
+      }
+      tvaAmount = round2(tvaAmount);
+      const grandTotalWithVat = round2(grandTotal + tvaAmount);
+
+      await tx.estimateProject.update({
+        where: { id: projectId },
+        data: {
+          laborTotal,
+          materialTotal,
+          grandTotal,
+          tvaAmount,
+          grandTotalWithVat,
+          status: EstimateProjectStatus.CALCULATED,
+          version: { increment: 1 },
+        },
+      });
+
+      const updated = await tx.estimateProject.findUniqueOrThrow({
+        where: { id: projectId },
+        include: projectInclude,
+      });
+      return { ...updated, pricingMatchedCount: matchedCount };
     });
   }
 }

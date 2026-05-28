@@ -43,7 +43,16 @@ export function deriveFatadeMeasurements(
   const insulationThicknessCm = readNumber(diagnostic, 'insulationThicknessCm') ?? 10;
   measurements.insulationThicknessCm = insulationThicknessCm;
   measurements.insulationVolumeM3 = round2(facadeArea * (insulationThicknessCm / 100));
-  measurements.dowelQty = Math.ceil(facadeArea * 6);
+  // Dowel density depends on wall material:
+  //  brick (default) 6/m², BCA 8/m² (softer, needs more anchors),
+  //  panel 5/m² (denser), wood 3/m² (screws instead of expansion dowels).
+  const wallMaterial = String(diagnostic?.wallMaterial ?? 'brick').toLowerCase();
+  const dowelDensityPerM2 =
+    wallMaterial === 'bca' ? 8 :
+    wallMaterial === 'panel' ? 5 :
+    (wallMaterial === 'wood_frame' || wallMaterial === 'wood') ? 3 :
+    6;
+  measurements.dowelQty = Math.ceil(facadeArea * dowelDensityPerM2);
   measurements.meshArea = round2(facadeArea * 1.1);
 
   const buildingHeightM = readNumber(diagnostic, 'buildingHeightM') ?? 0;

@@ -10,6 +10,7 @@ import { RemoveGalleryImageUseCase } from './remove-gallery-image.use-case';
 import { RequestPublicProjectUseCase } from './request-public-project.use-case';
 import { RequestPublicServiceUseCase } from './request-public-service.use-case';
 import { UpdateCompanyUseCase } from './update-company.use-case';
+import { GetCompanyAuditLogsUseCase } from './get-company-audit-logs.use-case';
 
 export const COMPANIES_USE_CASE_PROVIDERS = [
   FindCitiesUseCase,
@@ -24,4 +25,5 @@ export const COMPANIES_USE_CASE_PROVIDERS = [
   RemoveGalleryImageUseCase,
   RequestPublicServiceUseCase,
   RequestPublicProjectUseCase,
+  GetCompanyAuditLogsUseCase,
 ];

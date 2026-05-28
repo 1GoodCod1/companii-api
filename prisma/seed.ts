@@ -164,6 +164,11 @@ const CATEGORIES: CategorySeed[] = [
     translations: { ro: { name: 'Acoperișuri' }, ru: { name: 'Кровля' } },
   },
   {
+    name: 'Acoperișuri plate / terase',
+    slug: 'acoperis-plat',
+    translations: { ro: { name: 'Acoperișuri plate / terase' }, ru: { name: 'Плоская кровля / террасы' } },
+  },
+  {
     name: 'Fațade',
     slug: 'fatade',
     translations: { ro: { name: 'Fațade' }, ru: { name: 'Фасады' } },

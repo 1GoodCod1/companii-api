@@ -185,4 +185,21 @@ export class CompaniesController {
   ) {
     return this.teamMembers.transferOwnership(user, dto.newOwnerUserId, id);
   }
+
+  @Get(':id/audit')
+  @UseGuards(CompanyGuard)
+  @CompanyRoles('OWNER')
+  getAuditLogs(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Query('action') action?: string,
+    @Query('userId') userId?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.companies.getAuditLogs(user, id, {
+      action,
+      userId,
+      limit: limit ? parseInt(limit, 10) : 50,
+    });
+  }
 }
