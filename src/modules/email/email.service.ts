@@ -4,6 +4,7 @@ import * as nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 import {
   buildEstimateEmail,
+  buildEstimateFeedbackEmail,
   buildEstimateStatusEmail,
   buildNewLeadEmail,
   buildOwnershipTransferredEmail,
@@ -12,6 +13,8 @@ import {
   buildTeamInviteEmail,
   buildTeamMemberDeactivatedEmail,
   buildTeamMemberLeftEmail,
+  buildCompletedInterventionPendingReceiptsEmail,
+  buildEstimateVarianceAlertEmail,
 } from './templates';
 
 @Injectable()
@@ -151,11 +154,44 @@ export class EmailService implements OnModuleInit {
     return this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
   }
 
+  async sendEstimateFeedbackEmail(params: {
+    to: string;
+    estimateNumber: string;
+    title: string;
+    clientName: string;
+    comment: string;
+  }): Promise<boolean> {
+    const tpl = buildEstimateFeedbackEmail(params);
+    return this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
+  }
+
   async sendPasswordResetEmail(params: {
     to: string;
     resetUrl: string;
   }): Promise<boolean> {
     const tpl = buildPasswordResetEmail(params);
+    return this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
+  }
+
+  async sendCompletedInterventionPendingReceiptsEmail(params: {
+    to: string;
+    interventionNumber: string;
+    projectName: string;
+    pendingCount: number;
+    pendingTotal: number;
+  }): Promise<boolean> {
+    const tpl = buildCompletedInterventionPendingReceiptsEmail(params);
+    return this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
+  }
+
+  async sendEstimateVarianceAlertEmail(params: {
+    to: string;
+    estimateNumber: string;
+    projectName: string;
+    variance: number;
+    variancePct: number;
+  }): Promise<boolean> {
+    const tpl = buildEstimateVarianceAlertEmail(params);
     return this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
   }
 

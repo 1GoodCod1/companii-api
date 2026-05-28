@@ -5,4 +5,5 @@ export enum AuditEntityType {
   CompanyCustomer = 'CompanyCustomer',
   Intervention = 'Intervention',
   CompanyConsent = 'CompanyConsent',
+  EstimateProject = 'EstimateProject',
 }

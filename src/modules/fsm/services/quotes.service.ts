@@ -20,11 +20,31 @@ export class QuotesService {
     private readonly config: ConfigService,
   ) {}
 
-  list(user: JwtPayload) {
+  list(user: JwtPayload, cursor?: string, limit = 25) {
+    const take = Math.min(Math.max(limit, 1), 100);
     return this.prisma.quote.findMany({
       where: { companyId: this.ctx.companyId(user) },
-      include: { customer: true, lines: true },
+      select: {
+        id: true,
+        number: true,
+        status: true,
+        total: true,
+        validUntil: true,
+        createdAt: true,
+        customer: { select: { id: true, fullName: true, phone: true } },
+      },
       orderBy: { createdAt: 'desc' },
+      cursor: cursor ? { id: cursor } : undefined,
+      skip: cursor ? 1 : 0,
+      take,
+    }).then((items) => {
+      if (!cursor) {
+        return items as any;
+      }
+      return {
+        items,
+        nextCursor: items.length === take ? items[items.length - 1]?.id : null,
+      };
     });
   }
 

@@ -13,6 +13,55 @@ export class EstimateWorksheetService {
     private readonly access: EstimateProjectAccessService,
   ) {}
 
+  async listAssignedForTechnician(user: JwtPayload) {
+    if (!this.ctx.isTechnician(user) || !user.memberId) {
+      throw AppErrors.forbidden(AppErrorMessages.COMPANY_ACCESS_DENIED);
+    }
+
+    const interventions = await this.prisma.intervention.findMany({
+      where: {
+        companyId: this.ctx.companyId(user),
+        technicianId: user.memberId,
+        estimateProjectId: { not: null },
+        status: { in: ['NEW', 'SCHEDULED', 'EN_ROUTE', 'IN_PROGRESS'] },
+      },
+      orderBy: [{ scheduledAt: 'asc' }, { createdAt: 'desc' }],
+      select: {
+        id: true,
+        number: true,
+        type: true,
+        status: true,
+        address: true,
+        scheduledAt: true,
+        customer: { select: { fullName: true, phone: true } },
+        estimateProject: {
+          select: {
+            id: true,
+            number: true,
+            title: true,
+            status: true,
+            category: { select: { id: true, name: true, slug: true } },
+          },
+        },
+        estimateStage: { select: { id: true, name: true, code: true } },
+      },
+    });
+
+    return interventions.map((item) => ({
+      intervention: {
+        id: item.id,
+        number: item.number,
+        type: item.type,
+        status: item.status,
+        address: item.address,
+        scheduledAt: item.scheduledAt,
+      },
+      customer: item.customer,
+      project: item.estimateProject,
+      stage: item.estimateStage,
+    }));
+  }
+
   async getByIntervention(user: JwtPayload, interventionId: string) {
     const intervention = await this.prisma.intervention.findFirst({
       where: {
@@ -24,6 +73,7 @@ export class EstimateWorksheetService {
       },
       include: {
         customer: { select: { fullName: true, phone: true, address: true } },
+        photos: { orderBy: { sortOrder: 'asc' } },
         estimateProject: {
           include: {
             category: true,
@@ -62,6 +112,7 @@ export class EstimateWorksheetService {
     status: string;
     checklistProgress?: unknown;
     customer: { fullName: string; phone: string; address: string };
+    photos?: Array<{ id: string; fileKey: string; sortOrder: number }>;
     estimateStage: { id: string; name: string; code: string } | null;
     estimateProject: NonNullable<Awaited<ReturnType<typeof this.access.findProjectOrThrow>>>;
   }) {
@@ -81,6 +132,11 @@ export class EstimateWorksheetService {
         checklistProgress: (intervention.checklistProgress as Record<string, boolean> | null) ?? {},
       },
       customer: intervention.customer,
+      photos: (intervention.photos ?? []).map((p) => ({
+        id: p.id,
+        fileKey: p.fileKey,
+        sortOrder: p.sortOrder,
+      })),
       project: {
         id: project.id,
         number: project.number,

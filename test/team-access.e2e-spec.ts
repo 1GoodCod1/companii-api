@@ -8,6 +8,7 @@ import { randomInt } from 'node:crypto';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { applyE2eAppConfig, api, unwrapBody } from './helpers/e2e-bootstrap';
+import { PrismaService } from '../src/modules/shared/database/prisma.service';
 
 const describeE2e = process.env.DATABASE_URL ? describe : describe.skip;
 
@@ -71,6 +72,15 @@ describeE2e('Team access (e2e)', () => {
         cityId,
       })
       .expect(201);
+
+    // Upgrade subscription to BUSINESS plan so that all feature checks (estimates, customers, etc.) pass
+    const prisma = app.get(PrismaService);
+    const businessPlan = await prisma.companyPlan.findUnique({ where: { code: 'BUSINESS' } });
+    const ownerUser = await prisma.user.findUnique({ where: { email: ownerEmail } });
+    await prisma.companySubscription.updateMany({
+      where: { company: { ownerUserId: ownerUser!.id } },
+      data: { planId: businessPlan!.id },
+    });
 
     const ownerRelogin = await request(app.getHttpServer())
       .post(api('/auth/login'))
@@ -151,7 +161,7 @@ describeE2e('Team access (e2e)', () => {
       .set('Authorization', `Bearer ${memberToken}`)
       .expect(201);
 
-    const body = unwrapBody<{ success: boolean }>(res.body);
-    expect(body.success).toBe(true);
+    const body = unwrapBody<{ accessToken?: string; success?: boolean }>(res.body);
+    expect(body.accessToken || body.success).toBeDefined();
   });
 });

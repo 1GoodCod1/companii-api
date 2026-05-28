@@ -29,8 +29,11 @@ export class FsmLeadsController {
   listLeads(
     @CurrentUser() user: JwtPayload,
     @Query('status') status?: CompanyLeadStatus,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string,
   ) {
-    return this.leads.listLeads(user, status);
+    const parsedLimit = limit ? Math.min(parseInt(limit, 10), 100) : undefined;
+    return this.leads.listLeads(user, status, cursor, parsedLimit);
   }
 
   @Get(':id')

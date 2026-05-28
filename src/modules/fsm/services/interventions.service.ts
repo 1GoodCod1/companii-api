@@ -10,6 +10,8 @@ import {
   assertInterventionTransition,
   isTerminalInterventionStatus,
 } from '../utils/status-transitions';
+import { EmailService } from '../../email/email.service';
+import { isEstimateLaborLine } from '../../estimates/utils/estimate-line-recalculate.util';
 
 @Injectable()
 export class InterventionsService {
@@ -17,11 +19,14 @@ export class InterventionsService {
     private readonly prisma: PrismaService,
     private readonly ctx: FsmContextService,
     private readonly companyAuth: CompanyAuthorizationService,
+    private readonly email: EmailService,
   ) {}
 
   list(
     user: JwtPayload,
     filters?: { status?: InterventionStatus; customerId?: string; technicianId?: string },
+    cursor?: string,
+    limit = 25,
   ) {
     const where: Prisma.InterventionWhereInput = {
       companyId: this.ctx.companyId(user),
@@ -30,10 +35,36 @@ export class InterventionsService {
       ...(filters?.customerId ? { customerId: filters.customerId } : {}),
       ...(filters?.technicianId ? { technicianId: filters.technicianId } : {}),
     };
+    const take = Math.min(Math.max(limit, 1), 100);
     return this.prisma.intervention.findMany({
       where,
-      include: { customer: true, technician: technicianWithUser },
+      select: {
+        id: true,
+        number: true,
+        type: true,
+        description: true,
+        address: true,
+        status: true,
+        scheduledAt: true,
+        estimatedPrice: true,
+        finalPrice: true,
+        createdAt: true,
+        updatedAt: true,
+        customer: { select: { id: true, fullName: true, phone: true, email: true } },
+        technician: technicianWithUser,
+      },
       orderBy: { createdAt: 'desc' },
+      cursor: cursor ? { id: cursor } : undefined,
+      skip: cursor ? 1 : 0,
+      take,
+    }).then((items) => {
+      if (!cursor) {
+        return items as any;
+      }
+      return {
+        items,
+        nextCursor: items.length === take ? items[items.length - 1]?.id : null,
+      };
     });
   }
 
@@ -224,7 +255,7 @@ export class InterventionsService {
       throw AppErrors.badRequest(AppErrorMessages.STATUS_TRANSITION_INVALID);
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.intervention.update({
         where: { id },
         data: { status: toStatus },
@@ -242,6 +273,98 @@ export class InterventionsService {
       }
       return updated;
     });
+
+    if (toStatus === 'COMPLETED' && existing.estimateProjectId) {
+      this.notifyManagersAboutPendingReceipts(
+        existing.companyId,
+        existing.number,
+        existing.estimateProjectId,
+      ).catch(() => {});
+    }
+
+    return result;
+  }
+
+  private async notifyManagersAboutPendingReceipts(
+    companyId: string,
+    interventionNumber: string,
+    projectId: string,
+  ) {
+    const project = await this.prisma.runOutsideRlsContext(() =>
+      this.prisma.estimateProject.findUnique({
+        where: { id: projectId },
+        include: {
+          stages: {
+            include: {
+              lines: {
+                where: { actualStatus: 'PENDING' },
+              },
+            },
+          },
+        },
+      }),
+    );
+
+    if (!project) return;
+
+    let pendingCount = 0;
+    let pendingTotal = 0;
+
+    if (project.stages) {
+      for (const stage of project.stages) {
+        if (stage.lines) {
+          for (const line of stage.lines) {
+            const isLabor = isEstimateLaborLine({
+              unit: line.unit,
+              description: line.description,
+            });
+            if (!isLabor) {
+              pendingCount++;
+              pendingTotal += Number(line.lineTotal);
+            }
+          }
+        }
+      }
+    }
+
+    if (pendingCount === 0) return;
+
+    // Load active OWNER / MANAGERS of the company
+    const company = await this.prisma.runOutsideRlsContext(() =>
+      this.prisma.company.findUnique({
+        where: { id: companyId },
+        select: {
+          name: true,
+          contactEmail: true,
+          owner: { select: { email: true } },
+          members: {
+            where: { status: 'ACTIVE', role: { in: ['OWNER', 'MANAGER'] } },
+            select: { user: { select: { email: true } } },
+          },
+        },
+      }),
+    );
+
+    if (!company) return;
+
+    const recipients = [
+      company.owner.email,
+      company.contactEmail,
+      ...company.members.map((m) => m.user.email),
+    ].filter((email): email is string => Boolean(email));
+
+    const uniqueRecipients = [...new Set(recipients)];
+    if (!uniqueRecipients.length) return;
+
+    for (const to of uniqueRecipients) {
+      await this.email.sendCompletedInterventionPendingReceiptsEmail({
+        to,
+        interventionNumber,
+        projectName: project.title,
+        pendingCount,
+        pendingTotal,
+      });
+    }
   }
 
   async delete(user: JwtPayload, id: string) {

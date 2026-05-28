@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Query,
   Delete,
   Get,
   Param,
@@ -9,6 +10,7 @@ import {
   Put,
   Res,
   UseGuards,
+  HttpCode,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { EstimateProjectStatus } from '@prisma/client';
@@ -20,11 +22,15 @@ import { RequiresFeature } from '../../../common/decorators/requires-feature.dec
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../../auth/types/jwt-payload';
 import { EstimatesService } from '../estimates.service';
-import type { Plan2dData } from '../pricing/pricing-engine.service';
+import { QueueService, QUEUE_SMALL_THRESHOLD } from '../../shared/queue';
+import type { Plan2dData } from '../pricing/plan2d.types';
 
 @Controller(CONTROLLER_PATH.estimates)
 export class EstimatesController {
-  constructor(private readonly estimates: EstimatesService) {}
+  constructor(
+    private readonly estimates: EstimatesService,
+    private readonly queue: QueueService,
+  ) {}
 
   @Get('blueprints')
   @UseGuards(CompanyGuard, SubscriptionGuard)
@@ -44,8 +50,13 @@ export class EstimatesController {
   @UseGuards(CompanyGuard, SubscriptionGuard)
   @RequiresFeature('estimates')
   @CompanyRoles('OWNER', 'MANAGER')
-  listProjects(@CurrentUser() user: JwtPayload) {
-    return this.estimates.listProjects(user);
+  listProjects(
+    @CurrentUser() user: JwtPayload,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const parsedLimit = limit ? Math.min(parseInt(limit, 10), 100) : undefined;
+    return this.estimates.listProjects(user, cursor, parsedLimit);
   }
 
   @Get('projects/:id')
@@ -92,6 +103,10 @@ export class EstimatesController {
       diagnosticAnswers?: Record<string, unknown>;
       notes?: string | null;
       status?: EstimateProjectStatus;
+      // M-05: conflict resolution metadata
+      expectedVersion?: number;
+      clientMutationId?: string;
+      clientDraftId?: string;
     },
   ) {
     return this.estimates.updateProject(user, id, body);
@@ -112,16 +127,42 @@ export class EstimatesController {
   saveSitePlan(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body() body: { plan2d: Plan2dData },
+    @Body()
+    body: {
+      plan2d: Plan2dData;
+      expectedVersion?: number;
+      clientMutationId?: string;
+      clientDraftId?: string;
+    },
   ) {
-    return this.estimates.saveSitePlan(user, id, body.plan2d);
+    return this.estimates.saveSitePlan(user, id, body.plan2d, {
+      expectedVersion: body.expectedVersion,
+      clientMutationId: body.clientMutationId,
+      clientDraftId: body.clientDraftId,
+    });
   }
 
   @Post('projects/:id/calculate')
   @UseGuards(CompanyGuard, SubscriptionGuard)
   @RequiresFeature('estimates')
   @CompanyRoles('OWNER', 'MANAGER')
-  calculate(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+  async calculate(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Query('forceAsync') forceAsync?: string,
+  ) {
+    const project = await this.estimates.getProject(user, id);
+    const stageCount = project.stages?.length ?? 0;
+    const lineCount = project.stages?.reduce((sum, s) => sum + (s.lines?.length ?? 0), 0) ?? 0;
+    const isLarge = lineCount > QUEUE_SMALL_THRESHOLD || forceAsync === '1';
+    if (isLarge) {
+      const jobId = await this.queue.enqueueCalculate({
+        projectId: id,
+        companyId: user.activeCompanyId ?? '',
+        userId: user.sub,
+      });
+      return { jobId, status: 'queued', lineCount, stageCount };
+    }
     return this.estimates.calculateProject(user, id);
   }
 
@@ -223,9 +264,9 @@ export class EstimatesController {
   convert(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body() body: { mode?: 'single' | 'by-stage' },
+    @Body() body?: { mode?: 'single' | 'by-stage' },
   ) {
-    return this.estimates.convertToInterventions(user, id, body.mode ?? 'single');
+    return this.estimates.convertToInterventions(user, id, body?.mode ?? 'single');
   }
 
   @Get('projects/:id/pdf')
@@ -237,13 +278,13 @@ export class EstimatesController {
     @Param('id') id: string,
     @Res() res: Response,
   ) {
-    const { buffer, filename } = await this.estimates.getProjectPdf(user, id);
+    const stream = await this.estimates.getProjectPdfStream(user, id);
     res.set({
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="${filename}"`,
-      'Content-Length': buffer.length,
+      'Content-Disposition': `attachment; filename="${stream.filename}"`,
+      'Transfer-Encoding': 'chunked',
     });
-    res.send(buffer);
+    stream.readable.pipe(res);
   }
 
   @Get('projects/:id/worksheet')
@@ -262,5 +303,150 @@ export class EstimatesController {
     @Param('interventionId') interventionId: string,
   ) {
     return this.estimates.getWorksheetByIntervention(user, interventionId);
+  }
+
+  @Get('worksheets/my')
+  @UseGuards(CompanyGuard, SubscriptionGuard)
+  @RequiresFeature('estimateWorksheet')
+  @CompanyRoles('MEMBER')
+  myWorksheets(@CurrentUser() user: JwtPayload) {
+    return this.estimates.listMyAssignedWorksheets(user);
+  }
+
+  // V-02 / V-14: receipts CRUD. MEMBER can create + edit own; OWNER/MANAGER all + verify.
+  @Post('projects/:id/receipts')
+  @UseGuards(CompanyGuard, SubscriptionGuard)
+  @RequiresFeature('estimates')
+  @CompanyRoles('OWNER', 'MANAGER', 'MEMBER')
+  createReceipt(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body()
+    body: {
+      fileKey?: string | null;
+      store: string;
+      totalAmount: number;
+      purchaseDate: string;
+      lineUpdates: Array<{
+        lineId: string;
+        actualUnitPrice: number;
+        actualQty?: number;
+        actualNotes?: string;
+      }>;
+    },
+  ) {
+    return this.estimates.createReceipt(user, id, body);
+  }
+
+  @Patch('projects/:id/receipts/:receiptId')
+  @UseGuards(CompanyGuard, SubscriptionGuard)
+  @RequiresFeature('estimates')
+  @CompanyRoles('OWNER', 'MANAGER', 'MEMBER')
+  updateReceipt(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Param('receiptId') receiptId: string,
+    @Body()
+    body: {
+      fileKey?: string | null;
+      store?: string;
+      totalAmount?: number;
+      purchaseDate?: string;
+      lineUpdates?: Array<{
+        lineId: string;
+        actualUnitPrice: number;
+        actualQty?: number;
+        actualNotes?: string;
+      }>;
+    },
+  ) {
+    return this.estimates.updateReceipt(user, id, receiptId, body);
+  }
+
+  @Post('projects/:id/receipts/:receiptId/verify')
+  @UseGuards(CompanyGuard, SubscriptionGuard)
+  @RequiresFeature('estimates')
+  @CompanyRoles('OWNER', 'MANAGER')
+  verifyReceipt(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Param('receiptId') receiptId: string,
+  ) {
+    return this.estimates.verifyReceipt(user, id, receiptId);
+  }
+
+  @Post('projects/:id/lock-actuals')
+  @UseGuards(CompanyGuard, SubscriptionGuard)
+  @RequiresFeature('estimates')
+  @CompanyRoles('OWNER', 'MANAGER')
+  lockActuals(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+  ) {
+    return this.estimates.lockActuals(user, id);
+  }
+
+  @Post('projects/:id/unlock-actuals')
+  @UseGuards(CompanyGuard, SubscriptionGuard)
+  @RequiresFeature('estimates')
+  @CompanyRoles('OWNER', 'MANAGER')
+  unlockActuals(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+  ) {
+    return this.estimates.unlockActuals(user, id);
+  }
+
+  // V-14: bulk-action "mark as NO_RECEIPT / SKIPPED"
+  @Post('projects/:id/lines/actual-status')
+  @UseGuards(CompanyGuard, SubscriptionGuard)
+  @RequiresFeature('estimates')
+  @CompanyRoles('OWNER', 'MANAGER', 'MEMBER')
+  setLinesActualStatus(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() body: { lineIds: string[]; status: 'NO_RECEIPT' | 'SKIPPED' },
+  ) {
+    return this.estimates.setLinesActualStatus(user, id, body);
+  }
+
+  @Get('projects/:id/shopping-list')
+  @UseGuards(CompanyGuard, SubscriptionGuard)
+  @RequiresFeature('estimates')
+  @CompanyRoles('OWNER', 'MANAGER', 'MEMBER')
+  getShoppingList(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+  ) {
+    return this.estimates.getShoppingList(user, id);
+  }
+
+  @Get('projects/:id/shopping-list/pdf')
+  @UseGuards(CompanyGuard, SubscriptionGuard)
+  @RequiresFeature('estimates')
+  @CompanyRoles('OWNER', 'MANAGER', 'MEMBER')
+  async getShoppingListPdf(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    const stream = await this.estimates.getShoppingListPdfStream(user, id);
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${stream.filename}"`,
+      'Transfer-Encoding': 'chunked',
+    });
+    stream.readable.pipe(res);
+  }
+
+  @Get('projects/:id/variance-report')
+  @UseGuards(CompanyGuard, SubscriptionGuard)
+  @RequiresFeature('estimates')
+  @CompanyRoles('OWNER', 'MANAGER')
+  getVarianceReport(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+  ) {
+    return this.estimates.getVarianceReport(user, id);
   }
 }

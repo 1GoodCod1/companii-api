@@ -16,6 +16,10 @@ import {
   buildBlueprintName,
   categoryHasEstimateBlueprint,
 } from './estimate-blueprints';
+import {
+  ESTIMATE_EXCLUDED_CATEGORY_SLUGS,
+  EXPECTED_ESTIMATE_BLUEPRINT_COUNT,
+} from '../src/common/constants/estimate-category-slugs.constants';
 
 const SEED_TERMS_VERSION = '2026-05-25';
 
@@ -302,6 +306,7 @@ async function seedCategories(tx: Prisma.TransactionClient) {
 }
 
 async function seedEstimateBlueprints(tx: Prisma.TransactionClient) {
+  let seededCount = 0;
   for (const category of CATEGORIES) {
     if (!categoryHasEstimateBlueprint(category.slug)) continue;
     const row = await tx.category.findUnique({ where: { slug: category.slug } });
@@ -320,6 +325,19 @@ async function seedEstimateBlueprints(tx: Prisma.TransactionClient) {
         isActive: true,
       },
     });
+    seededCount += 1;
+  }
+
+  if (seededCount !== EXPECTED_ESTIMATE_BLUEPRINT_COUNT) {
+    throw new Error(
+      `Expected ${EXPECTED_ESTIMATE_BLUEPRINT_COUNT} estimate blueprints, seeded ${seededCount}`,
+    );
+  }
+
+  for (const slug of ESTIMATE_EXCLUDED_CATEGORY_SLUGS) {
+    if (categoryHasEstimateBlueprint(slug)) {
+      throw new Error(`Excluded category "${slug}" must not have an estimate blueprint`);
+    }
   }
 }
 

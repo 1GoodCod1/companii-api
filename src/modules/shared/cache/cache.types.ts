@@ -12,4 +12,7 @@ export type CompaniiCacheKeyBuilders = {
   companyBySlug: (slug: string) => string;
   servicesList: (companySlug: string | null) => string;
   plansAll: () => string;
+  blueprintsAll: () => string;
+  blueprintByCategorySlug: (slug: string) => string;
+  categoriesList: () => string;
 };

@@ -10,6 +10,9 @@ import { projectInclude } from '../estimate.constants';
 import { EstimatesContextService } from '../context/estimates-context.service';
 import { EstimateProjectAccessService } from './estimate-project-access.service';
 import { EstimateStagesService } from './estimate-stages.service';
+import { AuditService } from '../../audit/audit.service';
+import { AuditAction } from '../../audit/audit-action.enum';
+import { AuditEntityType } from '../../audit/audit-entity-type.enum';
 
 @Injectable()
 export class EstimateQuotesService {
@@ -21,6 +24,7 @@ export class EstimateQuotesService {
     private readonly email: EmailService,
     private readonly config: ConfigService,
     private readonly estimatePdf: EstimatePdfService,
+    private readonly audit: AuditService,
   ) {}
 
   async generateQuote(user: JwtPayload, id: string) {
@@ -96,6 +100,18 @@ export class EstimateQuotesService {
       include: projectInclude,
     });
 
+    await this.audit.log({
+      userId: user.sub,
+      action: AuditAction.ESTIMATE_SENT,
+      entityType: AuditEntityType.EstimateProject,
+      entityId: id,
+      newData: {
+        number: updated.number,
+        title: updated.title,
+        grandTotal: Number(updated.grandTotal),
+      },
+    });
+
     const frontendUrl = this.config.get<string>('frontendUrl') || 'http://localhost:5174';
     const portalUrl = `${frontendUrl}/portal/smete`;
 
@@ -124,5 +140,12 @@ export class EstimateQuotesService {
     const project = await this.access.loadProjectForPdf(this.ctx.companyId(user), id);
     const buffer = await this.estimatePdf.build(project);
     return { buffer, filename: `${project.number}.pdf` };
+  }
+
+  async getProjectPdfStream(user: JwtPayload, id: string) {
+    this.ctx.assertManagement(user);
+    const project = await this.access.loadProjectForPdf(this.ctx.companyId(user), id);
+    const readable = await this.estimatePdf.buildStream(project);
+    return { readable, filename: `${project.number}.pdf` };
   }
 }

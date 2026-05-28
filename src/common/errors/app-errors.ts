@@ -26,7 +26,7 @@ export class AppErrors {
     return new UnauthorizedException(message);
   }
 
-  static conflict(message: string): ConflictException {
+  static conflict(message: string | Record<string, unknown>): ConflictException {
     return new ConflictException(message);
   }
 

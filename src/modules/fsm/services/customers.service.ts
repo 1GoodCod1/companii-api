@@ -13,11 +13,23 @@ export class CustomersService {
     private readonly ctx: FsmContextService,
   ) {}
 
-  list(user: JwtPayload) {
+  list(user: JwtPayload, cursor?: string, limit = 25) {
     this.ctx.assertNotTechnician(user);
+    const take = Math.min(Math.max(limit, 1), 100);
     return this.prisma.companyCustomer.findMany({
       where: { companyId: this.ctx.companyId(user) },
       orderBy: { createdAt: 'desc' },
+      cursor: cursor ? { id: cursor } : undefined,
+      skip: cursor ? 1 : 0,
+      take,
+    }).then((items) => {
+      if (!cursor) {
+        return items as any;
+      }
+      return {
+        items,
+        nextCursor: items.length === take ? items[items.length - 1]?.id : null,
+      };
     });
   }
 

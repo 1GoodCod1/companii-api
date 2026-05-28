@@ -31,8 +31,11 @@ export class FsmInterventionsController {
     @Query('status') status?: InterventionStatus,
     @Query('customerId') customerId?: string,
     @Query('technicianId') technicianId?: string,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string,
   ) {
-    return this.fsm.listInterventions(user, { status, customerId, technicianId });
+    const parsedLimit = limit ? Math.min(parseInt(limit, 10), 100) : undefined;
+    return this.fsm.listInterventions(user, { status, customerId, technicianId }, cursor, parsedLimit);
   }
 
   @Get(':id')

@@ -12,6 +12,11 @@ import { rlsTxStorage } from '../../../common/rls/rls.storage';
 import { wrapSerialTransactionClient } from '../../../common/rls/rls-tx-serial.util';
 import type { RlsContext } from '../../../common/types/rls-context';
 
+const SLOW_QUERY_THRESHOLD_MS = parseInt(
+  process.env.SLOW_QUERY_THRESHOLD_MS ?? '200',
+  10,
+);
+
 function resolvePoolMax(): number {
   const fromEnv = parseInt(process.env.PG_POOL_MAX ?? '', 10);
   if (Number.isFinite(fromEnv) && fromEnv > 0) return fromEnv;
@@ -66,14 +71,30 @@ export class PrismaService
       throw new Error('DATABASE_URL is not set');
     }
     const pool = createPgPool(connectionString);
+    const isDev = process.env.NODE_ENV === 'development';
+    const logLevels: Prisma.LogLevel[] = isDev
+      ? (['query', 'info', 'warn', 'error'] as Prisma.LogLevel[])
+      : (['warn', 'error'] as Prisma.LogLevel[]);
+
     super({
       adapter: new PrismaPg(pool),
-      log:
-        process.env.NODE_ENV === 'development'
-          ? ['warn', 'error']
-          : ['error'],
+      log: logLevels,
     });
     this.pool = pool;
+
+    // U-01: Emit slow-query warnings via the query event (metrics + audit trail).
+    // Prisma's built-in 'query' log fires after execution; we use $on to measure
+    // duration and flag queries exceeding the threshold without spamming every query.
+    this.$on('query' as never, (e: { timestamp: Date; query: string; params: string; duration: number; target: string }) => {
+      if (e.duration >= SLOW_QUERY_THRESHOLD_MS) {
+        const params = e.params.replace(/\s+/g, ' ').substring(0, 200);
+        const queryPreview = e.query.replace(/\s+/g, ' ').substring(0, 300);
+        this.logger.warn(
+          `SLOW_QUERY (${e.duration}ms) [${queryPreview}] params=${params || '(none)'}`,
+        );
+      }
+    });
+
     this.boundTransaction = this.$transaction.bind(this);
     const boundTransaction = this.boundTransaction;
 

@@ -271,6 +271,7 @@ model Company {
   services         CompanyService[]
   quotes           Quote[]
   estimateProjects EstimateProject[]
+  estimateReceipts EstimateReceipt[]
   invoices     CompanyInvoice[]
   subscription CompanySubscription?
   badges       Badge[]
@@ -556,6 +557,7 @@ model Intervention {
   review     CompanyReview?
 
   @@index([companyId, status])
+  @@index([technicianId, status])
   @@map("interventions")
 }
 
@@ -571,6 +573,7 @@ model InterventionStatusHistory {
   intervention Intervention  @relation(fields: [interventionId], references: [id], onDelete: Cascade)
   changedBy    CompanyMember @relation(fields: [changedByMemberId], references: [id])
 
+  @@index([interventionId, changedAt])
   @@map("intervention_status_history")
 }
 
@@ -585,6 +588,7 @@ model InterventionNote {
   intervention Intervention  @relation(fields: [interventionId], references: [id], onDelete: Cascade)
   author       CompanyMember @relation(fields: [authorMemberId], references: [id])
 
+  @@index([interventionId, createdAt])
   @@map("intervention_notes")
 }
 
@@ -596,6 +600,7 @@ model InterventionPhoto {
 
   intervention Intervention @relation(fields: [interventionId], references: [id], onDelete: Cascade)
 
+  @@index([interventionId, sortOrder])
   @@map("intervention_photos")
 }
 
@@ -617,6 +622,8 @@ model Quote {
   estimateProject EstimateProject?
   lines        QuoteLine[]
 
+  @@index([companyId, status, createdAt])
+  @@index([customerId])
   @@map("quotes")
 }
 
@@ -651,6 +658,8 @@ model CompanyInvoice {
   company      Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   intervention Intervention?     @relation(fields: [interventionId], references: [id])
 
+  @@index([companyId, paymentStatus])
+  @@index([companyId, issuedAt])
   @@map("company_invoices")
 }
 
@@ -738,7 +747,17 @@ model EstimateProject {
   grandTotal        Decimal               @default(0) @map("grand_total") @db.Decimal(12, 2)
   validUntil        DateTime?             @map("valid_until")
   diagnosticAnswers Json?                 @map("diagnostic_answers")
+  requiresManualReview Boolean            @default(false) @map("requires_manual_review")
+  calculationTrace   Json?                @map("calculation_trace")
+  clientFeedback     Json?                @map("client_feedback")
   notes             String?
+  tvaRate           Decimal?              @map("tva_rate") @db.Decimal(5, 2)
+  tvaAmount         Decimal               @default(0) @map("tva_amount") @db.Decimal(12, 2)
+  grandTotalWithVat Decimal               @default(0) @map("grand_total_with_vat") @db.Decimal(12, 2)
+  version           Int                   @default(1)
+  clientMutationId  String?               @map("client_mutation_id")
+  clientDraftId     String?               @map("client_draft_id")
+  actualsLockedAt   DateTime?             @map("actuals_locked_at")
   createdAt         DateTime              @default(now()) @map("created_at")
   updatedAt         DateTime              @updatedAt @map("updated_at")
 
@@ -752,10 +771,27 @@ model EstimateProject {
   measurements EstimateMeasurement[]
   interventions Intervention[]
   sourceLead   CompanyLead?
+  appliedMutations EstimateAppliedMutation[]
+  receipts     EstimateReceipt[]
 
   @@index([companyId, status, createdAt])
   @@index([categoryId])
   @@map("estimate_projects")
+}
+
+model EstimateAppliedMutation {
+  id            String   @id @default(uuid())
+  projectId     String   @map("project_id")
+  mutationId    String   @map("mutation_id")
+  kind          String
+  appliedAt     DateTime @default(now()) @map("applied_at")
+  clientDraftId String?  @map("client_draft_id")
+
+  project EstimateProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, mutationId], map: "estimate_applied_mutations_project_mutation_idx")
+  @@index([appliedAt], map: "estimate_applied_mutations_applied_at_idx")
+  @@map("estimate_applied_mutations")
 }
 
 model EstimateSitePlan {
@@ -798,6 +834,14 @@ model EstimateStage {
   @@map("estimate_stages")
 }
 
+enum EstimateLineActualStatus {
+  PENDING
+  PURCHASED
+  NO_RECEIPT
+  SKIPPED
+  VERIFIED
+}
+
 model EstimateLine {
   id             String   @id @default(uuid())
   stageId        String   @map("stage_id")
@@ -810,11 +854,48 @@ model EstimateLine {
   sortOrder      Int      @default(0) @map("sort_order")
   materialStore  String?  @map("material_store")
   receiptFileKey String?  @map("receipt_file_key")
+  vatRate        Decimal? @map("vat_rate") @db.Decimal(5, 2)
+  actualUnitPrice         Decimal?                 @map("actual_unit_price") @db.Decimal(12, 2)
+  actualLineTotal         Decimal?                 @map("actual_line_total") @db.Decimal(12, 2)
+  actualQty               Decimal?                 @map("actual_qty") @db.Decimal(10, 2)
+  actualNotes             String?                  @map("actual_notes")
+  actualStatus            EstimateLineActualStatus @default(PENDING) @map("actual_status")
+  actualStatusUpdatedAt   DateTime?                @map("actual_status_updated_at")
+  actualStatusByMemberId  String?                  @map("actual_status_by_member_id")
+  receiptId               String?                  @map("receipt_id")
 
-  stage EstimateStage @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  stage   EstimateStage    @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  receipt EstimateReceipt? @relation(fields: [receiptId], references: [id], onDelete: SetNull)
 
   @@index([stageId, sortOrder])
+  @@index([receiptId], map: "estimate_lines_receipt_idx")
+  @@index([actualStatus], map: "estimate_lines_actual_status_idx")
   @@map("estimate_lines")
+}
+
+model EstimateReceipt {
+  id                  String    @id @default(uuid())
+  companyId           String    @map("company_id")
+  projectId           String    @map("project_id")
+  fileKey             String?   @map("file_key")
+  store               String
+  totalAmount         Decimal   @map("total_amount") @db.Decimal(12, 2)
+  purchaseDate        DateTime  @map("purchase_date")
+  addedByMemberId     String    @map("added_by_member_id")
+  verified            Boolean   @default(false)
+  verifiedByMemberId  String?   @map("verified_by_member_id")
+  verifiedAt          DateTime? @map("verified_at")
+  parsingRequired     Boolean   @default(false) @map("parsing_required")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt        @map("updated_at")
+
+  company Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  project EstimateProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  lines   EstimateLine[]
+
+  @@index([projectId], map: "estimate_receipts_project_idx")
+  @@index([companyId, purchaseDate], map: "estimate_receipts_company_purchase_idx")
+  @@map("estimate_receipts")
 }
 
 model EstimateMeasurement {

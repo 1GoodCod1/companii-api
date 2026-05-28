@@ -1,4 +1,6 @@
 import { Prisma } from '@prisma/client';
+import type { EstimateMeasurementUnit } from '../../../prisma/estimate-measurement-units';
+import type { EstimateFieldWarning } from './utils/estimate-custom-fields-validation.util';
 
 export const projectInclude = {
   customer: true,
@@ -14,10 +16,30 @@ export const projectInclude = {
   },
 } satisfies Prisma.EstimateProjectInclude;
 
+export type EstimateProjectDetail = Prisma.EstimateProjectGetPayload<{
+  include: typeof projectInclude;
+}>;
+
+export type EstimateProjectUpdateResult = EstimateProjectDetail & {
+  warnings: EstimateFieldWarning[];
+};
+
+export type CalculationTraceEntry = {
+  key: string;
+  value: number;
+  unit: string;
+  source: 'plan' | 'diagnostic' | 'fallback' | 'manual' | 'computed';
+};
+
+export type EstimateCalculateResult = EstimateProjectDetail & {
+  calculationTrace: CalculationTraceEntry[];
+};
+
 export const portalEstimateInclude = {
   customer: true,
   category: { select: { id: true, name: true, slug: true } },
   company: { select: { id: true, name: true, slug: true } },
+  blueprint: { select: { id: true, config: true } },
   stages: {
     orderBy: { sortOrder: 'asc' as const },
     include: { lines: { orderBy: { sortOrder: 'asc' as const } } },
@@ -28,7 +50,7 @@ export function round2(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
-export function guessUnit(key: string): string {
+export function guessUnit(key: string): EstimateMeasurementUnit {
   if (key.endsWith('VolumeM3') || key.includes('Volume')) return 'm³';
   if (key.endsWith('Area') || key.includes('Area')) return 'm²';
   if (key.endsWith('LengthM') || key.includes('Length')) return 'm';

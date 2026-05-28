@@ -1,9 +1,22 @@
 import { Injectable } from '@nestjs/common';
 import { EstimateProjectStatus, Prisma } from '@prisma/client';
 import { AppErrorMessages, AppErrors } from '../../../common/errors';
+import { formatEstimateUnitsList, normalizeEstimateUnit } from '../../../../prisma/estimate-measurement-units';
+import { assertBlueprintUnitsValid } from '../utils/estimate-unit-validation.util';
+import { readEnabledWorkModules } from '../utils/work-modules.util';
 import { PrismaService } from '../../shared/database/prisma.service';
 import type { JwtPayload } from '../../auth/types/jwt-payload';
-import { guessUnit, projectInclude, round2 } from '../estimate.constants';
+import { guessUnit, projectInclude, round2, type EstimateCalculateResult } from '../estimate.constants';
+import {
+  buildCalculationTrace,
+  filterPersistableMeasurements,
+  resolveRequiresManualReview,
+} from '../utils/estimate-calculation-trace.util';
+import {
+  RECALCULATED_ESTIMATE_LINE_SOURCES,
+  accumulateEstimateLineTotals,
+  nextRuleLineSortOrder,
+} from '../utils/estimate-line-recalculate.util';
 import { EstimatesContextService } from '../context/estimates-context.service';
 import {
   EstimatePricingEngine,
@@ -26,10 +39,15 @@ export class EstimateStagesService {
     const project = await this.access.findProjectOrThrow(user, id);
     const cid = this.ctx.companyId(user);
     const config = this.ctx.parseBlueprintConfig(project.blueprint?.config);
+    try {
+      assertBlueprintUnitsValid(config, `project ${id}`);
+    } catch (err) {
+      throw AppErrors.badRequest(err instanceof Error ? err.message : 'Invalid blueprint units');
+    }
     const plan2d = this.ctx.parsePlan2d(project.sitePlan?.plan2d);
     const diagnostic = (project.diagnosticAnswers ?? {}) as Record<string, unknown>;
 
-    let measurements = this.pricing.deriveMeasurements(plan2d, diagnostic);
+    let measurements = this.pricing.deriveMeasurements(plan2d, diagnostic, project.category?.slug);
     measurements = this.pricing.applyDiagnosticIncrements(config, measurements, diagnostic);
 
     const companyServices = await this.prisma.companyService.findMany({
@@ -46,12 +64,19 @@ export class EstimateStagesService {
     );
     measurements = customPricing.measurements;
     pricingRules = customPricing.rules;
-    const ruleLines = this.pricing.buildLinesFromRules(pricingRules, measurements);
+    const enabledWorkModules = readEnabledWorkModules(diagnostic, config);
+    const ruleLines = this.pricing.buildLinesFromRules(pricingRules, measurements, {
+      enabledWorkModules,
+      config,
+    });
+    const calculationTrace = buildCalculationTrace(measurements, plan2d, diagnostic);
+    const requiresManualReview = resolveRequiresManualReview(measurements);
+    const persistableMeasurements = filterPersistableMeasurements(measurements);
 
     return this.prisma.$transaction(async (tx) => {
       await tx.estimateMeasurement.deleteMany({ where: { projectId: id } });
       await tx.estimateMeasurement.createMany({
-        data: Object.entries(measurements).map(([key, value]) => ({
+        data: Object.entries(persistableMeasurements).map(([key, value]) => ({
           projectId: id,
           key,
           label: key,
@@ -61,23 +86,35 @@ export class EstimateStagesService {
       });
 
       for (const stage of project.stages) {
-        await tx.estimateLine.deleteMany({ where: { stageId: stage.id } });
+        const manualLines = await tx.estimateLine.findMany({
+          where: { stageId: stage.id, source: 'manual' },
+          orderBy: { sortOrder: 'asc' },
+        });
+
+        await tx.estimateLine.deleteMany({
+          where: {
+            stageId: stage.id,
+            source: { in: [...RECALCULATED_ESTIMATE_LINE_SOURCES] },
+          },
+        });
+
         const stageLines = ruleLines.filter((line) => line.stageCode === stage.code);
-        let laborCost = 0;
-        let materialCost = 0;
+        let { laborCost, materialCost } = accumulateEstimateLineTotals(manualLines);
+        let sortOrder = nextRuleLineSortOrder(manualLines);
 
         if (customPricing.customLaborTotal && project.stages.length) {
-          laborCost = round2(customPricing.customLaborTotal / project.stages.length);
+          const overrideLabor = round2(customPricing.customLaborTotal / project.stages.length);
+          laborCost = round2(laborCost + overrideLabor);
           await tx.estimateLine.create({
             data: {
               stageId: stage.id,
               description: `Manoperă (Volum / Contract) — ${stage.name}`,
               qty: 1,
-              unit: 'volum',
-              unitPrice: laborCost,
-              lineTotal: laborCost,
+              unit: 'buc',
+              unitPrice: overrideLabor,
+              lineTotal: overrideLabor,
               source: 'custom-total-override',
-              sortOrder: 0,
+              sortOrder: sortOrder++,
             },
           });
 
@@ -92,12 +129,13 @@ export class EstimateStagesService {
                 unitPrice: line.unitPrice,
                 lineTotal: line.lineTotal,
                 source: line.source,
-                sortOrder: index + 1,
+                sortOrder: sortOrder + index,
               })),
             });
             for (const line of materialLines) {
-              materialCost += line.lineTotal;
+              materialCost = round2(materialCost + line.lineTotal);
             }
+            sortOrder += materialLines.length;
           }
         } else if (stageLines.length) {
           await tx.estimateLine.createMany({
@@ -109,18 +147,19 @@ export class EstimateStagesService {
               unitPrice: line.unitPrice,
               lineTotal: line.lineTotal,
               source: line.source,
-              sortOrder: index,
+              sortOrder: sortOrder + index,
             })),
           });
 
           for (const line of stageLines) {
-            if (line.kind === 'labor') laborCost += line.lineTotal;
-            else materialCost += line.lineTotal;
+            if (line.kind === 'labor') laborCost = round2(laborCost + line.lineTotal);
+            else materialCost = round2(materialCost + line.lineTotal);
           }
         } else if (stage.laborHours && stage.laborRate) {
           const hours = Number(stage.laborHours);
           const rate = Number(stage.laborRate);
-          laborCost = round2(hours * rate);
+          const stageDefaultLabor = round2(hours * rate);
+          laborCost = round2(laborCost + stageDefaultLabor);
           await tx.estimateLine.create({
             data: {
               stageId: stage.id,
@@ -128,9 +167,9 @@ export class EstimateStagesService {
               qty: hours,
               unit: 'ore',
               unitPrice: rate,
-              lineTotal: laborCost,
+              lineTotal: stageDefaultLabor,
               source: 'stage-default',
-              sortOrder: 0,
+              sortOrder: sortOrder++,
             },
           });
         }
@@ -171,16 +210,52 @@ export class EstimateStagesService {
       const marginPct = Number(project.marginPct);
       const grandTotal = round2(subtotal * (1 + marginPct / 100));
 
-      return tx.estimateProject.update({
-        where: { id },
+      const allProjectLines = await tx.estimateLine.findMany({
+        where: { stage: { projectId: id } },
+      });
+      const tvaAmount = this.calculateTva(
+        allProjectLines,
+        project.tvaRate,
+        marginPct,
+      );
+      const grandTotalWithVat = round2(grandTotal + tvaAmount);
+
+      const expectedVersion = project.version;
+      const updateResult = await tx.estimateProject.updateMany({
+        where: {
+          id,
+          version: expectedVersion,
+        },
         data: {
           laborTotal,
           materialTotal,
           grandTotal,
+          tvaAmount,
+          grandTotalWithVat,
           status: EstimateProjectStatus.CALCULATED,
+          requiresManualReview,
+          calculationTrace: calculationTrace as Prisma.InputJsonValue,
+          version: expectedVersion + 1,
         },
+      });
+
+      if (updateResult.count === 0) {
+        throw AppErrors.conflict('Smeta a fost modificată de un alt utilizator. Vă rugăm să reîncărcați pagina.');
+      }
+
+      const updatedProject = await tx.estimateProject.findUnique({
+        where: { id },
         include: projectInclude,
       });
+
+      if (!updatedProject) {
+        throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
+      }
+
+      return {
+        ...updatedProject,
+        calculationTrace,
+      } satisfies EstimateCalculateResult;
     });
   }
 
@@ -246,15 +321,20 @@ export class EstimateStagesService {
 
     const qty = data.qty !== undefined ? data.qty : Number(line.qty);
     const unitPrice = data.unitPrice !== undefined ? data.unitPrice : Number(line.unitPrice);
+    const unit = data.unit !== undefined ? this.requireValidUnit(data.unit, 'estimate line') : line.unit;
     const lineTotal = round2(qty * unitPrice);
 
     return this.prisma.$transaction(async (tx) => {
+      // Lock parent project and stage rows FOR UPDATE first to serialize and prevent deadlocks on foreign key constraints
+      await tx.$executeRaw`SELECT id FROM estimate_projects WHERE id = ${projectId} FOR UPDATE`;
+      await tx.$executeRaw`SELECT id FROM estimate_stages WHERE id = ${stageId} FOR UPDATE`;
+
       await tx.estimateLine.update({
         where: { id: lineId },
         data: {
           description: data.description?.trim(),
           qty,
-          unit: data.unit,
+          unit,
           unitPrice,
           lineTotal,
           materialStore: data.materialStore === null ? null : data.materialStore?.trim(),
@@ -289,15 +369,20 @@ export class EstimateStagesService {
       orderBy: { sortOrder: 'desc' },
     });
     const sortOrder = (lastLine?.sortOrder ?? 0) + 1;
+    const unit = this.requireValidUnit(data.unit, 'estimate line');
     const lineTotal = round2(data.qty * data.unitPrice);
 
     return this.prisma.$transaction(async (tx) => {
+      // Lock parent project and stage rows FOR UPDATE first to serialize and prevent deadlocks on foreign key constraints
+      await tx.$executeRaw`SELECT id FROM estimate_projects WHERE id = ${projectId} FOR UPDATE`;
+      await tx.$executeRaw`SELECT id FROM estimate_stages WHERE id = ${stageId} FOR UPDATE`;
+
       await tx.estimateLine.create({
         data: {
           stageId,
           description: data.description.trim(),
           qty: data.qty,
-          unit: data.unit,
+          unit,
           unitPrice: data.unitPrice,
           lineTotal,
           source: 'manual',
@@ -328,6 +413,10 @@ export class EstimateStagesService {
     if (!line) throw AppErrors.notFound('Estimate line not found');
 
     return this.prisma.$transaction(async (tx) => {
+      // Lock parent project and stage rows FOR UPDATE first to serialize and prevent deadlocks on foreign key constraints
+      await tx.$executeRaw`SELECT id FROM estimate_projects WHERE id = ${projectId} FOR UPDATE`;
+      await tx.$executeRaw`SELECT id FROM estimate_stages WHERE id = ${stageId} FOR UPDATE`;
+
       await tx.estimateLine.delete({ where: { id: lineId } });
       return this.recalcStageTotals(tx, stageId, projectId);
     });
@@ -338,18 +427,18 @@ export class EstimateStagesService {
     stageId: string,
     projectId: string,
   ) {
+    // Pessimistic locks in consistent order to prevent concurrent stage & project edits causing race conditions in totals
+    await tx.$executeRaw`SELECT id FROM estimate_projects WHERE id = ${projectId} FOR UPDATE`;
+    await tx.$executeRaw`SELECT id FROM estimate_stages WHERE id = ${stageId} FOR UPDATE`;
+
     const allLines = await tx.estimateLine.findMany({ where: { stageId } });
-    let laborCost = 0;
-    let materialCost = 0;
-    for (const l of allLines) {
-      const isLabor =
-        l.unit === 'ore' ||
-        l.unit === 'h' ||
-        l.description.toLowerCase().includes('manoperă') ||
-        l.description.toLowerCase().includes('manopera');
-      if (isLabor) laborCost += Number(l.lineTotal);
-      else materialCost += Number(l.lineTotal);
-    }
+    const { laborCost, materialCost } = accumulateEstimateLineTotals(
+      allLines.map((line) => ({
+        unit: line.unit,
+        description: line.description,
+        lineTotal: line.lineTotal,
+      })),
+    );
     const stageTotal = round2(laborCost + materialCost);
 
     await tx.estimateStage.update({
@@ -367,12 +456,24 @@ export class EstimateStagesService {
     const marginPct = Number(project.marginPct);
     const grandTotal = round2(subtotal * (1 + marginPct / 100));
 
+    const allProjectLines = await tx.estimateLine.findMany({
+      where: { stage: { projectId } },
+    });
+    const tvaAmount = this.calculateTva(
+      allProjectLines,
+      project.tvaRate,
+      marginPct,
+    );
+    const grandTotalWithVat = round2(grandTotal + tvaAmount);
+
     await tx.estimateProject.update({
       where: { id: projectId },
       data: {
         laborTotal: projectLaborTotal,
         materialTotal: projectMaterialTotal,
         grandTotal,
+        tvaAmount,
+        grandTotalWithVat,
       },
     });
 
@@ -380,5 +481,31 @@ export class EstimateStagesService {
       where: { id: projectId },
       include: projectInclude,
     });
+  }
+
+  private requireValidUnit(raw: string, context: string): string {
+    const normalized = normalizeEstimateUnit(raw);
+    if (!normalized) {
+      throw AppErrors.badRequest(
+        `Unitate invalidă "${raw}" (${context}). Permise: ${formatEstimateUnitsList()}.`,
+      );
+    }
+    return normalized;
+  }
+
+  private calculateTva(
+    lines: Array<{ lineTotal: any; vatRate?: any | null }>,
+    projectTvaRate: any | null,
+    marginPct: number,
+  ): number {
+    const marginFactor = 1 + marginPct / 100;
+    let tvaAmount = 0;
+    for (const line of lines) {
+      const rate = line.vatRate !== null && line.vatRate !== undefined ? Number(line.vatRate) : Number(projectTvaRate ?? 0);
+      const lineTotal = Number(line.lineTotal);
+      const lineTva = lineTotal * marginFactor * (rate / 100);
+      tvaAmount += lineTva;
+    }
+    return round2(tvaAmount);
   }
 }

@@ -1,7 +1,12 @@
 import type { PrismaService } from '../../modules/shared/database/prisma.service';
 import { normalizePhone } from './phone.util';
 
-export async function findLeadsForEndClient(prisma: PrismaService, userId: string) {
+export async function findLeadsForEndClient(
+  prisma: PrismaService,
+  userId: string,
+  take?: number,
+  cursor?: string,
+) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { phone: true },
@@ -19,6 +24,9 @@ export async function findLeadsForEndClient(prisma: PrismaService, userId: strin
       ],
     },
     orderBy: { createdAt: 'desc' },
+    cursor: cursor ? { id: cursor } : undefined,
+    skip: cursor ? 1 : 0,
+    take,
     include: {
       company: { select: { id: true, name: true, slug: true } },
       category: { select: { id: true, name: true, slug: true } },

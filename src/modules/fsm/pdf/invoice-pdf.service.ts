@@ -89,15 +89,28 @@ export class InvoicePdfService {
 
     const totalsY = rowY + 48;
     doc.font('Arial').fillColor('#374151');
-    doc.text('Bază impozabilă:', 320, totalsY);
-    doc.text(formatMoney(base), 420, totalsY, { width: 100, align: 'right' });
-    doc.text(`TVA (${Number(data.tvaRate)}%):`, 320, totalsY + 16);
-    doc.text(formatMoney(tva), 420, totalsY + 16, { width: 100, align: 'right' });
-
-    doc.rect(48, totalsY + 36, doc.page.width - 96, 32).fill('#EDE9FE');
-    doc.fillColor('#5B21B6').font('Arial-Bold').fontSize(11);
-    doc.text('TOTAL DE PLATĂ', 56, totalsY + 46);
-    doc.text(formatMoney(total), 420, totalsY + 46, { width: 100, align: 'right' });
+    
+    if (data.tvaRate !== null && Number(data.tvaRate) > 0) {
+      doc.text('Bază impozabilă:', 320, totalsY);
+      doc.text(formatMoney(base), 420, totalsY, { width: 100, align: 'right' });
+      doc.text(`TVA (${Number(data.tvaRate)}%):`, 320, totalsY + 16);
+      doc.text(formatMoney(tva), 420, totalsY + 16, { width: 100, align: 'right' });
+      
+      doc.rect(48, totalsY + 36, doc.page.width - 96, 32).fill('#EDE9FE');
+      doc.fillColor('#5B21B6').font('Arial-Bold').fontSize(11);
+      doc.text('TOTAL DE PLATĂ', 56, totalsY + 46);
+      doc.text(formatMoney(total), 420, totalsY + 46, { width: 100, align: 'right' });
+    } else {
+      doc.text('Preț total (fără TVA):', 320, totalsY);
+      doc.text(formatMoney(base), 420, totalsY, { width: 100, align: 'right' });
+      doc.fontSize(8).fillColor('#6B7280');
+      doc.text('Compania nu este înregistrată ca plătitor TVA (Codul fiscal art. 112)', 48, totalsY + 16, { width: 250 });
+      
+      doc.rect(48, totalsY + 36, doc.page.width - 96, 32).fill('#EDE9FE');
+      doc.fillColor('#5B21B6').font('Arial-Bold').fontSize(11);
+      doc.text('TOTAL DE PLATĂ', 56, totalsY + 46);
+      doc.text(formatMoney(base), 420, totalsY + 46, { width: 100, align: 'right' });
+    }
 
     doc.fillColor('#6B7280').font('Arial').fontSize(8);
     doc.text(

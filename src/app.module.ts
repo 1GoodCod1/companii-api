@@ -13,6 +13,7 @@ import {
 } from './common/guards';
 import {
   CacheControlInterceptor,
+  SlowRequestInterceptor,
   TimeoutInterceptor,
 } from './common/interceptors';
 import { AuditInterceptor } from './modules/audit/audit.interceptor';
@@ -20,6 +21,7 @@ import { AuditModule } from './modules/audit/audit.module';
 import { PrismaModule } from './modules/shared/database/prisma.module';
 import { RedisModule } from './modules/shared/redis/redis.module';
 import { CacheModule } from './modules/shared/cache/cache.module';
+import { QueueModule } from './modules/shared/queue';
 import { MaintenanceModule } from './modules/shared/maintenance/maintenance.module';
 import { FilesModule } from './modules/files/files.module';
 import { EmailModule } from './modules/email/email.module';
@@ -70,6 +72,7 @@ const isProd = process.env.NODE_ENV === 'production';
     RlsModule,
     RedisModule,
     CacheModule,
+    QueueModule,
     MaintenanceModule,
     FilesModule,
     EmailModule,
@@ -98,6 +101,7 @@ const isProd = process.env.NODE_ENV === 'production';
       useFactory: () => new TimeoutInterceptor(30_000),
     },
     { provide: APP_INTERCEPTOR, useClass: CacheControlInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: SlowRequestInterceptor },
   ],
 })
 export class AppModule {}

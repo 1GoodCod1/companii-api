@@ -36,8 +36,13 @@ export class FsmCustomersController {
   @Get()
   @UseGuards(CompanyGuard, SubscriptionGuard)
   @RequiresFeature('customers')
-  customers(@CurrentUser() user: JwtPayload) {
-    return this.fsm.listCustomers(user);
+  customers(
+    @CurrentUser() user: JwtPayload,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const parsedLimit = limit ? Math.min(parseInt(limit, 10), 100) : undefined;
+    return this.fsm.listCustomers(user, cursor, parsedLimit);
   }
 
   @Get('import/template')

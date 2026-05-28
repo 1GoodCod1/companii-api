@@ -28,8 +28,8 @@ export class FsmService {
 
   // --- CUSTOMERS ---
 
-  listCustomers(user: JwtPayload) {
-    return this.customers.list(user);
+  listCustomers(user: JwtPayload, cursor?: string, limit?: number) {
+    return this.customers.list(user, cursor, limit);
   }
 
   getCustomer(user: JwtPayload, id: string) {
@@ -60,8 +60,10 @@ export class FsmService {
   listInterventions(
     user: JwtPayload,
     filters?: { status?: InterventionStatus; customerId?: string; technicianId?: string },
+    cursor?: string,
+    limit?: number,
   ) {
-    return this.interventions.list(user, filters);
+    return this.interventions.list(user, filters, cursor, limit);
   }
 
   getIntervention(user: JwtPayload, id: string) {
@@ -138,8 +140,8 @@ export class FsmService {
 
   // --- QUOTES ---
 
-  listQuotes(user: JwtPayload) {
-    return this.quotes.list(user);
+  listQuotes(user: JwtPayload, cursor?: string, limit?: number) {
+    return this.quotes.list(user, cursor, limit);
   }
 
   getQuote(user: JwtPayload, id: string) {
@@ -188,8 +190,8 @@ export class FsmService {
 
   // --- INVOICES ---
 
-  listInvoices(user: JwtPayload) {
-    return this.invoices.list(user);
+  listInvoices(user: JwtPayload, cursor?: string, limit?: number) {
+    return this.invoices.list(user, cursor, limit);
   }
 
   getInvoice(user: JwtPayload, id: string) {

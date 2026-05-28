@@ -6,6 +6,9 @@ import { PrismaService } from '../../shared/database/prisma.service';
 import type { JwtPayload } from '../../auth/types/jwt-payload';
 import { EstimatesContextService } from '../context/estimates-context.service';
 import { EstimateProjectAccessService } from './estimate-project-access.service';
+import { AuditService } from '../../audit/audit.service';
+import { AuditAction } from '../../audit/audit-action.enum';
+import { AuditEntityType } from '../../audit/audit-entity-type.enum';
 
 @Injectable()
 export class EstimateConversionService {
@@ -14,6 +17,7 @@ export class EstimateConversionService {
     private readonly ctx: EstimatesContextService,
     private readonly access: EstimateProjectAccessService,
     private readonly companyAuth: CompanyAuthorizationService,
+    private readonly audit: AuditService,
   ) {}
 
   async convertToInterventions(
@@ -33,7 +37,16 @@ export class EstimateConversionService {
     await this.companyAuth.assertInterventionMonthlyLimit(cid, additional);
 
     if (mode === 'by-stage') {
-      return this.prisma.$transaction(async (tx) => {
+      const result = await this.prisma.$transaction(async (tx) => {
+        const lockedProjects = await tx.$queryRaw<Array<{ status: EstimateProjectStatus }>>`
+          SELECT status FROM estimate_projects WHERE id = ${id} FOR UPDATE
+        `;
+        const currentStatus = lockedProjects[0]?.status;
+        if (!currentStatus) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
+        if (currentStatus !== EstimateProjectStatus.ACCEPTED) {
+          throw AppErrors.conflict('Smeta a fost deja convertită sau are alt status.');
+        }
+
         const interventions: Awaited<ReturnType<typeof tx.intervention.create>>[] = [];
         for (const stage of project.stages) {
           const intNumber = await this.access.nextInterventionNumber(tx, cid);
@@ -61,9 +74,33 @@ export class EstimateConversionService {
 
         return { interventions };
       });
+
+      await this.audit.log({
+        userId: user.sub,
+        action: AuditAction.ESTIMATE_CONVERTED,
+        entityType: AuditEntityType.EstimateProject,
+        entityId: id,
+        newData: {
+          mode,
+          number: project.number,
+          title: project.title,
+          grandTotal: Number(project.grandTotal),
+        },
+      });
+
+      return result;
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
+      const lockedProjects = await tx.$queryRaw<Array<{ status: EstimateProjectStatus }>>`
+        SELECT status FROM estimate_projects WHERE id = ${id} FOR UPDATE
+      `;
+      const currentStatus = lockedProjects[0]?.status;
+      if (!currentStatus) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
+      if (currentStatus !== EstimateProjectStatus.ACCEPTED) {
+        throw AppErrors.conflict('Smeta a fost deja convertită sau are alt status.');
+      }
+
       const intNumber = await this.access.nextInterventionNumber(tx, cid);
       const description = project.stages
         .map((s) => `• ${s.name} (${Number(s.stageTotal)} MDL)`)
@@ -90,5 +127,20 @@ export class EstimateConversionService {
 
       return { intervention };
     });
+
+    await this.audit.log({
+      userId: user.sub,
+      action: AuditAction.ESTIMATE_CONVERTED,
+      entityType: AuditEntityType.EstimateProject,
+      entityId: id,
+      newData: {
+        mode,
+        number: project.number,
+        title: project.title,
+        grandTotal: Number(project.grandTotal),
+      },
+    });
+
+    return result;
   }
 }

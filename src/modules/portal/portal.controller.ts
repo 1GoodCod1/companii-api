@@ -19,8 +19,13 @@ export class PortalController {
   @UseGuards(RolesGuard)
   @Roles('END_CLIENT')
   @Get('leads')
-  listLeads(@CurrentUser() user: JwtPayload) {
-    return this.portal.listMyLeads(user);
+  listLeads(
+    @CurrentUser() user: JwtPayload,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const parsedLimit = limit ? Math.min(parseInt(limit, 10), 100) : undefined;
+    return this.portal.listMyLeads(user, cursor, parsedLimit);
   }
 
   @UseGuards(RolesGuard)
@@ -56,6 +61,17 @@ export class PortalController {
     @Body() body: { status: 'ACCEPTED' | 'REJECTED' },
   ) {
     return this.portal.updateEstimateStatus(user, id, body.status);
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles('END_CLIENT')
+  @Post('estimates/:id/request-changes')
+  requestEstimateChanges(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() body: { comment: string },
+  ) {
+    return this.portal.requestEstimateChanges(user, id, body.comment);
   }
 
   @UseGuards(RolesGuard)

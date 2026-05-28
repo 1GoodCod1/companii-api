@@ -15,11 +15,40 @@ export class InvoicesService {
     private readonly invoicePdf: InvoicePdfService,
   ) {}
 
-  list(user: JwtPayload) {
+  list(user: JwtPayload, cursor?: string, limit = 25) {
+    const take = Math.min(Math.max(limit, 1), 100);
     return this.prisma.companyInvoice.findMany({
       where: { companyId: this.ctx.companyId(user) },
-      include: { intervention: { include: { customer: true } } },
+      select: {
+        id: true,
+        number: true,
+        amount: true,
+        tvaAmount: true,
+        paymentStatus: true,
+        dueDate: true,
+        issuedAt: true,
+        intervention: {
+          select: {
+            id: true,
+            number: true,
+            description: true,
+            status: true,
+            customer: { select: { id: true, fullName: true, phone: true } },
+          },
+        },
+      },
       orderBy: { issuedAt: 'desc' },
+      cursor: cursor ? { id: cursor } : undefined,
+      skip: cursor ? 1 : 0,
+      take,
+    }).then((items) => {
+      if (!cursor) {
+        return items as any;
+      }
+      return {
+        items,
+        nextCursor: items.length === take ? items[items.length - 1]?.id : null,
+      };
     });
   }
 
@@ -43,12 +72,35 @@ export class InvoicesService {
     const cid = this.ctx.companyId(user);
     const intervention = await this.prisma.intervention.findFirst({
       where: { id: data.interventionId, companyId: cid },
+      include: {
+        estimateProject: true,
+        quotes: {
+          include: { lines: true },
+        },
+      },
     });
     if (!intervention) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
 
+    const company = await this.prisma.company.findUnique({ where: { id: cid } });
+
+    let tvaRate = data.tvaRate;
+    if (tvaRate === undefined) {
+      if (intervention.estimateProject) {
+        tvaRate = intervention.estimateProject.tvaRate !== null ? Number(intervention.estimateProject.tvaRate) : undefined;
+      } else if (intervention.quotes.length > 0) {
+        const quoteWithVat = intervention.quotes.find(q => q.lines.some(l => l.vatRate !== null));
+        if (quoteWithVat) {
+          const firstLineVat = quoteWithVat.lines.find(l => l.vatRate !== null)?.vatRate;
+          tvaRate = firstLineVat !== null && firstLineVat !== undefined ? Number(firstLineVat) : undefined;
+        }
+      }
+      if (tvaRate === undefined) {
+        tvaRate = company?.isTvaPayer ? 20 : 0;
+      }
+    }
+
     const price = intervention.finalPrice || intervention.estimatedPrice || new Prisma.Decimal(0);
-    const tvaRate = data.tvaRate ?? 20;
-    const tvaAmount = new Prisma.Decimal(Number(price) * (tvaRate / 100));
+    const tvaAmount = new Prisma.Decimal(tvaRate > 0 ? Number(price) * (tvaRate / 100) : 0);
 
     return this.prisma.$transaction(async (tx) => {
       const count = await tx.companyInvoice.count({ where: { companyId: cid } });

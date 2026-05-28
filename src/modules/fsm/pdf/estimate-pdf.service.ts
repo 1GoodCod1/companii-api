@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import path from 'path';
+import { Readable } from 'stream';
 import PDFDocument from 'pdfkit';
 import type {
   Category,
@@ -31,7 +32,7 @@ type EstimatePdfData = EstimateProject & {
 
 @Injectable()
 export class EstimatePdfService {
-  async build(data: EstimatePdfData): Promise<Buffer> {
+  async build(data: EstimatePdfData, options?: { isClientView?: boolean }): Promise<Buffer> {
     const doc = new PDFDocument({ size: 'A4', margin: 48 });
 
     const fontRegularPath = path.join(process.cwd(), 'assets', 'fonts', 'Arial-Regular.ttf');
@@ -60,6 +61,9 @@ export class EstimatePdfService {
     if (data.company.idno) doc.text(`IDNO: ${data.company.idno}`, 48, doc.y + 2);
     if (data.company.legalAddress) doc.text(data.company.legalAddress, 48, doc.y + 2);
     if (data.company.contactPhone) doc.text(`Tel: ${data.company.contactPhone}`, 48, doc.y + 2);
+    if (data.company.isTvaPayer && data.company.tvaCode) {
+      doc.text(`Cod TVA: ${data.company.tvaCode}`, 48, doc.y + 2);
+    }
 
     const rightX = 320;
     doc.fillColor('#111827').font('Arial-Bold').fontSize(10).text('CLIENT', rightX, 140);
@@ -117,17 +121,186 @@ export class EstimatePdfService {
     }
 
     doc.moveTo(48, rowY + 4).lineTo(doc.page.width - 48, rowY + 4).stroke('#E5E7EB');
-    doc.fillColor('#111827').font('Arial').fontSize(9);
-    doc.text(`Manoperă: ${formatMoney(Number(data.laborTotal))}`, 48, rowY + 16);
-    doc.text(`Materiale: ${formatMoney(Number(data.materialTotal))}`, 48, doc.y + 4);
-    doc.text(`Marjă: ${Number(data.marginPct)}%`, 48, doc.y + 4);
-    doc.font('Arial-Bold').fontSize(11);
-    doc.text(`TOTAL: ${formatMoney(Number(data.grandTotal))}`, 370, rowY + 16, {
-      width: 170,
-      align: 'right',
-    });
+    doc.fillColor('#111827');
+
+    const round2 = (n: number) => Math.round(n * 100) / 100;
+    let totalsY = rowY + 16;
+    if (!options?.isClientView) {
+      doc.font('Arial').fontSize(9);
+      doc.text(`Manoperă: ${formatMoney(Number(data.laborTotal))}`, 48, totalsY);
+      doc.text(`Materiale: ${formatMoney(Number(data.materialTotal))}`, 48, doc.y + 4);
+      doc.text(`Marjă: ${Number(data.marginPct)}%`, 48, doc.y + 4);
+    }
+
+    doc.font('Arial').fontSize(9);
+    if (data.company.isTvaPayer) {
+      doc.text(`Subtotal fără TVA: ${formatMoney(Number(data.grandTotal))}`, 370, totalsY, {
+        width: 170,
+        align: 'right',
+      });
+      totalsY += 14;
+      const marginFactor = 1 + Number(data.marginPct) / 100;
+      const vatGrouped = new Map<number, number>();
+      const lines: EstimateLine[] = [];
+      for (const stage of data.stages) {
+        if (stage.lines) lines.push(...stage.lines);
+      }
+      for (const line of lines) {
+        const rate = line.vatRate !== null && line.vatRate !== undefined ? Number(line.vatRate) : Number(data.tvaRate ?? 20);
+        const lineTotal = Number(line.lineTotal);
+        const lineTva = lineTotal * marginFactor * (rate / 100);
+        vatGrouped.set(rate, (vatGrouped.get(rate) || 0) + lineTva);
+      }
+
+      const sortedRates = Array.from(vatGrouped.keys()).sort((a, b) => b - a);
+      for (const rate of sortedRates) {
+        const vatAmount = round2(vatGrouped.get(rate) ?? 0);
+        if (rate > 0) {
+          doc.text(`TVA ${rate}%: ${formatMoney(vatAmount)}`, 370, totalsY, {
+            width: 170,
+            align: 'right',
+          });
+        } else {
+          doc.text(`Fără TVA: ${formatMoney(0)}`, 370, totalsY, {
+            width: 170,
+            align: 'right',
+          });
+        }
+        totalsY += 14;
+      }
+
+      doc.font('Arial-Bold').fontSize(11);
+      doc.text(`Total cu TVA: ${formatMoney(Number(data.grandTotalWithVat))}`, 370, totalsY, {
+        width: 170,
+        align: 'right',
+      });
+    } else {
+      doc.font('Arial-Bold').fontSize(11);
+      doc.text(`TOTAL: ${formatMoney(Number(data.grandTotal))}`, 370, totalsY, {
+        width: 170,
+        align: 'right',
+      });
+      totalsY += 16;
+      doc.font('Arial').fontSize(8).fillColor('#6B7280');
+      doc.text(`Compania nu este înregistrată ca plătitor TVA (Codul fiscal art. 112)`, 320, totalsY, {
+        width: 220,
+        align: 'right',
+      });
+    }
 
     doc.end();
     return finished;
+  }
+
+  async buildShoppingListPdf(
+    project: any,
+    grouped: Record<string, any[]>,
+    isMember: boolean,
+  ): Promise<Buffer> {
+    const doc = new PDFDocument({ size: 'A4', margin: 48 });
+
+    const fontRegularPath = path.join(process.cwd(), 'assets', 'fonts', 'Arial-Regular.ttf');
+    const fontBoldPath = path.join(process.cwd(), 'assets', 'fonts', 'Arial-Bold.ttf');
+    doc.registerFont('Arial', fontRegularPath);
+    doc.registerFont('Arial-Bold', fontBoldPath);
+    doc.font('Arial');
+
+    const chunks: Buffer[] = [];
+
+    doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+
+    const finished = new Promise<Buffer>((resolve, reject) => {
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
+    });
+
+    // Header header
+    doc.rect(0, 0, doc.page.width, 120).fill('#0284C7'); // Sleek blue color for shopping list
+    doc.fillColor('#FFFFFF').fontSize(20).font('Arial-Bold').text('LISTĂ DE CUMPĂRĂTURI', 48, 38);
+    doc.fontSize(12).font('Arial-Bold').text('SHOPPING LIST', 48, 62);
+    doc.fontSize(10).font('Arial').text(`Nr. ${project.number} — ${project.title}`, 48, 88);
+
+    // Project metadata
+    doc.fillColor('#111827').font('Arial-Bold').fontSize(10).text('DETALII PROIECT', 48, 140);
+    doc.font('Arial').fontSize(9).fillColor('#374151');
+    doc.text(`Client: ${project.customer?.fullName || 'N/A'}`, 48, 156);
+    if (project.customer?.phone) doc.text(`Tel: ${project.customer.phone}`, 48, doc.y + 2);
+    if (project.address) doc.text(`Adresă: ${project.address}`, 48, doc.y + 2, { width: 500 });
+    doc.text(`Data generării: ${formatDate(new Date())}`, 48, doc.y + 2);
+
+    let rowY = doc.y + 24;
+
+    const stores = Object.keys(grouped).sort();
+    for (const store of stores) {
+      const lines = grouped[store];
+      if (!lines.length) continue;
+
+      if (rowY > doc.page.height - 100) {
+        doc.addPage();
+        rowY = 48;
+      }
+
+      doc.fillColor('#0369A1').font('Arial-Bold').fontSize(11).text(store === 'unassigned' ? 'Altele / Nespecificat' : store, 48, rowY);
+      rowY += 16;
+
+      doc.rect(48, rowY, doc.page.width - 96, 20).fill('#F0F9FF');
+      doc.fillColor('#0369A1').font('Arial-Bold').fontSize(8);
+      doc.text('Articol / Descriere', 56, rowY + 6);
+      doc.text('Cantitate', 320, rowY + 6);
+      doc.text('Unitate', 380, rowY + 6);
+      if (!isMember) {
+        doc.text('Preț estimat', 440, rowY + 6, { width: 80, align: 'right' });
+      }
+      rowY += 26;
+
+      doc.font('Arial').fontSize(8).fillColor('#374151');
+      for (const line of lines) {
+        if (rowY > doc.page.height - 80) {
+          doc.addPage();
+          rowY = 48;
+          // Redraw table headers on new page
+          doc.rect(48, rowY, doc.page.width - 96, 20).fill('#F0F9FF');
+          doc.fillColor('#0369A1').font('Arial-Bold').fontSize(8);
+          doc.text('Articol / Descriere', 56, rowY + 6);
+          doc.text('Cantitate', 320, rowY + 6);
+          doc.text('Unitate', 380, rowY + 6);
+          if (!isMember) {
+            doc.text('Preț estimat', 440, rowY + 6, { width: 80, align: 'right' });
+          }
+          rowY += 26;
+          doc.font('Arial').fontSize(8).fillColor('#374151');
+        }
+
+        doc.text(line.description, 56, rowY, { width: 250 });
+        doc.text(String(line.qty), 320, rowY);
+        doc.text(line.unit, 380, rowY);
+        if (!isMember && line.estimatedUnitPrice !== undefined) {
+          doc.text(formatMoney(line.estimatedUnitPrice), 440, rowY, { width: 80, align: 'right' });
+        }
+        rowY += 18;
+      }
+
+      rowY += 12;
+    }
+
+    doc.end();
+    return finished;
+  }
+
+  async buildShoppingListStream(
+    project: any,
+    grouped: Record<string, any[]>,
+    isMember: boolean,
+  ): Promise<Readable> {
+    const buffer = await this.buildShoppingListPdf(project, grouped, isMember);
+    return Readable.from(buffer);
+  }
+
+  async buildStream(
+    data: EstimatePdfData,
+    options?: { isClientView?: boolean },
+  ): Promise<Readable> {
+    const buffer = await this.build(data, options);
+    return Readable.from(buffer);
   }
 }

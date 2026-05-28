@@ -1,26 +1,22 @@
 import { Injectable } from '@nestjs/common';
-import type { EstimateBlueprintConfig, BlueprintPricingRule } from '../../../../prisma/estimate-blueprints';
+import type { EstimateBlueprintConfig, BlueprintPricingRule } from './pricing.types';
+import type { Plan2dData } from './plan2d.types';
+import { isPricingRuleActive, getDefaultEnabledWorkModules } from '../utils/work-modules.util';
+import { deriveSantehnikaMeasurements } from './category/plumbing/plumbing-measurements.util';
+import { deriveElektrikaMeasurements } from './category/electrical/electrical-measurements.util';
+import { deriveClimaMeasurements } from './category/climate/climate-measurements.util';
+import { deriveFinisajMeasurements } from './category/finishing/finishing-measurements.util';
+import { deriveAcoperisMeasurements } from './category/roofing/roofing-measurements.util';
+import { deriveFatadeMeasurements } from './category/facade/facade-measurements.util';
+import { deriveOknaDveriMeasurements } from './category/windows-doors/windows-doors-measurements.util';
+import { deriveMobilaMeasurements } from './category/furniture/furniture-measurements.util';
+import { deriveCleaningMeasurements } from './category/cleaning/cleaning-measurements.util';
+import { deriveItNetworksMeasurements } from './category/it-networks/it-networks-measurements.util';
+import { derivePanouriSolareMeasurements } from './category/solar/solar-measurements.util';
+import { deriveConstructiiMeasurements } from './category/constructii/constructii-measurements.util';
+import { derivePavajMeasurements } from './category/pavaj/pavaj-measurements.util';
 
-export type Plan2dData = {
-  rooms: Array<{
-    id: string;
-    name: string;
-    width: number;
-    height: number;
-    x?: number;
-    y?: number;
-    unit?: string;
-    shapeType?: string;
-  }>;
-  points: Array<{
-    id: string;
-    roomId?: string;
-    type: string;
-    label?: string;
-    x?: number;
-    y?: number;
-  }>;
-};
+export type { Plan2dData } from './plan2d.types';
 
 export type MeasurementMap = Record<string, number>;
 
@@ -37,9 +33,30 @@ export class EstimatePricingEngine {
   deriveMeasurements(
     plan2d: Plan2dData | null | undefined,
     diagnosticAnswers: Record<string, unknown> | null | undefined,
+    categorySlug?: string | null,
   ): MeasurementMap {
     const measurements: MeasurementMap = {};
     const pointsCount = (type: string) => plan2d?.points?.filter((p) => p.type === type).length ?? 0;
+
+    const globalParams = plan2d?.globalParameters;
+    if (globalParams) {
+      if (typeof globalParams.baseArea === 'number' && Number.isFinite(globalParams.baseArea)) {
+        measurements.baseArea = globalParams.baseArea;
+      }
+      if (typeof globalParams.wallHeight === 'number' && Number.isFinite(globalParams.wallHeight)) {
+        measurements.wallHeight = globalParams.wallHeight;
+      }
+      if (typeof globalParams.floorsCount === 'number' && Number.isFinite(globalParams.floorsCount)) {
+        measurements.storyCount = globalParams.floorsCount;
+      }
+      if (typeof globalParams.roofSlope === 'number' && Number.isFinite(globalParams.roofSlope)) {
+        measurements.roofSlope = globalParams.roofSlope;
+      }
+      if (typeof globalParams.facadeArea === 'number' && Number.isFinite(globalParams.facadeArea)) {
+        measurements.facadeArea = globalParams.facadeArea;
+        measurements.scaffoldingArea = globalParams.facadeArea;
+      }
+    }
 
     if (plan2d?.rooms?.length) {
       let floorArea = 0;
@@ -94,85 +111,59 @@ export class EstimatePricingEngine {
       }
     }
 
-    measurements.pipeLengthM ??= Math.max(8, (measurements.roomCount ?? 1) * 6);
-    measurements.cableLengthM ??= Math.max(15, (measurements.roomCount ?? 1) * 12);
-    measurements.tileFloorArea ??= measurements.totalFloorArea ?? 12;
-    measurements.tileWallArea ??= Math.round((measurements.tileFloorArea ?? 12) * 2.5 * 100) / 100;
-    measurements.laborHours ??= measurements.workScope ?? 4;
-    measurements.materialUnits ??= Math.max(1, Math.ceil((measurements.laborHours ?? 4) / 3));
-    measurements.cleanArea ??= measurements.totalFloorArea ?? 40;
-    measurements.finishArea ??= measurements.totalFloorArea ?? 30;
-    measurements.demolitionArea ??= 0;
-    measurements.waterHeaterCount ??= 0;
-    measurements.panelCount ??= 0;
-    measurements.routeLengthM ??= 5;
-    measurements.acUnits ??= 1;
-    measurements.networkPoints ??= 0;
-    measurements.apCount ??= 0;
-    measurements.cameraCount ??= 0;
-    measurements.rackCount ??= 0;
-    measurements.windowCount ??= 0;
-    measurements.doorCount ??= 0;
-    measurements.cabinetCount ??= 0;
-    measurements.wardrobeCount ??= 0;
-    measurements.pavementArea ??= measurements.totalFloorArea ?? 20;
-    measurements.borderLengthM ??= Math.max(10, (measurements.roomCount ?? 1) * 8);
+    applyBaseMeasurementFallbacks(measurements);
 
-    // IT Services computed measurements (from diagnostic boolean flags)
-    measurements.hasBackendCount ??= 0;
-    measurements.hasCmsCount ??= 0;
-    measurements.hasEcommerceCount ??= 0;
-    measurements.projectUnits ??= 1;
-    measurements.networkCableM ??= (measurements.networkPoints ?? 0) * 20; // 20m cable per network port
-    measurements.analysisHours ??= 8;
-    measurements.testingHours ??= 8;
-    measurements.trainingHours ??= 4;
-    measurements.pagesCount ??= 0;
-    measurements.serverCount ??= 0;
-    measurements.workstationCount ??= 0;
-
-    // 1. Calculate true roof area using floor area, cosine of roofSlope, and a 12% wastage/overlap factor
-    const baseAreaVal = measurements.baseArea ?? measurements.totalFloorArea ?? 30;
-    const slopeVal = measurements.roofSlope ?? 30; // standard default slope is 30 degrees
-    const cosVal = Math.cos((slopeVal * Math.PI) / 180);
-    const calculatedRoofArea = cosVal > 0.1 ? (baseAreaVal / cosVal) * 1.12 : baseAreaVal * 1.15;
-    
-    measurements.roofArea ??= round2(calculatedRoofArea);
-
-    // 2. Calculate timber volume strictly in cubic meters (m³): roofArea * 0.07 (0.06 to 0.08 range)
-    measurements.timberVolumeM3 ??= round2(measurements.roofArea * 0.07);
-
-    // 3. Dynamic Roofing Complexity Multiplier (K) and Joint Elements (Valleys / Endova & Wall Flashings)
-    let complexityK = 1.0;
-    let computedValleys = 0;
-    let computedWallIntersections = 0;
-
-    if (plan2d?.rooms?.length) {
-      if (plan2d.rooms.length > 1) {
-        complexityK = 1.25; // Cascade structure (multi-level roof)
-        computedWallIntersections = 8; // 8 meters standard flashing zone for low annex-to-high building
-      }
-      for (const room of plan2d.rooms) {
-        const shape = (room.shapeType || 'rectangle').toLowerCase();
-        if (shape === 'l-shape') {
-          complexityK = Math.max(complexityK, 1.20);
-          computedValleys = Math.max(computedValleys, 12); // L-shape valley length standard
-        } else if (shape === 't-shape' || shape === 'u-shape') {
-          complexityK = Math.max(complexityK, 1.35);
-          computedValleys = Math.max(computedValleys, 18); // T/U-shape valley length standard
-        }
-      }
+    if (categorySlug === 'santehnika') {
+      return deriveSantehnikaMeasurements(plan2d, diagnosticAnswers, measurements);
     }
 
-    measurements.complexityMultiplier = complexityK;
-    measurements.valleyLengthM ??= computedValleys;
-    measurements.wallIntersectionLengthM ??= computedWallIntersections;
+    if (categorySlug === 'elektrika') {
+      return deriveElektrikaMeasurements(plan2d, diagnosticAnswers, measurements);
+    }
 
-    // Apply complexity coefficient to structural labor area!
-    measurements.roofAreaLabor ??= round2(measurements.roofArea * complexityK);
+    if (categorySlug === 'clima') {
+      return deriveClimaMeasurements(plan2d, diagnosticAnswers, measurements);
+    }
 
-    measurements.gutterLengthM ??= pointsCount('gutter') * 6 || 10;
-    measurements.facadeArea ??= measurements.totalFloorArea ? round2(measurements.totalFloorArea * 2.2) : 40;
+    if (categorySlug === 'lucrari-finisaj') {
+      return deriveFinisajMeasurements(plan2d, diagnosticAnswers, measurements);
+    }
+
+    if (categorySlug === 'acoperis') {
+      return deriveAcoperisMeasurements(plan2d, diagnosticAnswers, measurements);
+    }
+
+    if (categorySlug === 'fatade') {
+      return deriveFatadeMeasurements(plan2d, diagnosticAnswers, measurements);
+    }
+
+    if (categorySlug === 'okna-dveri') {
+      return deriveOknaDveriMeasurements(plan2d, diagnosticAnswers, measurements);
+    }
+
+    if (categorySlug === 'mobila') {
+      return deriveMobilaMeasurements(plan2d, diagnosticAnswers, measurements);
+    }
+
+    if (categorySlug === 'cleaning') {
+      return deriveCleaningMeasurements(plan2d, diagnosticAnswers, measurements);
+    }
+
+    if (categorySlug === 'it-networks') {
+      return deriveItNetworksMeasurements(plan2d, diagnosticAnswers, measurements);
+    }
+
+    if (categorySlug === 'panouri-solare') {
+      return derivePanouriSolareMeasurements(plan2d, diagnosticAnswers, measurements);
+    }
+
+    if (categorySlug === 'constructii') {
+      return deriveConstructiiMeasurements(plan2d, diagnosticAnswers, measurements);
+    }
+
+    if (categorySlug === 'pavaj') {
+      return derivePavajMeasurements(plan2d, diagnosticAnswers, measurements);
+    }
 
     return measurements;
   }
@@ -202,6 +193,10 @@ export class EstimatePricingEngine {
   buildLinesFromRules(
     rules: BlueprintPricingRule[],
     measurements: MeasurementMap,
+    options?: {
+      enabledWorkModules?: string[];
+      config?: EstimateBlueprintConfig;
+    },
   ): Array<{
     stageCode: string;
     description: string;
@@ -224,6 +219,14 @@ export class EstimatePricingEngine {
     }> = [];
 
     for (const rule of rules) {
+      if (options?.config?.workModules?.length) {
+        const enabledModules =
+          options.enabledWorkModules ?? getDefaultEnabledWorkModules(options.config);
+        if (!isPricingRuleActive(rule, enabledModules, measurements, options.config)) {
+          continue;
+        }
+      }
+
       const rawQty = measurements[rule.qtyKey] ?? 0;
       if (rawQty <= 0) continue;
 
@@ -397,6 +400,13 @@ export class EstimatePricingEngine {
 
 function round2(value: number): number {
   return Math.round(value * 100) / 100;
+}
+
+/** E-01: only base plan metrics get global fallbacks; optional qty keys belong to category hooks. */
+function applyBaseMeasurementFallbacks(measurements: MeasurementMap): void {
+  if (measurements.totalFloorArea != null && measurements.totalFloorArea > 0) {
+    measurements.wallArea ??= round2(measurements.totalFloorArea * 2.5);
+  }
 }
 
 function normalizeRateKey(value: string): string {

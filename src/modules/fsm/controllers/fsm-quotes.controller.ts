@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Res,
   UseGuards,
 } from '@nestjs/common';
@@ -28,8 +29,13 @@ export class FsmQuotesController {
   @UseGuards(CompanyGuard, SubscriptionGuard)
   @RequiresFeature('quotes')
   @CompanyRoles('OWNER', 'MANAGER')
-  quotes(@CurrentUser() user: JwtPayload) {
-    return this.fsm.listQuotes(user);
+  quotes(
+    @CurrentUser() user: JwtPayload,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const parsedLimit = limit ? Math.min(parseInt(limit, 10), 100) : undefined;
+    return this.fsm.listQuotes(user, cursor, parsedLimit);
   }
 
   @Get(':id')

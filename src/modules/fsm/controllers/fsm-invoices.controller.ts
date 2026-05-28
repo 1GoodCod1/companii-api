@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Res,
   UseGuards,
 } from '@nestjs/common';
@@ -28,8 +29,13 @@ export class FsmInvoicesController {
   @UseGuards(CompanyGuard, SubscriptionGuard)
   @RequiresFeature('invoices')
   @CompanyRoles('OWNER', 'MANAGER')
-  invoices(@CurrentUser() user: JwtPayload) {
-    return this.fsm.listInvoices(user);
+  invoices(
+    @CurrentUser() user: JwtPayload,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const parsedLimit = limit ? Math.min(parseInt(limit, 10), 100) : undefined;
+    return this.fsm.listInvoices(user, cursor, parsedLimit);
   }
 
   @Get(':id/pdf')

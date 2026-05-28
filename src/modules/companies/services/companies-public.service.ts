@@ -17,10 +17,16 @@ export class CompaniesPublicService {
     });
   }
 
+  // U-10: Cached categories list (TTL 5 min).
   findCategories() {
-    return this.prisma.category.findMany({
-      orderBy: { name: 'asc' },
-    });
+    return this.cache.getOrSet(
+      this.cache.keys.categoriesList(),
+      () =>
+        this.prisma.category.findMany({
+          orderBy: { name: 'asc' },
+        }),
+      this.cache.ttl.categoriesList,
+    );
   }
 
   findPublicList(params: {

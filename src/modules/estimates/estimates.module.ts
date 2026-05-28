@@ -12,11 +12,15 @@ import { EstimatePortalService } from './services/estimate-portal.service';
 import { EstimateProjectAccessService } from './services/estimate-project-access.service';
 import { EstimateProjectsService } from './services/estimate-projects.service';
 import { EstimateQuotesService } from './services/estimate-quotes.service';
+import { EstimateReceiptsService } from './services/estimate-receipts.service';
 import { EstimateStagesService } from './services/estimate-stages.service';
 import { EstimateWorksheetService } from './services/estimate-worksheet.service';
+import { AuditModule } from '../audit/audit.module';
+import { EstimateCalculateProcessor } from './processors/calculate.processor';
+import { EmailModule } from '../email/email.module';
 
 @Module({
-  imports: [AuthModule, CompaniesModule, InvoicePdfModule],
+  imports: [AuthModule, CompaniesModule, InvoicePdfModule, AuditModule, EmailModule],
   controllers: [EstimatesController],
   providers: [
     EstimatesContextService,
@@ -25,11 +29,13 @@ import { EstimateWorksheetService } from './services/estimate-worksheet.service'
     EstimateProjectsService,
     EstimateStagesService,
     EstimateQuotesService,
+    EstimateReceiptsService,
     EstimatePortalService,
     EstimateConversionService,
     EstimateWorksheetService,
     EstimatesService,
     EstimatePricingEngine,
+    EstimateCalculateProcessor,
   ],
   exports: [EstimatesService],
 })

@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { EstimateBlueprintConfig } from '../../../../prisma/estimate-blueprints';
 import { AppErrorMessages, AppErrors } from '../../../common/errors';
 import type { JwtPayload } from '../../auth/types/jwt-payload';
-import type { Plan2dData } from '../pricing/pricing-engine.service';
+import type { Plan2dData } from '../pricing/plan2d.types';
 
 @Injectable()
 export class EstimatesContextService {
@@ -29,6 +29,8 @@ export class EstimatesContextService {
 
   parsePlan2d(raw: unknown): Plan2dData | null {
     if (!raw || typeof raw !== 'object') return null;
-    return raw as Plan2dData;
+    const candidate = raw as Plan2dData;
+    if (!Array.isArray(candidate.rooms) || !Array.isArray(candidate.points)) return null;
+    return candidate;
   }
 }

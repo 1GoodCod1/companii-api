@@ -146,6 +146,9 @@ export class CacheService {
   readonly patterns = {
     companiesList: () => 'cache:companii:companies:list:*',
     servicesList: () => 'cache:companii:services:list:*',
+    blueprintsAll: () => 'cache:companii:estimates:blueprints:*',
+    blueprintByCategorySlug: () => 'cache:companii:estimates:blueprints:by-slug:*',
+    categoriesList: () => 'cache:companii:categories:list:*',
   } as const;
 
   readonly keys: CompaniiCacheKeyBuilders = {
@@ -171,6 +174,19 @@ export class CacheService {
         companySlug ?? 'all',
       ]),
     plansAll: () => this.buildKey(['cache', 'companii', 'plans', 'all']),
+    blueprintsAll: () =>
+      this.buildKey(['cache', 'companii', 'estimates', 'blueprints', 'all']),
+    blueprintByCategorySlug: (slug: string) =>
+      this.buildKey([
+        'cache',
+        'companii',
+        'estimates',
+        'blueprints',
+        'by-slug',
+        slug,
+      ]),
+    categoriesList: () =>
+      this.buildKey(['cache', 'companii', 'categories', 'list']),
   };
 
   readonly ttl = {
@@ -178,6 +194,9 @@ export class CacheService {
     companyBySlug: 180,
     servicesList: 120,
     plansAll: 3600,
+    blueprintsAll: 300,
+    blueprintByCategorySlug: 300,
+    categoriesList: 300,
   } as const;
 
   async invalidatePublicCompanies(slug?: string): Promise<void> {
