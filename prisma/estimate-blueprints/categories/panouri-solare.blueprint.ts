@@ -2,6 +2,9 @@ import type { EstimateBlueprintConfig } from '../../estimate-blueprint-config.ty
 import { baseConfig } from '../base';
 
 export const panouriSolareBlueprint: EstimateBlueprintConfig = baseConfig({
+  wizardSteps: ['object', 'diagnostic', 'stages', 'review'],
+  accessDifficultyImpact: { easy: 1.0, medium: 1.2, difficult: 1.35 },
+  urgencyImpact: { urgent: 1.1, emergency: 1.2 },
   planPointTypes: [
     { type: 'solar_panel', label: 'Panou solar fotovoltaic', color: '#10b981' },
     { type: 'inverter', label: 'Invertor hibrid', color: '#047857' },

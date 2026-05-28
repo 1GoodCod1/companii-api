@@ -2,6 +2,8 @@ import type { EstimateBlueprintConfig } from '../../estimate-blueprint-config.ty
 import { baseConfig } from '../base';
 
 export const fatadeBlueprint: EstimateBlueprintConfig = baseConfig({
+  accessDifficultyImpact: { easy: 1.0, medium: 1.15, difficult: 1.25 },
+  urgencyImpact: { urgent: 1.15, emergency: 1.3 },
   planPointTypes: [
     { type: 'wall_facade', label: 'Perete fațadă', color: '#ea580c' },
     { type: 'window_slope', label: 'Glaf ferestre', color: '#c2410c' },

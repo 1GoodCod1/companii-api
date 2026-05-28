@@ -3,6 +3,8 @@ import { baseConfig } from '../base';
 
 /** Estimările de construcție sunt preliminare (MVP) — vezi deriveConstructiiMeasurements.preliminaryEstimate. */
 export const constructiiBlueprint: EstimateBlueprintConfig = baseConfig({
+  accessDifficultyImpact: { easy: 1.0, medium: 1.15, difficult: 1.3 },
+  urgencyImpact: { urgent: 1.15, emergency: 1.3 },
   siteTypes: [
     { value: 'house', label: 'Casă individuală' },
     { value: 'duplex', label: 'Duplex / vilă' },

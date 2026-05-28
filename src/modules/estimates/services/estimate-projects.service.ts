@@ -175,6 +175,11 @@ export class EstimateProjectsService {
       address?: string;
       validUntil?: string | null;
       marginPct?: number;
+      riskReservePct?: number;
+      buildingYear?: number | null;
+      siteFloor?: number | null;
+      accessDifficulty?: string | null;
+      urgency?: string | null;
       diagnosticAnswers?: Record<string, unknown>;
       notes?: string | null;
       status?: EstimateProjectStatus;
@@ -197,7 +202,7 @@ export class EstimateProjectsService {
       } catch (err) {
         throw AppErrors.badRequest(err instanceof Error ? err.message : 'Invalid work modules');
       }
-      validationWarnings = this.validateCustomFields(config, mergedDiagnostic);
+      validationWarnings = this.validateCustomFields(config, mergedDiagnostic, { ignoreRequired: true });
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -232,6 +237,12 @@ export class EstimateProjectsService {
               ? new Date(data.validUntil)
               : undefined,
         marginPct: data.marginPct,
+        riskReservePct: data.riskReservePct,
+        buildingYear: data.buildingYear,
+        siteFloor: data.siteFloor,
+        accessDifficulty:
+          data.accessDifficulty === null ? null : data.accessDifficulty?.trim() || undefined,
+        urgency: data.urgency === null ? null : data.urgency?.trim() || undefined,
         diagnosticAnswers: (mergedDiagnostic ?? data.diagnosticAnswers) as Prisma.InputJsonValue,
         notes: data.notes === null ? null : data.notes?.trim(),
         status: data.status,
@@ -346,8 +357,9 @@ export class EstimateProjectsService {
   validateCustomFields(
     config: EstimateBlueprintConfig,
     answers: Record<string, unknown>,
+    options?: { ignoreRequired?: boolean },
   ): EstimateFieldWarning[] {
-    const result = validateCustomFieldsAnswers(config, answers);
+    const result = validateCustomFieldsAnswers(config, answers, options);
     if (!result.ok) {
       throw AppErrors.badRequest({
         code: result.code,

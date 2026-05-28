@@ -2,6 +2,8 @@ import type { EstimateBlueprintConfig } from '../../estimate-blueprint-config.ty
 import { baseConfig } from '../base';
 
 export const acoperisBlueprint: EstimateBlueprintConfig = baseConfig({
+  accessDifficultyImpact: { easy: 1.0, medium: 1.2, difficult: 1.35 },
+  urgencyImpact: { urgent: 1.2, emergency: 1.5 },
   planPointTypes: [
     { type: 'roof_plane', label: 'Suprafață acoperiș', color: '#f97316' },
     { type: 'chimney', label: 'Coș de fum', color: '#7c2d12' },
@@ -86,6 +88,23 @@ export const acoperisBlueprint: EstimateBlueprintConfig = baseConfig({
       required: true,
       validation: { min: 5 },
       helpText: 'Amprenta clădirii la sol.',
+      section: 'General',
+    },
+    {
+      key: 'skylightCount',
+      label: 'Număr ferestre mansardă (Velux) / Окна мансарды',
+      type: 'number',
+      unit: 'buc',
+      required: false,
+      defaultValue: 0,
+      section: 'Accesorii',
+    },
+    {
+      key: 'scaffoldingRequired',
+      label: 'Montaj schelă metalică / Установка лесов',
+      type: 'boolean',
+      required: false,
+      defaultValue: false,
       section: 'General',
     },
     {

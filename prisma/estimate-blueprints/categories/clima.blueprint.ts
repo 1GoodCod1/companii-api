@@ -2,6 +2,9 @@ import type { EstimateBlueprintConfig } from '../../estimate-blueprint-config.ty
 import { baseConfig } from '../base';
 
 export const climaBlueprint: EstimateBlueprintConfig = baseConfig({
+    wizardSteps: ['object', 'diagnostic', 'stages', 'review'],
+    accessDifficultyImpact: { easy: 1.0, medium: 1.05, difficult: 1.15 },
+    urgencyImpact: { urgent: 1.2, emergency: 1.5 },
     planPointTypes: [
       { type: 'indoor', label: 'Unitate interior (Split)', color: '#0ea5e9' },
       { type: 'outdoor', label: 'Unitate exterior', color: '#0284c7' },
@@ -13,14 +16,14 @@ export const climaBlueprint: EstimateBlueprintConfig = baseConfig({
         label: 'Traseu frigorific',
         defaultEnabled: true,
         stageCodes: ['inspectie', 'traseu', 'vacuum'],
-        fieldKeys: ['routeLengthM', 'wallCoreDrillingCount'],
+        fieldKeys: ['routeLengthM', 'wallCoreDrillingCount', 'extraFreonRequired'],
       },
       {
         key: 'indoor_outdoor_units',
         label: 'Unități interior / exterior',
         defaultEnabled: true,
         stageCodes: ['montaj', 'testare'],
-        fieldKeys: ['acUnits', 'indoorUnitCount', 'outdoorUnitCount', 'equipmentIncluded'],
+        fieldKeys: ['acUnits', 'indoorUnitCount', 'outdoorUnitCount', 'equipmentIncluded', 'isMultiSplit'],
       },
       {
         key: 'drain',
@@ -145,6 +148,22 @@ export const climaBlueprint: EstimateBlueprintConfig = baseConfig({
         required: false,
         defaultValue: false,
         section: 'Mentenanță',
+      },
+      {
+        key: 'extraFreonRequired',
+        label: 'Traseu suplimentar necesită freon extra / Дополнительный фреон для трассы',
+        type: 'boolean',
+        required: false,
+        defaultValue: false,
+        section: 'Traseu',
+      },
+      {
+        key: 'isMultiSplit',
+        label: 'Sistem Multi-Split? / Мульти-сплит система?',
+        type: 'boolean',
+        required: false,
+        defaultValue: false,
+        section: 'Echipamente',
       },
     ],
     diagnosticQuestions: [

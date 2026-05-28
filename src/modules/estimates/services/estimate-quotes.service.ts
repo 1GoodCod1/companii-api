@@ -135,17 +135,17 @@ export class EstimateQuotesService {
     return { project: updated, emailSent: !!project.customer.email };
   }
 
-  async getProjectPdf(user: JwtPayload, id: string) {
+  async getProjectPdf(user: JwtPayload, id: string, lang?: 'ro' | 'ru') {
     this.ctx.assertManagement(user);
     const project = await this.access.loadProjectForPdf(this.ctx.companyId(user), id);
-    const buffer = await this.estimatePdf.build(project);
+    const buffer = await this.estimatePdf.build(project, { locale: lang });
     return { buffer, filename: `${project.number}.pdf` };
   }
 
-  async getProjectPdfStream(user: JwtPayload, id: string) {
+  async getProjectPdfStream(user: JwtPayload, id: string, lang?: 'ro' | 'ru') {
     this.ctx.assertManagement(user);
     const project = await this.access.loadProjectForPdf(this.ctx.companyId(user), id);
-    const readable = await this.estimatePdf.buildStream(project);
+    const readable = await this.estimatePdf.buildStream(project, { locale: lang });
     return { readable, filename: `${project.number}.pdf` };
   }
 }

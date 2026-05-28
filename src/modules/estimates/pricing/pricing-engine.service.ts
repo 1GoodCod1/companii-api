@@ -196,6 +196,13 @@ export class EstimatePricingEngine {
     options?: {
       enabledWorkModules?: string[];
       config?: EstimateBlueprintConfig;
+      /**
+       * Composed labor unitPrice multiplier (Slice 2+3 — access × urgency × future).
+       * Caller is responsible for composition. Defaults to 1.0.
+       */
+      laborMultiplier?: number;
+      /** Composed material unitPrice multiplier (rare — only when transport risk). */
+      materialMultiplier?: number;
     },
   ): Array<{
     stageCode: string;
@@ -218,6 +225,9 @@ export class EstimatePricingEngine {
       kind: 'labor' | 'material';
     }> = [];
 
+    const laborMult = options?.laborMultiplier ?? 1;
+    const materialMult = options?.materialMultiplier ?? 1;
+
     for (const rule of rules) {
       if (options?.config?.workModules?.length) {
         const enabledModules =
@@ -232,16 +242,19 @@ export class EstimatePricingEngine {
 
       const waste = rule.wastePct ? 1 + rule.wastePct / 100 : 1;
       const qty = round2(rawQty * waste);
-      const lineTotal = round2(qty * rule.unitPrice);
+      const kind = rule.kind ?? 'material';
+      const mult = kind === 'labor' ? laborMult : materialMult;
+      const unitPrice = round2(rule.unitPrice * mult);
+      const lineTotal = round2(qty * unitPrice);
       lines.push({
         stageCode: rule.stageCode,
         description: rule.description,
         qty,
         unit: rule.unit,
-        unitPrice: rule.unitPrice,
+        unitPrice,
         lineTotal,
         source: 'rule',
-        kind: rule.kind ?? 'material',
+        kind,
       });
     }
 

@@ -2,6 +2,9 @@ import type { EstimateBlueprintConfig } from '../../estimate-blueprint-config.ty
 import { baseConfig } from '../base';
 
 export const oknaDveriBlueprint: EstimateBlueprintConfig = baseConfig({
+  wizardSteps: ['object', 'diagnostic', 'stages', 'review'],
+  accessDifficultyImpact: { easy: 1.0, medium: 1.2, difficult: 1.4, appliesToMaterial: true },
+  urgencyImpact: { urgent: 1.15, emergency: 1.3 },
   planPointTypes: [
     { type: 'window', label: 'Fereastră', color: '#2563eb' },
     { type: 'door', label: 'Ușă exterioară', color: '#1d4ed8' },

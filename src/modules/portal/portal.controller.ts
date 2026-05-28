@@ -88,8 +88,10 @@ export class PortalController {
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
     @Res() res: Response,
+    @Query('lang') lang?: string,
   ) {
-    const { buffer, filename } = await this.portal.getEstimatePdf(user, id);
+    const validatedLang = lang === 'ru' ? 'ru' : 'ro';
+    const { buffer, filename } = await this.portal.getEstimatePdf(user, id, validatedLang);
     res.set({
       'Content-Type': 'application/pdf',
       'Content-Disposition': `attachment; filename="${filename}"`,
@@ -120,5 +122,24 @@ export class PortalController {
   @Post('invitations/accept')
   accept(@CurrentUser() user: JwtPayload, @Body() body: { token: string }) {
     return this.endClientLink.acceptInviteToken(body.token, user.sub);
+  }
+
+  // V-06: Comment thread for client portal
+  @UseGuards(RolesGuard)
+  @Roles('END_CLIENT')
+  @Get('estimates/:id/comments')
+  listEstimateComments(@Param('id') id: string) {
+    return this.portal.listEstimateComments(id);
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles('END_CLIENT')
+  @Post('estimates/:id/comments')
+  addEstimateComment(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() body: { body: string },
+  ) {
+    return this.portal.addEstimateComment(user, id, body.body);
   }
 }

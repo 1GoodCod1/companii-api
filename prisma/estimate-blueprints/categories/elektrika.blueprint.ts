@@ -2,6 +2,9 @@ import type { EstimateBlueprintConfig } from '../../estimate-blueprint-config.ty
 import { baseConfig } from '../base';
 
 export const elektrikaBlueprint: EstimateBlueprintConfig = baseConfig({
+    wizardSteps: ['object', 'diagnostic', 'stages', 'review'],
+    accessDifficultyImpact: { easy: 1.0, medium: 1.05, difficult: 1.15 },
+    urgencyImpact: { urgent: 1.25, emergency: 1.8 },
     planPointTypes: [
       { type: 'socket', label: 'Priză', color: '#f59e0b' },
       { type: 'switch', label: 'Întrerupător', color: '#eab308' },
@@ -14,7 +17,7 @@ export const elektrikaBlueprint: EstimateBlueprintConfig = baseConfig({
         label: 'Proiect & scheme',
         defaultEnabled: true,
         stageCodes: ['proiect'],
-        fieldKeys: ['roomCount'],
+        fieldKeys: ['roomCount', 'groundingRequired'],
       },
       {
         key: 'chasing',
@@ -35,7 +38,7 @@ export const elektrikaBlueprint: EstimateBlueprintConfig = baseConfig({
         label: 'Tablou electric',
         defaultEnabled: true,
         stageCodes: ['tablou'],
-        fieldKeys: ['newPanel', 'panelModules'],
+        fieldKeys: ['newPanel', 'panelModules', 'voltageStabilizer'],
       },
       {
         key: 'devices',
@@ -168,6 +171,22 @@ export const elektrikaBlueprint: EstimateBlueprintConfig = baseConfig({
         required: false,
         defaultValue: false,
         section: 'Smart home',
+      },
+      {
+        key: 'voltageStabilizer',
+        label: 'Stabilizator de tensiune / Стабилизатор напряжения',
+        type: 'boolean',
+        required: false,
+        defaultValue: false,
+        section: 'Tablou',
+      },
+      {
+        key: 'groundingRequired',
+        label: 'Instalare/Verificare împământare / Устройство/Проверка заземления',
+        type: 'boolean',
+        required: false,
+        defaultValue: false,
+        section: 'General',
       },
     ],
     diagnosticQuestions: [

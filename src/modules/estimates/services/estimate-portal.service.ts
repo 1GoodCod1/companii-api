@@ -208,9 +208,9 @@ export class EstimatePortalService {
     return project;
   }
 
-  async getProjectPdf(customerId: string, projectId: string) {
+  async getProjectPdf(customerId: string, projectId: string, lang?: 'ro' | 'ru') {
     const project = await this.access.loadProjectForPdf(undefined, projectId, customerId);
-    const buffer = await this.estimatePdf.build(project, { isClientView: true });
+    const buffer = await this.estimatePdf.build(project, { isClientView: true, locale: lang });
     return { buffer, filename: `${project.number}.pdf` };
   }
 }

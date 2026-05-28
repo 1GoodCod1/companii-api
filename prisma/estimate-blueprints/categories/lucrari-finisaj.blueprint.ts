@@ -2,6 +2,9 @@ import type { EstimateBlueprintConfig } from '../../estimate-blueprint-config.ty
 import { baseConfig } from '../base';
 
 export const lucrariFinisajBlueprint: EstimateBlueprintConfig = baseConfig({
+  wizardSteps: ['object', 'diagnostic', 'stages', 'review'],
+  accessDifficultyImpact: { easy: 1.0, medium: 1.05, difficult: 1.15 },
+  urgencyImpact: { urgent: 1.15, emergency: 1.35 },
   planPointTypes: [
     { type: 'wall', label: 'Perete', color: '#c084fc' },
     { type: 'ceiling', label: 'Tavan', color: '#e879f9' },

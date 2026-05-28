@@ -2,6 +2,9 @@ import type { EstimateBlueprintConfig } from '../../estimate-blueprint-config.ty
 import { baseConfig } from '../base';
 
 export const pavajBlueprint: EstimateBlueprintConfig = baseConfig({
+  wizardSteps: ['object', 'diagnostic', 'stages', 'review'],
+  accessDifficultyImpact: { easy: 1.0, medium: 1.1, difficult: 1.2 },
+  urgencyImpact: { urgent: 1.15, emergency: 1.3 },
   planPointTypes: [
     { type: 'pavement_area', label: 'Zonă pavaj', color: '#6b7280' },
     { type: 'border', label: 'Bordură limitare', color: '#374151' },

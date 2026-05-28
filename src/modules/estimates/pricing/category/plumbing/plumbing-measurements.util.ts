@@ -79,11 +79,14 @@ export function deriveSantehnikaMeasurements(
     ? Math.max(2, bathroomCount)
     : Math.max(1, Math.ceil(bathroomCount / 2));
 
+  // Slice 2: accessDifficulty multiplier is applied centrally via blueprint.accessDifficultyImpact
+  // in EstimatePricingEngine.buildLinesFromRules. We keep complexityMultiplier in measurements
+  // for backward-compatible calculation trace, but no longer pre-multiply qty fields.
   const complexityMultiplier = resolvePlumbingAccessMultiplier(diagnostic?.accessDifficulty);
   measurements.complexityMultiplier = complexityMultiplier;
-  measurements.pipeLengthMLabor = round2(measurements.pipeLengthM * complexityMultiplier);
-  measurements.drainLengthMLabor = round2(measurements.drainLengthM * complexityMultiplier);
-  measurements.plumbingPointsLabor = round2(measurements.plumbingPoints * complexityMultiplier);
+  measurements.pipeLengthMLabor = measurements.pipeLengthM;
+  measurements.drainLengthMLabor = measurements.drainLengthM;
+  measurements.plumbingPointsLabor = measurements.plumbingPoints;
 
   return measurements;
 }

@@ -100,6 +100,11 @@ export class EstimatesController {
       address?: string;
       validUntil?: string | null;
       marginPct?: number;
+      riskReservePct?: number;
+      buildingYear?: number | null;
+      siteFloor?: number | null;
+      accessDifficulty?: string | null;
+      urgency?: string | null;
       diagnosticAnswers?: Record<string, unknown>;
       notes?: string | null;
       status?: EstimateProjectStatus;
@@ -277,8 +282,10 @@ export class EstimatesController {
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
     @Res() res: Response,
+    @Query('lang') lang?: string,
   ) {
-    const stream = await this.estimates.getProjectPdfStream(user, id);
+    const validatedLang = lang === 'ru' ? 'ru' : 'ro';
+    const stream = await this.estimates.getProjectPdfStream(user, id, validatedLang);
     res.set({
       'Content-Type': 'application/pdf',
       'Content-Disposition': `attachment; filename="${stream.filename}"`,
@@ -396,8 +403,6 @@ export class EstimatesController {
   ) {
     return this.estimates.unlockActuals(user, id);
   }
-
-  // V-14: bulk-action "mark as NO_RECEIPT / SKIPPED"
   @Post('projects/:id/lines/actual-status')
   @UseGuards(CompanyGuard, SubscriptionGuard)
   @RequiresFeature('estimates')
@@ -448,5 +453,91 @@ export class EstimatesController {
     @Param('id') id: string,
   ) {
     return this.estimates.getVarianceReport(user, id);
+  }
+  @Get('projects/:id/photos')
+  @UseGuards(CompanyGuard, SubscriptionGuard)
+  @RequiresFeature('estimates')
+  @CompanyRoles('OWNER', 'MANAGER', 'MEMBER')
+  listPhotos(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    return this.estimates.listProjectPhotos(user, id);
+  }
+
+  @Post('projects/:id/photos')
+  @UseGuards(CompanyGuard, SubscriptionGuard)
+  @RequiresFeature('estimates')
+  @CompanyRoles('OWNER', 'MANAGER')
+  addPhotos(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() body: { fileKeys: string[]; caption?: string },
+  ) {
+    return this.estimates.addProjectPhotos(user, id, body.fileKeys, body.caption);
+  }
+
+  @Patch('projects/:id/photos/:photoId')
+  @UseGuards(CompanyGuard, SubscriptionGuard)
+  @RequiresFeature('estimates')
+  @CompanyRoles('OWNER', 'MANAGER')
+  updatePhotoCaption(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Param('photoId') photoId: string,
+    @Body() body: { caption: string | null },
+  ) {
+    return this.estimates.updateProjectPhotoCaption(user, id, photoId, body.caption);
+  }
+
+  @Delete('projects/:id/photos/:photoId')
+  @UseGuards(CompanyGuard, SubscriptionGuard)
+  @RequiresFeature('estimates')
+  @CompanyRoles('OWNER', 'MANAGER')
+  deletePhoto(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Param('photoId') photoId: string,
+  ) {
+    return this.estimates.deleteProjectPhoto(user, id, photoId);
+  }
+
+  // V-05: Version history
+  @Get('projects/:id/versions')
+  @UseGuards(CompanyGuard, SubscriptionGuard)
+  @RequiresFeature('estimates')
+  @CompanyRoles('OWNER', 'MANAGER')
+  listVersions(@Param('id') id: string) {
+    return this.estimates.listVersions(id);
+  }
+
+  @Get('projects/:id/versions/diff')
+  @UseGuards(CompanyGuard, SubscriptionGuard)
+  @RequiresFeature('estimates')
+  @CompanyRoles('OWNER', 'MANAGER')
+  diffVersions(
+    @Param('id') id: string,
+    @Query('from') from: string,
+    @Query('to') to: string,
+  ) {
+    return this.estimates.diffVersions(id, parseInt(from, 10), parseInt(to, 10));
+  }
+
+  // V-06: Comment thread
+  @Get('projects/:id/comments')
+  @UseGuards(CompanyGuard, SubscriptionGuard)
+  @RequiresFeature('estimates')
+  @CompanyRoles('OWNER', 'MANAGER')
+  listComments(@Param('id') id: string) {
+    return this.estimates.listComments(id);
+  }
+
+  @Post('projects/:id/comments')
+  @UseGuards(CompanyGuard, SubscriptionGuard)
+  @RequiresFeature('estimates')
+  @CompanyRoles('OWNER', 'MANAGER')
+  addComment(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() body: { body: string },
+  ) {
+    return this.estimates.addComment(user.sub, 'CONTRACTOR', id, body.body);
   }
 }

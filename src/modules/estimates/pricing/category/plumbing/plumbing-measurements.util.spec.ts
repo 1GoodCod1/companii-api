@@ -18,7 +18,9 @@ describe('plumbing measurements (santehnika)', () => {
     expect(result.fittingsQty).toBe(Math.ceil(33 * 0.8));
     expect(result.plumbingPoints).toBeGreaterThan(0);
     expect(result.complexityMultiplier).toBe(1.15);
-    expect(result.pipeLengthMLabor).toBe(round2(33 * 1.15));
+    // Slice 2: access multiplier is applied centrally via blueprint.accessDifficultyImpact
+    // at unitPrice level. The Labor qty fields remain equal to base qty.
+    expect(result.pipeLengthMLabor).toBe(33);
   });
 
   it('uses plan points when available', () => {

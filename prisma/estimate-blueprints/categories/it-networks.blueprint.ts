@@ -4,6 +4,7 @@ import { baseConfig } from '../base';
 /** Wizard fără plan 2D implicit — pasul plan se activează când itDirection = network (vezi planWizardEnabled). */
 export const itNetworksBlueprint: EstimateBlueprintConfig = baseConfig({
   wizardSteps: ['object', 'diagnostic', 'stages', 'review'],
+  urgencyImpact: { urgent: 1.2, emergency: 1.5 },
   siteTypes: [
     { value: 'office', label: 'Birou / Oficiu' },
     { value: 'enterprise', label: 'Companie / Enterprise' },
@@ -30,14 +31,14 @@ export const itNetworksBlueprint: EstimateBlueprintConfig = baseConfig({
       label: 'Design UI/UX',
       defaultEnabled: true,
       stageCodes: ['design'],
-      fieldKeys: ['pagesCount'],
+      fieldKeys: ['pagesCount', 'customDesign'],
     },
     {
       key: 'frontend',
       label: 'Dezvoltare frontend',
       defaultEnabled: true,
       stageCodes: ['dezvoltare'],
-      fieldKeys: ['pagesCount'],
+      fieldKeys: ['pagesCount', 'multilingual'],
     },
     {
       key: 'backend',
@@ -243,6 +244,22 @@ export const itNetworksBlueprint: EstimateBlueprintConfig = baseConfig({
       required: false,
       defaultValue: false,
       section: 'Migrare',
+    },
+    {
+      key: 'multilingual',
+      label: 'Suport multilingv (RO/RU/EN) / Мультиязычность',
+      type: 'boolean',
+      required: false,
+      defaultValue: false,
+      section: 'Web',
+    },
+    {
+      key: 'customDesign',
+      label: 'Design UI/UX Premium personalizat / Индивидуальный дизайн',
+      type: 'boolean',
+      required: false,
+      defaultValue: false,
+      section: 'Web',
     },
   ],
   diagnosticQuestions: [

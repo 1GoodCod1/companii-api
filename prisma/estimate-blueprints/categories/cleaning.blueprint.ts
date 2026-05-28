@@ -2,6 +2,8 @@ import type { EstimateBlueprintConfig } from '../../estimate-blueprint-config.ty
 import { baseConfig } from '../base';
 
 export const cleaningBlueprint: EstimateBlueprintConfig = baseConfig({
+  wizardSteps: ['object', 'diagnostic', 'stages', 'review'],
+  urgencyImpact: { urgent: 1.2, emergency: 1.4 },
   planPointTypes: [
     { type: 'room', label: 'Cameră', color: '#22c55e' },
     { type: 'window_clean', label: 'Geamuri', color: '#15803d' },

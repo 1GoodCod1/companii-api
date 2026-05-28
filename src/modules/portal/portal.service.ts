@@ -17,6 +17,7 @@ import {
 import { AuditService } from '../audit/audit.service';
 import { AuditAction } from '../audit/audit-action.enum';
 import { AuditEntityType } from '../audit/audit-entity-type.enum';
+import { EstimateCommentService } from '../estimates/services/estimate-comment.service';
 
 const TERMINAL_PORTAL_ESTIMATE_STATUSES: ReadonlySet<EstimateProjectStatus> = new Set([
   EstimateProjectStatus.ACCEPTED,
@@ -46,6 +47,7 @@ export class PortalService {
     private readonly estimatePdf: EstimatePdfService,
     private readonly email: EmailService,
     private readonly audit: AuditService,
+    private readonly comments: EstimateCommentService,
   ) {}
 
   async dashboard(user: JwtPayload) {
@@ -348,7 +350,7 @@ export class PortalService {
     return project;
   }
 
-  async getEstimatePdf(user: JwtPayload, projectId: string) {
+  async getEstimatePdf(user: JwtPayload, projectId: string, lang?: 'ro' | 'ru') {
     const customer = await findPortalCustomerForUser(this.prisma, user.sub);
     const project = await this.prisma.estimateProject.findFirst({
       where: { id: projectId, customerId: customer.id },
@@ -375,7 +377,7 @@ export class PortalService {
     });
     if (!project) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
 
-    const buffer = await this.estimatePdf.build(project, { isClientView: true });
+    const buffer = await this.estimatePdf.build(project, { isClientView: true, locale: lang });
     return { buffer, filename: `${project.number}.pdf` };
   }
 
@@ -457,5 +459,21 @@ export class PortalService {
         },
       });
     });
+  }
+
+  async listEstimateComments(projectId: string) {
+    return this.comments.listComments(projectId);
+  }
+
+  async addEstimateComment(user: JwtPayload, projectId: string, body: string) {
+    const customer = await findPortalCustomerForUser(this.prisma, user.sub);
+    const project = await this.prisma.estimateProject.findUniqueOrThrow({
+      where: { id: projectId },
+      select: { customerId: true },
+    });
+    if (project.customerId !== customer.id) {
+      throw AppErrors.forbidden('');
+    }
+    return this.comments.addComment(projectId, user.sub, 'CLIENT', body);
   }
 }

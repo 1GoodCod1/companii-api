@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import type { EstimateMeasurementUnit } from '../../../prisma/estimate-measurement-units';
 import type { EstimateFieldWarning } from './utils/estimate-custom-fields-validation.util';
+import type { SanityWarning } from './utils/sanity-checks.util';
 
 export const projectInclude = {
   customer: true,
@@ -10,6 +11,7 @@ export const projectInclude = {
   quote: true,
   sourceLead: true,
   measurements: { orderBy: { key: 'asc' as const } },
+  photos: { orderBy: { sortOrder: 'asc' as const } },
   stages: {
     orderBy: { sortOrder: 'asc' as const },
     include: { lines: { orderBy: { sortOrder: 'asc' as const } } },
@@ -33,6 +35,7 @@ export type CalculationTraceEntry = {
 
 export type EstimateCalculateResult = EstimateProjectDetail & {
   calculationTrace: CalculationTraceEntry[];
+  sanityWarnings: SanityWarning[];
 };
 
 export const portalEstimateInclude = {

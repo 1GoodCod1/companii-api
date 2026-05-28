@@ -5,6 +5,7 @@ import type { Plan2dData } from './pricing/plan2d.types';
 import { EstimateBlueprintsService } from './services/estimate-blueprints.service';
 import { EstimateConversionService } from './services/estimate-conversion.service';
 import { EstimatePortalService } from './services/estimate-portal.service';
+import { EstimateProjectPhotosService } from './services/estimate-project-photos.service';
 import { EstimateProjectsService } from './services/estimate-projects.service';
 import { EstimateQuotesService } from './services/estimate-quotes.service';
 import {
@@ -13,6 +14,8 @@ import {
 } from './services/estimate-receipts.service';
 import { EstimateStagesService } from './services/estimate-stages.service';
 import { EstimateWorksheetService } from './services/estimate-worksheet.service';
+import { EstimateVersionService } from './services/estimate-version.service';
+import { EstimateCommentService } from './services/estimate-comment.service';
 
 /** Facade — сохраняет публичный API для EstimatesController и внешних потребителей. */
 @Injectable()
@@ -26,7 +29,31 @@ export class EstimatesService {
     private readonly conversion: EstimateConversionService,
     private readonly worksheet: EstimateWorksheetService,
     private readonly receipts: EstimateReceiptsService,
+    private readonly photos: EstimateProjectPhotosService,
+    private readonly versions: EstimateVersionService,
+    private readonly comments: EstimateCommentService,
   ) {}
+
+  listProjectPhotos(user: JwtPayload, projectId: string) {
+    return this.photos.list(user, projectId);
+  }
+
+  addProjectPhotos(user: JwtPayload, projectId: string, fileKeys: string[], caption?: string) {
+    return this.photos.add(user, projectId, fileKeys, caption);
+  }
+
+  updateProjectPhotoCaption(
+    user: JwtPayload,
+    projectId: string,
+    photoId: string,
+    caption: string | null,
+  ) {
+    return this.photos.updateCaption(user, projectId, photoId, caption);
+  }
+
+  deleteProjectPhoto(user: JwtPayload, projectId: string, photoId: string) {
+    return this.photos.delete(user, projectId, photoId);
+  }
 
   // V-02 / V-03 / V-14
   createReceipt(user: JwtPayload, projectId: string, body: CreateReceiptInput) {
@@ -101,6 +128,11 @@ export class EstimatesService {
       address?: string;
       validUntil?: string | null;
       marginPct?: number;
+      riskReservePct?: number;
+      buildingYear?: number | null;
+      siteFloor?: number | null;
+      accessDifficulty?: string | null;
+      urgency?: string | null;
       diagnosticAnswers?: Record<string, unknown>;
       notes?: string | null;
       status?: EstimateProjectStatus;
@@ -192,13 +224,13 @@ export class EstimatesService {
     return this.quotes.sendToClient(user, id);
   }
 
-  getProjectPdf(user: JwtPayload, id: string) {
-    return this.quotes.getProjectPdf(user, id);
+  getProjectPdf(user: JwtPayload, id: string, lang?: 'ro' | 'ru') {
+    return this.quotes.getProjectPdf(user, id, lang);
   }
 
   // U-04: Returns a readable stream instead of a buffer.
-  getProjectPdfStream(user: JwtPayload, id: string) {
-    return this.quotes.getProjectPdfStream(user, id);
+  getProjectPdfStream(user: JwtPayload, id: string, lang?: 'ro' | 'ru') {
+    return this.quotes.getProjectPdfStream(user, id, lang);
   }
 
   updatePortalEstimateStatus(
@@ -221,8 +253,8 @@ export class EstimatesService {
     return this.portal.getProject(customerId, projectId);
   }
 
-  getPortalProjectPdf(customerId: string, projectId: string) {
-    return this.portal.getProjectPdf(customerId, projectId);
+  getPortalProjectPdf(customerId: string, projectId: string, lang?: 'ro' | 'ru') {
+    return this.portal.getProjectPdf(customerId, projectId, lang);
   }
 
   getWorksheetByIntervention(user: JwtPayload, interventionId: string) {
@@ -247,5 +279,23 @@ export class EstimatesService {
 
   getVarianceReport(user: JwtPayload, projectId: string) {
     return this.projects.getVarianceReport(user, projectId);
+  }
+
+  // V-05: Version history
+  listVersions(projectId: string) {
+    return this.versions.listVersions(projectId);
+  }
+
+  diffVersions(projectId: string, from: number, to: number) {
+    return this.versions.diff(projectId, from, to);
+  }
+
+  // V-06: Comment thread
+  listComments(projectId: string) {
+    return this.comments.listComments(projectId);
+  }
+
+  addComment(authorId: string, authorKind: 'CLIENT' | 'CONTRACTOR', projectId: string, body: string) {
+    return this.comments.addComment(projectId, authorId, authorKind, body);
   }
 }

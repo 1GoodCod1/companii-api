@@ -8,6 +8,7 @@ import {
   isCustomFieldRequired,
   readEnabledWorkModules,
 } from './work-modules.util';
+import { CUSTOM_PRICING_KEYS } from '../pricing/pricing-engine.service';
 
 export const ESTIMATE_VALIDATION_FAILED = 'ESTIMATE_VALIDATION_FAILED';
 
@@ -38,6 +39,9 @@ function collectKnownDiagnosticKeys(config: EstimateBlueprintConfig): Set<string
   }
   for (const question of config.diagnosticQuestions) {
     keys.add(question.key);
+  }
+  for (const key of Object.values(CUSTOM_PRICING_KEYS)) {
+    keys.add(key);
   }
   return keys;
 }
@@ -104,7 +108,7 @@ function collectFieldWarnings(
 export function validateCustomFieldsAnswers(
   config: EstimateBlueprintConfig,
   answers: Record<string, unknown>,
-  options?: { strictUnknownKeys?: boolean },
+  options?: { strictUnknownKeys?: boolean; ignoreRequired?: boolean },
 ): EstimateCustomFieldsValidationResult {
   const fieldErrors: Record<string, string> = {};
   const warnings: EstimateFieldWarning[] = [];
@@ -136,8 +140,10 @@ export function validateCustomFieldsAnswers(
     const val = rawValue ?? field.defaultValue;
 
     if (isCustomFieldRequired(field, config, enabledModules) && isEmptyValue(val)) {
-      fieldErrors[field.key] = `${field.label} este obligatoriu`;
-      continue;
+      if (!options?.ignoreRequired) {
+        fieldErrors[field.key] = `${field.label} este obligatoriu`;
+        continue;
+      }
     }
 
     if (isEmptyValue(val)) {

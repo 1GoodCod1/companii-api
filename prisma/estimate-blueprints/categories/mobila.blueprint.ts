@@ -2,6 +2,9 @@ import type { EstimateBlueprintConfig } from '../../estimate-blueprint-config.ty
 import { baseConfig } from '../base';
 
 export const mobilaBlueprint: EstimateBlueprintConfig = baseConfig({
+  wizardSteps: ['object', 'diagnostic', 'stages', 'review'],
+  accessDifficultyImpact: { easy: 1.0, medium: 1.2, difficult: 1.4, appliesToMaterial: true },
+  urgencyImpact: { urgent: 1.2, emergency: 1.4 },
   planPointTypes: [
     { type: 'kitchen_cabinet', label: 'Corp bucătărie', color: '#14b8a6' },
     { type: 'wardrobe', label: 'Dulap dressing', color: '#0f766e' },

@@ -4,6 +4,17 @@ import { AppErrorMessages, AppErrors } from '../../../common/errors';
 import { formatEstimateUnitsList, normalizeEstimateUnit } from '../../../../prisma/estimate-measurement-units';
 import { assertBlueprintUnitsValid } from '../utils/estimate-unit-validation.util';
 import { readEnabledWorkModules } from '../utils/work-modules.util';
+import {
+  resolveAccessDifficultyLaborMultiplier,
+  resolveAccessDifficultyLevel,
+  resolveAccessDifficultyMaterialMultiplier,
+} from '../utils/access-difficulty.util';
+import {
+  normalizeUrgency,
+  resolveUrgencyLaborMultiplier,
+  resolveUrgencyMaterialMultiplier,
+} from '../utils/urgency.util';
+import { runSanityChecks } from '../utils/sanity-checks.util';
 import { PrismaService } from '../../shared/database/prisma.service';
 import type { JwtPayload } from '../../auth/types/jwt-payload';
 import { guessUnit, projectInclude, round2, type EstimateCalculateResult } from '../estimate.constants';
@@ -65,11 +76,25 @@ export class EstimateStagesService {
     measurements = customPricing.measurements;
     pricingRules = customPricing.rules;
     const enabledWorkModules = readEnabledWorkModules(diagnostic, config);
+    const accessLevel = resolveAccessDifficultyLevel(
+      (project as { accessDifficulty?: unknown }).accessDifficulty,
+      diagnostic,
+    );
+    const urgencyLevel = normalizeUrgency((project as { urgency?: unknown }).urgency);
+    const accessLaborMultiplier = resolveAccessDifficultyLaborMultiplier(config, accessLevel);
+    const accessMaterialMultiplier = resolveAccessDifficultyMaterialMultiplier(config, accessLevel);
+    const urgencyLaborMultiplier = resolveUrgencyLaborMultiplier(config, urgencyLevel);
+    const urgencyMaterialMultiplier = resolveUrgencyMaterialMultiplier(config, urgencyLevel);
+    const laborMultiplier = round2(accessLaborMultiplier * urgencyLaborMultiplier);
+    const materialMultiplier = round2(accessMaterialMultiplier * urgencyMaterialMultiplier);
     const ruleLines = this.pricing.buildLinesFromRules(pricingRules, measurements, {
       enabledWorkModules,
       config,
+      laborMultiplier,
+      materialMultiplier,
     });
     const calculationTrace = buildCalculationTrace(measurements, plan2d, diagnostic);
+    const sanityWarnings = runSanityChecks(project.category?.slug, measurements, diagnostic);
     const requiresManualReview = resolveRequiresManualReview(measurements);
     const persistableMeasurements = filterPersistableMeasurements(measurements);
 
@@ -208,7 +233,8 @@ export class EstimateStagesService {
       const materialTotal = round2(updatedStages.reduce((acc, s) => acc + Number(s.materialCost), 0));
       const subtotal = laborTotal + materialTotal;
       const marginPct = Number(project.marginPct);
-      const grandTotal = round2(subtotal * (1 + marginPct / 100));
+      const riskReservePct = Number(project.riskReservePct ?? 0);
+      const grandTotal = round2(subtotal * (1 + riskReservePct / 100) * (1 + marginPct / 100));
 
       const allProjectLines = await tx.estimateLine.findMany({
         where: { stage: { projectId: id } },
@@ -217,8 +243,22 @@ export class EstimateStagesService {
         allProjectLines,
         project.tvaRate,
         marginPct,
+        riskReservePct,
       );
       const grandTotalWithVat = round2(grandTotal + tvaAmount);
+
+      if (project.sourceLead?.estimatedBudget) {
+        const budget = Number(project.sourceLead.estimatedBudget);
+        if (grandTotal > budget) {
+          const diff = round2(grandTotal - budget);
+          const diffPct = round2((diff / budget) * 100);
+          sanityWarnings.push({
+            key: 'budgetExceeded',
+            severity: 'warning',
+            message: `Costul estimat (${grandTotal.toLocaleString('ro-MD')} MDL) depășește bugetul specificat de client (${budget.toLocaleString('ro-MD')} MDL) cu ${diff.toLocaleString('ro-MD')} MDL (+${diffPct}%).`,
+          });
+        }
+      }
 
       const expectedVersion = project.version;
       const updateResult = await tx.estimateProject.updateMany({
@@ -255,6 +295,7 @@ export class EstimateStagesService {
       return {
         ...updatedProject,
         calculationTrace,
+        sanityWarnings,
       } satisfies EstimateCalculateResult;
     });
   }
@@ -454,7 +495,8 @@ export class EstimateStagesService {
     const projectMaterialTotal = round2(project.stages.reduce((acc, s) => acc + Number(s.materialCost), 0));
     const subtotal = projectLaborTotal + projectMaterialTotal;
     const marginPct = Number(project.marginPct);
-    const grandTotal = round2(subtotal * (1 + marginPct / 100));
+    const riskReservePct = Number(project.riskReservePct ?? 0);
+    const grandTotal = round2(subtotal * (1 + riskReservePct / 100) * (1 + marginPct / 100));
 
     const allProjectLines = await tx.estimateLine.findMany({
       where: { stage: { projectId } },
@@ -463,6 +505,7 @@ export class EstimateStagesService {
       allProjectLines,
       project.tvaRate,
       marginPct,
+      riskReservePct,
     );
     const grandTotalWithVat = round2(grandTotal + tvaAmount);
 
@@ -497,13 +540,14 @@ export class EstimateStagesService {
     lines: Array<{ lineTotal: any; vatRate?: any | null }>,
     projectTvaRate: any | null,
     marginPct: number,
+    riskReservePct = 0,
   ): number {
-    const marginFactor = 1 + marginPct / 100;
+    const priceFactor = (1 + riskReservePct / 100) * (1 + marginPct / 100);
     let tvaAmount = 0;
     for (const line of lines) {
       const rate = line.vatRate !== null && line.vatRate !== undefined ? Number(line.vatRate) : Number(projectTvaRate ?? 0);
       const lineTotal = Number(line.lineTotal);
-      const lineTva = lineTotal * marginFactor * (rate / 100);
+      const lineTva = lineTotal * priceFactor * (rate / 100);
       tvaAmount += lineTva;
     }
     return round2(tvaAmount);

@@ -4,7 +4,7 @@ import { PrismaService } from '../database/prisma.service';
 @Injectable()
 export class MaintenanceCleanupService {
   private readonly logger = new Logger(MaintenanceCleanupService.name);
-  private static readonly LOCK_KEY = 0x636f_6d70n;
+  private static readonly LOCK_KEY = 0x636f_6d70;
   private static readonly PASSWORD_RESET_GRACE_DAYS = 30;
   private static readonly REFRESH_TOKEN_GRACE_DAYS = 7;
 
@@ -60,7 +60,7 @@ export class MaintenanceCleanupService {
     const subKey = this.hashString(jobName);
     try {
       const rows = await this.prisma.$queryRaw<Array<{ locked: boolean }>>`
-        SELECT pg_try_advisory_lock(${MaintenanceCleanupService.LOCK_KEY}::bigint, ${subKey}::int) AS locked
+        SELECT pg_try_advisory_lock(${MaintenanceCleanupService.LOCK_KEY}::int, ${subKey}::int) AS locked
       `;
       const acquired = rows[0]?.locked === true;
       if (!acquired) {
@@ -74,7 +74,7 @@ export class MaintenanceCleanupService {
         await job();
       } finally {
         await this.prisma.$executeRaw`
-          SELECT pg_advisory_unlock(${MaintenanceCleanupService.LOCK_KEY}::bigint, ${subKey}::int)
+          SELECT pg_advisory_unlock(${MaintenanceCleanupService.LOCK_KEY}::int, ${subKey}::int)
         `;
       }
     } catch (err) {

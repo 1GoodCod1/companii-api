@@ -2,6 +2,9 @@ import type { EstimateBlueprintConfig } from '../../estimate-blueprint-config.ty
 import { baseConfig } from '../base';
 
 export const santehnikaBlueprint: EstimateBlueprintConfig = baseConfig({
+    wizardSteps: ['object', 'diagnostic', 'stages', 'review'],
+    accessDifficultyImpact: { easy: 1.0, medium: 1.1, difficult: 1.25 },
+    urgencyImpact: { urgent: 1.25, emergency: 1.8 },
     planPointTypes: [
       { type: 'water', label: 'Apă rece/caldă', color: '#3b82f6' },
       { type: 'drain', label: 'Canalizare', color: '#64748b' },
@@ -62,6 +65,22 @@ export const santehnikaBlueprint: EstimateBlueprintConfig = baseConfig({
         required: false,
         defaultValue: false,
         section: 'Trasee apă',
+      },
+      {
+        key: 'filterSystem',
+        label: 'Montaj sistem filtrare apă / Фильтр воды',
+        type: 'boolean',
+        required: false,
+        defaultValue: false,
+        section: 'Obiecte sanitare',
+      },
+      {
+        key: 'riserReplacement',
+        label: 'Înlocuire coloană principală / Замена стояка',
+        type: 'boolean',
+        required: false,
+        defaultValue: false,
+        section: 'Canalizare',
       },
       {
         key: 'bathroomCount',
@@ -125,18 +144,9 @@ export const santehnikaBlueprint: EstimateBlueprintConfig = baseConfig({
         defaultValue: 0,
         section: 'Ștrobire',
       },
-      {
-        key: 'accessDifficulty',
-        label: 'Dificultate acces',
-        type: 'select',
-        options: ['ușor', 'mediu', 'dificil'],
-        required: false,
-        section: 'General',
-      },
     ],
     diagnosticQuestions: [
       { key: 'bathroomCount', label: 'Număr băi', type: 'number' },
-      { key: 'accessDifficulty', label: 'Acces dificil', type: 'select', options: ['ușor', 'mediu', 'dificil'] },
     ],
     defaultStages: [
       { code: 'demontare', name: 'Demontare', kind: 'LABOR', defaultLaborHours: 3, durationDays: 1, checklist: ['Oprire apă', 'Protejare finisaje'], optional: true, moduleKey: 'water_pipes' },
