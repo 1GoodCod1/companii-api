@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+npm-debug.log
+.package-lock.json
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+.cursor/
+.agents/
+*.swp
+*.swo
+
+# Docker / compose (not needed in image)
+Dockerfile
+docker-compose*.yml
+docker/
+
+# Environment files
+.env
+.env.*
+
+# Application data
+logs/
+uploads/
+backups/
+temp/
+coverage/
+
+# Git / CI
+.git
+.gitignore
+.github/
+
+# Documentation
+README.md
+
+# Tests
+test/
+*.spec.ts
+jest.config.ts
