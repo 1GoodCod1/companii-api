@@ -37,7 +37,7 @@ export function genericBlueprint(categoryName: string): EstimateBlueprintConfig 
     pricingRules: [
       {
         stageCode: 'executie',
-        description: `Manoperă ${categoryName}`,
+        description: `Cost Lucrări ${categoryName}`,
         unit: 'ore',
         qtyKey: 'laborHours',
         unitPrice: 195,

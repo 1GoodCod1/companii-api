@@ -64,6 +64,20 @@ export function resolveAnalysisHours(projectScope: unknown): number {
   return 8;
 }
 
+function resolveBackendComplexityUnits(backendComplexity: unknown): number {
+  const normalized = String(backendComplexity ?? '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '');
+
+  if (normalized.includes('fara') || normalized.includes('fără') || normalized === '') return 0;
+  if (normalized.includes('simplu')) return 1;
+  if (normalized.includes('mediu')) return 1;
+  if (normalized.includes('complex')) return 2;
+  return 0;
+}
+
 /**
  * Category-specific measurements for `it-networks` (implementation_plan.md §4.10).
  */
@@ -83,8 +97,11 @@ export function deriveItNetworksMeasurements(
   measurements.workstationCount = readNumber(diagnostic, 'workstationCount') ?? 0;
   measurements.rackUnits = readNumber(diagnostic, 'rackUnits') ?? 0;
 
-  measurements.networkCableM = measurements.networkPoints * 20;
-  measurements.hasBackendCount = readBoolean(diagnostic, 'hasBackend') ? 1 : 0;
+  const avgCableLength = readNumber(diagnostic, 'avgCableLengthPerPort') ?? 20;
+  measurements.networkCableM = measurements.networkPoints * avgCableLength;
+  measurements.hasBackendCount = diagnostic?.backendComplexity !== undefined
+    ? resolveBackendComplexityUnits(diagnostic.backendComplexity)
+    : (readBoolean(diagnostic, 'hasBackend') ? 1 : 0);
   measurements.hasCmsCount = readBoolean(diagnostic, 'hasCMS') ? 1 : 0;
   measurements.hasEcommerceCount = readBoolean(diagnostic, 'hasEcommerce') ? 1 : 0;
 
@@ -98,8 +115,10 @@ export function deriveItNetworksMeasurements(
   measurements.planWizardEnabled = shouldEnablePlanWizardForItNetworks(diagnostic?.itDirection) ? 1 : 0;
   measurements.requiresManualReview = shouldRequireItManualReview(diagnostic?.projectScope) ? 1 : 0;
 
-  measurements.designPageCount = pagesCount;
-  measurements.frontendPageCount = pagesCount;
+  const designPages = readNumber(diagnostic, 'designPagesCount') ?? 0;
+  const frontendPages = readNumber(diagnostic, 'frontendPagesCount') ?? 0;
+  measurements.designPageCount = designPages > 0 ? designPages : pagesCount;
+  measurements.frontendPageCount = frontendPages > 0 ? frontendPages : pagesCount;
 
   return measurements;
 }

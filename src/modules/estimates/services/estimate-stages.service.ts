@@ -72,6 +72,7 @@ export class EstimateStagesService {
       diagnostic,
       pricingRules,
       project.stages,
+      project.category?.slug ?? undefined,
     );
     measurements = customPricing.measurements;
     pricingRules = customPricing.rules;
@@ -133,7 +134,7 @@ export class EstimateStagesService {
           await tx.estimateLine.create({
             data: {
               stageId: stage.id,
-              description: `Manoperă (Volum / Contract) — ${stage.name}`,
+              description: `Cost Lucrări (Volum / Contract) — ${stage.name}`,
               qty: 1,
               unit: 'buc',
               unitPrice: overrideLabor,
@@ -188,7 +189,7 @@ export class EstimateStagesService {
           await tx.estimateLine.create({
             data: {
               stageId: stage.id,
-              description: `Manoperă — ${stage.name}`,
+              description: `Cost Lucrări — ${stage.name}`,
               qty: hours,
               unit: 'ore',
               unitPrice: rate,

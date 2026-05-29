@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { CompaniesModule } from '../companies/companies.module';
+import { FilesModule } from '../files/files.module';
 import { FsmService } from './fsm.service';
 import {
   FsmCalendarController,
+  FsmCrewsController,
   FsmCustomersController,
   FsmExportController,
   FsmInterventionsController,
@@ -18,6 +20,7 @@ import { CustomerImportService } from './customer-import/customer-import.service
 import { FsmContextService } from './context/fsm-context.service';
 import { CalendarService } from './services/calendar.service';
 import { CompanyServicesService } from './services/company-services.service';
+import { CrewsService } from './services/crews.service';
 import { CustomerTimelineService } from './services/customer-timeline.service';
 import { CustomersService } from './services/customers.service';
 import { InterventionNotesService } from './services/intervention-notes.service';
@@ -27,7 +30,7 @@ import { InvoicesService } from './services/invoices.service';
 import { QuotesService } from './services/quotes.service';
 
 @Module({
-  imports: [AuthModule, CompaniesModule, InvoicePdfModule],
+  imports: [AuthModule, CompaniesModule, InvoicePdfModule, FilesModule],
   controllers: [
     FsmCustomersController,
     FsmInterventionsController,
@@ -37,6 +40,7 @@ import { QuotesService } from './services/quotes.service';
     FsmQuotesController,
     FsmInvoicesController,
     FsmExportController,
+    FsmCrewsController,
   ],
   providers: [
     FsmContextService,
@@ -49,6 +53,7 @@ import { QuotesService } from './services/quotes.service';
     CalendarService,
     CustomerTimelineService,
     CompanyServicesService,
+    CrewsService,
     FsmService,
     LeadsService,
     CustomerImportService,

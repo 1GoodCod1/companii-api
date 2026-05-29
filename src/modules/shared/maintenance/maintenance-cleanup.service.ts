@@ -49,6 +49,29 @@ export class MaintenanceCleanupService {
     });
   }
 
+  /**
+   * Mark UNPAID invoices whose `dueDate` has elapsed as OVERDUE.
+   * Runs hourly so a status flip happens within ~1h of due-date passing.
+   */
+  @Cron(CronExpression.EVERY_HOUR)
+  async markOverdueInvoices(): Promise<void> {
+    await this.withAdvisoryLock('invoice-overdue', async () => {
+      const now = new Date();
+      const result = await this.prisma.companyInvoice.updateMany({
+        where: {
+          paymentStatus: 'UNPAID',
+          dueDate: { not: null, lt: now },
+        },
+        data: { paymentStatus: 'OVERDUE' },
+      });
+      if (result.count > 0) {
+        this.logger.log(
+          `Marked ${result.count} invoices as OVERDUE (dueDate before ${now.toISOString()}).`,
+        );
+      }
+    });
+  }
+
   private cutoffDate(days: number): Date {
     return new Date(Date.now() - days * 24 * 60 * 60 * 1000);
   }

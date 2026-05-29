@@ -33,9 +33,14 @@ export class FsmInvoicesController {
     @CurrentUser() user: JwtPayload,
     @Query('cursor') cursor?: string,
     @Query('limit') limit?: string,
+    @Query('status') status?: InvoicePaymentStatus,
   ) {
     const parsedLimit = limit ? Math.min(parseInt(limit, 10), 100) : undefined;
-    return this.fsm.listInvoices(user, cursor, parsedLimit);
+    const validStatus =
+      status && ['UNPAID', 'PAID', 'OVERDUE'].includes(status)
+        ? status
+        : undefined;
+    return this.fsm.listInvoices(user, cursor, parsedLimit, validStatus);
   }
 
   @Get(':id/pdf')
@@ -89,6 +94,7 @@ export class FsmInvoicesController {
     @Body() body: {
       paymentStatus?: InvoicePaymentStatus;
       dueDate?: string | null;
+      paymentReversalReason?: string;
     },
   ) {
     return this.fsm.updateInvoice(user, id, body);
@@ -100,6 +106,42 @@ export class FsmInvoicesController {
   @CompanyRoles('OWNER', 'MANAGER')
   deleteInvoice(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.fsm.deleteInvoice(user, id);
+  }
+
+  @Post(':id/cancel')
+  @UseGuards(CompanyGuard, SubscriptionGuard)
+  @RequiresFeature('invoices')
+  @CompanyRoles('OWNER', 'MANAGER')
+  cancelInvoice(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() body: { reason: string },
+  ) {
+    return this.fsm.cancelInvoice(user, id, body.reason);
+  }
+
+  @Post(':id/payments')
+  @UseGuards(CompanyGuard, SubscriptionGuard)
+  @RequiresFeature('invoices')
+  @CompanyRoles('OWNER', 'MANAGER')
+  recordPayment(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() body: { amount: number; note?: string },
+  ) {
+    return this.fsm.recordInvoicePayment(user, id, body);
+  }
+
+  @Post(':id/send-email')
+  @UseGuards(CompanyGuard, SubscriptionGuard)
+  @RequiresFeature('invoices')
+  @CompanyRoles('OWNER', 'MANAGER')
+  sendInvoiceEmail(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() body: { customMessage?: string },
+  ) {
+    return this.fsm.sendInvoiceEmail(user, id, body.customMessage);
   }
 }
 

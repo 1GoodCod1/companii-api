@@ -23,17 +23,25 @@ const TECHNICIAN_TRANSITIONS: Record<InterventionStatus, InterventionStatus[]> =
 };
 
 const PAYMENT_TRANSITIONS: Record<InvoicePaymentStatus, InvoicePaymentStatus[]> = {
-  UNPAID: ['PAID', 'OVERDUE'],
-  OVERDUE: ['PAID'],
-  PAID: [],
+  UNPAID: ['PAID', 'OVERDUE', 'CANCELLED'],
+  OVERDUE: ['PAID', 'CANCELLED'],
+  // PAID is reversible (e.g. payment bounced / clerical mistake). Requires
+  // an explicit `reason` at the service layer for audit.
+  PAID: ['UNPAID'],
+  // CANCELLED is terminal (existing audit-trail row, no resurrection).
+  CANCELLED: [],
 };
 
 export function isTerminalInterventionStatus(status: InterventionStatus): boolean {
   return status === 'PAID' || status === 'CANCELLED';
 }
 
-export function isTerminalPaymentStatus(status: InvoicePaymentStatus): boolean {
-  return status === 'PAID';
+/**
+ * PAID is no longer terminal — see PAYMENT_TRANSITIONS. Kept as a helper for
+ * UI affordances (e.g. don't show "next action" buttons by default).
+ */
+export function isTerminalPaymentStatus(_status: InvoicePaymentStatus): boolean {
+  return false;
 }
 
 export function getAllowedInterventionTransitions(

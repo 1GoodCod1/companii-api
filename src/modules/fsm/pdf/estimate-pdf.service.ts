@@ -78,7 +78,7 @@ const I18N = {
   pretUnit: { ro: 'Preț unit.', ru: 'Цена ед.' },
   total: { ro: 'Total', ru: 'Итого' },
   totalEtapa: { ro: 'Total etapă', ru: 'Итого по этапу' },
-  manopera: { ro: 'Manoperă', ru: 'Работа' },
+  manopera: { ro: 'Cost Lucrări', ru: 'Стоимость Работ' },
   materiale: { ro: 'Materiale', ru: 'Материалы' },
   marja: { ro: 'Marjă', ru: 'Наценка' },
   subtotalFaraTva: { ro: 'Subtotal fără TVA', ru: 'Подытог без НДС' },

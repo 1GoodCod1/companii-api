@@ -110,6 +110,7 @@ export function filterPersistableMeasurements(measurements: MeasurementMap): Mea
   const result: MeasurementMap = {};
   for (const [key, value] of Object.entries(measurements)) {
     if (INTERNAL_MEASUREMENT_KEYS.has(key)) continue;
+    if (typeof value !== 'number' || !Number.isFinite(value)) continue;
     result[key] = value;
   }
   return result;

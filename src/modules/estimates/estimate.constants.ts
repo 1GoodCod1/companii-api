@@ -16,6 +16,17 @@ export const projectInclude = {
     orderBy: { sortOrder: 'asc' as const },
     include: { lines: { orderBy: { sortOrder: 'asc' as const } } },
   },
+  interventions: {
+    select: {
+      id: true,
+      number: true,
+      status: true,
+      type: true,
+      scheduledAt: true,
+      technician: { select: { fullName: true } },
+    },
+    orderBy: { createdAt: 'desc' as const },
+  },
 } satisfies Prisma.EstimateProjectInclude;
 
 export type EstimateProjectDetail = Prisma.EstimateProjectGetPayload<{

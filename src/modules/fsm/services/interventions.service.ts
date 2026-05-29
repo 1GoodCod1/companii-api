@@ -12,6 +12,26 @@ import {
 } from '../utils/status-transitions';
 import { EmailService } from '../../email/email.service';
 import { isEstimateLaborLine } from '../../estimates/utils/estimate-line-recalculate.util';
+import { CrewsService } from './crews.service';
+
+/** Shape returned for assignments — kept lean for list/get payloads. */
+const assignmentsInclude = {
+  assignments: {
+    include: {
+      member: {
+        select: {
+          id: true,
+          fullName: true,
+          phone: true,
+          email: true,
+          specialization: true,
+        },
+      },
+    },
+    orderBy: [{ isLead: 'desc' as const }, { assignedAt: 'asc' as const }],
+  },
+  crew: { select: { id: true, name: true, color: true } },
+};
 
 @Injectable()
 export class InterventionsService {
@@ -20,7 +40,47 @@ export class InterventionsService {
     private readonly ctx: FsmContextService,
     private readonly companyAuth: CompanyAuthorizationService,
     private readonly email: EmailService,
+    private readonly crews: CrewsService,
   ) {}
+
+  /**
+   * Normalize the various ways callers can express assignees into a single
+   * { memberIds, leadId, crewId } shape. Precedence: crewId > assigneeMemberIds > technicianId.
+   * Returns null when no assignee info was provided (caller should preserve existing state).
+   */
+  private async resolveAssignment(
+    companyId: string,
+    data: {
+      technicianId?: string | null;
+      assigneeMemberIds?: string[];
+      crewId?: string | null;
+    },
+  ): Promise<{ memberIds: string[]; leadId: string | null; crewId: string | null } | null> {
+    if (data.crewId) {
+      const memberIds = await this.crews.memberIdsForCrew(companyId, data.crewId);
+      return { memberIds, leadId: memberIds[0] ?? null, crewId: data.crewId };
+    }
+    if (data.assigneeMemberIds && data.assigneeMemberIds.length > 0) {
+      const unique = Array.from(new Set(data.assigneeMemberIds.filter(Boolean)));
+      const validated = await this.prisma.companyMember.findMany({
+        where: { id: { in: unique }, companyId, status: 'ACTIVE' },
+        select: { id: true },
+      });
+      if (validated.length !== unique.length) {
+        throw AppErrors.badRequest(AppErrorMessages.INTERVENTION_INVALID_TECHNICIAN);
+      }
+      return { memberIds: unique, leadId: unique[0] ?? null, crewId: null };
+    }
+    if (data.technicianId) {
+      const id = await this.ctx.resolveAssignableTechnicianId(companyId, data.technicianId);
+      return id ? { memberIds: [id], leadId: id, crewId: null } : null;
+    }
+    if (data.technicianId === null || data.crewId === null || data.assigneeMemberIds?.length === 0) {
+      // Explicit unassign — clear everything.
+      return { memberIds: [], leadId: null, crewId: null };
+    }
+    return null;
+  }
 
   list(
     user: JwtPayload,
@@ -52,6 +112,15 @@ export class InterventionsService {
         updatedAt: true,
         customer: { select: { id: true, fullName: true, phone: true, email: true } },
         technician: technicianWithUser,
+        crew: { select: { id: true, name: true, color: true } },
+        assignments: {
+          select: {
+            memberId: true,
+            isLead: true,
+            member: { select: { id: true, fullName: true } },
+          },
+          orderBy: [{ isLead: 'desc' }, { assignedAt: 'asc' }],
+        },
       },
       orderBy: { createdAt: 'desc' },
       cursor: cursor ? { id: cursor } : undefined,
@@ -78,6 +147,7 @@ export class InterventionsService {
       include: {
         customer: true,
         technician: technicianWithUser,
+        ...assignmentsInclude,
         notes: {
           orderBy: { createdAt: 'desc' },
           include: {
@@ -110,7 +180,12 @@ export class InterventionsService {
       type: string;
       description: string;
       address: string;
+      /** Single legacy assignee. */
       technicianId?: string;
+      /** Multi-assignee list. First member becomes lead. */
+      assigneeMemberIds?: string[];
+      /** Assign to an entire crew — expands to its members at creation time. */
+      crewId?: string;
       scheduledAt?: string;
       estimatedPrice?: number;
       internalNotes?: string;
@@ -118,7 +193,11 @@ export class InterventionsService {
   ) {
     const cid = this.ctx.companyId(user);
     await this.companyAuth.assertInterventionMonthlyLimit(cid);
-    const technicianId = await this.ctx.resolveAssignableTechnicianId(cid, data.technicianId);
+    const assignment = await this.resolveAssignment(cid, {
+      technicianId: data.technicianId,
+      assigneeMemberIds: data.assigneeMemberIds,
+      crewId: data.crewId,
+    });
 
     return this.prisma.$transaction(async (tx) => {
       const count = await tx.intervention.count({
@@ -144,7 +223,8 @@ export class InterventionsService {
         data: {
           companyId: cid,
           customerId: data.customerId,
-          technicianId,
+          technicianId: assignment?.leadId ?? undefined,
+          crewId: assignment?.crewId ?? undefined,
           number,
           type: data.type,
           description: data.description,
@@ -154,6 +234,16 @@ export class InterventionsService {
           internalNotes: data.internalNotes,
         },
       });
+
+      if (assignment && assignment.memberIds.length > 0) {
+        await tx.interventionAssignment.createMany({
+          data: assignment.memberIds.map((memberId) => ({
+            interventionId: intervention.id,
+            memberId,
+            isLead: memberId === assignment.leadId,
+          })),
+        });
+      }
 
       if (user.memberId) {
         await tx.interventionStatusHistory.create({
@@ -177,6 +267,10 @@ export class InterventionsService {
       description?: string;
       address?: string;
       technicianId?: string | null;
+      /** Replace the full assignee list. Empty array = unassign all. */
+      assigneeMemberIds?: string[];
+      /** Reassign to a crew (replaces existing assignments). null = clear crew. */
+      crewId?: string | null;
       scheduledAt?: string | null;
       estimatedPrice?: number | null;
       finalPrice?: number | null;
@@ -205,28 +299,50 @@ export class InterventionsService {
     }
 
     const cid = this.ctx.companyId(user);
-    let technicianUpdate: Prisma.InterventionUpdateInput['technician'] = undefined;
-    if (data.technicianId === null) {
-      technicianUpdate = { disconnect: true };
-    } else if (data.technicianId) {
-      const resolvedTechnicianId = await this.ctx.resolveAssignableTechnicianId(cid, data.technicianId);
-      technicianUpdate = { connect: { id: resolvedTechnicianId! } };
-    }
+    const assignment = await this.resolveAssignment(cid, {
+      technicianId: data.technicianId,
+      assigneeMemberIds: data.assigneeMemberIds,
+      crewId: data.crewId,
+    });
 
-    const updateData: Prisma.InterventionUpdateInput = {
-      type: data.type,
-      description: data.description,
-      address: data.address,
-      technician: technicianUpdate,
-      scheduledAt: data.scheduledAt === null ? null : data.scheduledAt ? new Date(data.scheduledAt) : undefined,
-      estimatedPrice: data.estimatedPrice === null ? null : data.estimatedPrice,
-      finalPrice: data.finalPrice === null ? null : data.finalPrice,
-      internalNotes: data.internalNotes === null ? null : data.internalNotes,
-    };
+    return this.prisma.$transaction(async (tx) => {
+      // Rewrite assignment table when an explicit assignment payload was given.
+      if (assignment !== null) {
+        await tx.interventionAssignment.deleteMany({ where: { interventionId: id } });
+        if (assignment.memberIds.length > 0) {
+          await tx.interventionAssignment.createMany({
+            data: assignment.memberIds.map((memberId) => ({
+              interventionId: id,
+              memberId,
+              isLead: memberId === assignment.leadId,
+            })),
+          });
+        }
+      }
 
-    return this.prisma.intervention.update({
-      where: { id },
-      data: updateData,
+      const updateData: Prisma.InterventionUpdateInput = {
+        type: data.type,
+        description: data.description,
+        address: data.address,
+        scheduledAt: data.scheduledAt === null ? null : data.scheduledAt ? new Date(data.scheduledAt) : undefined,
+        estimatedPrice: data.estimatedPrice === null ? null : data.estimatedPrice,
+        finalPrice: data.finalPrice === null ? null : data.finalPrice,
+        internalNotes: data.internalNotes === null ? null : data.internalNotes,
+      };
+
+      if (assignment !== null) {
+        updateData.technician = assignment.leadId
+          ? { connect: { id: assignment.leadId } }
+          : { disconnect: true };
+        updateData.crew = assignment.crewId
+          ? { connect: { id: assignment.crewId } }
+          : { disconnect: true };
+      }
+
+      return tx.intervention.update({
+        where: { id },
+        data: updateData,
+      });
     });
   }
 

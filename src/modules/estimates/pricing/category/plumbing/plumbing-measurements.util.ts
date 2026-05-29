@@ -33,6 +33,19 @@ export function resolvePlumbingAccessMultiplier(accessDifficulty: unknown): numb
   return 1.0;
 }
 
+function resolvePipeMaterialMultiplier(pipeMaterial: unknown): number {
+  const normalized = String(pipeMaterial ?? 'ppr')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '');
+
+  if (normalized === 'cupru' || normalized === 'copper') return 1.45;
+  if (normalized === 'pex') return 1.2;
+  if (normalized === 'multistrat') return 1.15;
+  return 1.0; // ppr (default)
+}
+
 /**
  * Category-specific measurements for `santehnika` (implementation_plan.md §4.1).
  */
@@ -53,6 +66,9 @@ export function deriveSantehnikaMeasurements(
   const roomCount = measurements.roomCount ?? bathroomCount;
   const replacePipes = readBoolean(diagnostic, 'replacePipes');
   const waterHeater = readBoolean(diagnostic, 'waterHeater');
+  const filterSystem = readBoolean(diagnostic, 'filterSystem');
+  const riserReplacement = readBoolean(diagnostic, 'riserReplacement');
+  const drainReplacement = readBoolean(diagnostic, 'drainReplacement');
   const wallChasingM = readNumber(diagnostic, 'wallChasingM') ?? 0;
 
   measurements.bathroomCount = bathroomCount;
@@ -72,21 +88,29 @@ export function deriveSantehnikaMeasurements(
     explicitPipeLength ?? Math.max(8, roomCount * 6) + (replacePipes ? 15 : 0);
 
   measurements.drainLengthM = Math.max(4, bathroomCount * 3 + kitchenPoints * 2);
+  // Drain replacement: additional length to account for old pipe removal + new routing
+  measurements.drainReplaceLengthM = drainReplacement ? Math.max(3, bathroomCount * 2 + kitchenPoints) : 0;
   measurements.waterHeaterCount = waterHeater ? 1 : 0;
+  measurements.filterSystemCount = filterSystem ? 1 : 0;
+  measurements.riserReplacementCount = riserReplacement ? 1 : 0;
   measurements.wallChasingM = wallChasingM > 0 ? wallChasingM : 0;
   measurements.fittingsQty = Math.ceil(measurements.pipeLengthM * 0.8);
   measurements.demolitionHours = replacePipes
     ? Math.max(2, bathroomCount)
     : Math.max(1, Math.ceil(bathroomCount / 2));
 
-  // Slice 2: accessDifficulty multiplier is applied centrally via blueprint.accessDifficultyImpact
-  // in EstimatePricingEngine.buildLinesFromRules. We keep complexityMultiplier in measurements
-  // for backward-compatible calculation trace, but no longer pre-multiply qty fields.
+  // Pipe material affects material cost per meter
+  const pipeMaterialMultiplier = resolvePipeMaterialMultiplier(diagnostic?.pipeMaterial);
+  measurements.pipeMaterialMultiplier = pipeMaterialMultiplier;
+  measurements.pipeLengthMMaterial = round2(measurements.pipeLengthM * pipeMaterialMultiplier);
+
   const complexityMultiplier = resolvePlumbingAccessMultiplier(diagnostic?.accessDifficulty);
   measurements.complexityMultiplier = complexityMultiplier;
   measurements.pipeLengthMLabor = measurements.pipeLengthM;
   measurements.drainLengthMLabor = measurements.drainLengthM;
   measurements.plumbingPointsLabor = measurements.plumbingPoints;
+  // Material costs for plumbing fixtures (separate from labor)
+  measurements.plumbingPointsMaterial = measurements.plumbingPoints;
 
   return measurements;
 }

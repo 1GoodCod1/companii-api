@@ -27,7 +27,10 @@ export function isEstimateLaborLine(line: Pick<LineCostInput, 'unit' | 'descript
   return (
     line.unit === 'ore' ||
     description.includes('manoperă') ||
-    description.includes('manopera')
+    description.includes('manopera') ||
+    description.includes('lucrări') ||
+    description.includes('lucrari') ||
+    description.includes('labor')
   );
 }
 

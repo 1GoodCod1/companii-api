@@ -27,6 +27,40 @@ function normalizeFoundationType(foundationType: unknown): string {
     .replace(/-/g, '_');
 }
 
+function resolveWallMaterialMultiplier(wallMaterial: unknown): number {
+  const normalized = String(wallMaterial ?? 'bca')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '');
+
+  if (normalized === 'brick' || normalized === 'caramida') return 1.6;
+  if (normalized === 'concrete' || normalized === 'beton') return 1.35;
+  if (normalized === 'wood_frame') return 0.7;
+  return 1.0; // bca (default)
+}
+
+function resolveSlabTypeMultiplier(slabType: unknown): number {
+  const normalized = String(slabType ?? 'monolithic')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '');
+
+  if (normalized === 'prefab') return 1.25;
+  if (normalized === 'wood') return 0.65;
+  return 1.0; // monolithic (default)
+}
+
+function resolveFoundationMultiplier(foundationType: unknown): number {
+  const normalized = normalizeFoundationType(foundationType ?? 'strip');
+
+  if (normalized === 'slab') return 1.3;
+  if (normalized === 'pile') return 1.8;
+  if (normalized === 'isolated') return 1.15;
+  return 1.0; // strip (default)
+}
+
 /** implementation_plan.md §4.12 — MVP uses area-based coefficients only. */
 export function resolveFoundationConcreteM3(
   foundationType: unknown,
@@ -99,6 +133,11 @@ export function deriveConstructiiMeasurements(
     readNumber(diagnostic, 'foundationConcreteM3'),
   );
 
+  // Foundation type affects cost per m³ beyond volume
+  const foundationMultiplier = resolveFoundationMultiplier(diagnostic?.foundationType);
+  measurements.foundationMultiplier = foundationMultiplier;
+  measurements.foundationConcreteCostM3 = round2(measurements.foundationConcreteM3 * foundationMultiplier);
+
   const manualRebar = readNumber(diagnostic, 'rebarKg');
   measurements.rebarKg =
     manualRebar != null && manualRebar > 0
@@ -110,6 +149,16 @@ export function deriveConstructiiMeasurements(
     manualMasonry != null && manualMasonry > 0
       ? manualMasonry
       : round2(measurements.builtAreaTotal * 0.22);
+
+  // Wall material affects cost per m³ of masonry
+  const wallMaterialMultiplier = resolveWallMaterialMultiplier(diagnostic?.wallMaterial);
+  measurements.wallMaterialMultiplier = wallMaterialMultiplier;
+  measurements.masonryMaterialM3 = round2(measurements.masonryVolumeM3 * wallMaterialMultiplier);
+
+  // Slab type affects cost per m²
+  const slabTypeMultiplier = resolveSlabTypeMultiplier(diagnostic?.slabType);
+  measurements.slabTypeMultiplier = slabTypeMultiplier;
+  measurements.slabAreaCost = round2(measurements.slabAreaTotal * slabTypeMultiplier);
 
   measurements.waterproofingArea = round2(builtArea * 1.1);
   measurements.slabAreaTotal = measurements.builtAreaTotal;

@@ -13,6 +13,7 @@ import { deriveOknaDveriMeasurements } from './category/windows-doors/windows-do
 import { deriveMobilaMeasurements } from './category/furniture/furniture-measurements.util';
 import { deriveCleaningMeasurements } from './category/cleaning/cleaning-measurements.util';
 import { deriveItNetworksMeasurements } from './category/it-networks/it-networks-measurements.util';
+import { deriveItHardwareMeasurements } from './category/it-hardware/it-hardware-measurements.util';
 import { derivePanouriSolareMeasurements } from './category/solar/solar-measurements.util';
 import { deriveConstructiiMeasurements } from './category/constructii/constructii-measurements.util';
 import { derivePavajMeasurements } from './category/pavaj/pavaj-measurements.util';
@@ -158,6 +159,10 @@ export class EstimatePricingEngine {
       return deriveItNetworksMeasurements(plan2d, diagnosticAnswers, measurements);
     }
 
+    if (categorySlug === 'it-hardware') {
+      return deriveItHardwareMeasurements(plan2d, diagnosticAnswers, measurements);
+    }
+
     if (categorySlug === 'panouri-solare') {
       return derivePanouriSolareMeasurements(plan2d, diagnosticAnswers, measurements);
     }
@@ -299,6 +304,7 @@ export class EstimatePricingEngine {
     diagnosticAnswers: Record<string, unknown> | null | undefined,
     rules: BlueprintPricingRule[],
     stages: Array<{ code: string }>,
+    categorySlug?: string | null,
   ): CustomPricingOverrideResult {
     const customUnitPriceSqm = readOptionalPositiveNumber(
       diagnosticAnswers,
@@ -325,31 +331,46 @@ export class EstimatePricingEngine {
     }
 
     if (customUnitPriceSqm) {
-      nextMeasurements.totalFloorArea ??=
-        nextMeasurements.finishArea ?? nextMeasurements.cleanArea ?? nextMeasurements.tileFloorArea ?? 12;
+      const isServiceCategory = categorySlug === 'it-networks' || categorySlug === 'it-hardware';
 
-      const sqmLaborRules = nextRules.filter((rule) => rule.unit === 'm²' && rule.kind === 'labor');
-      if (sqmLaborRules.length) {
-        nextRules = nextRules.map((rule) =>
-          rule.unit === 'm²' && rule.kind === 'labor'
-            ? { ...rule, unitPrice: customUnitPriceSqm }
-            : rule,
-        );
+      if (isServiceCategory) {
+        // IT/networks: override ore-based labor rules
+        const hourlyLaborRules = nextRules.filter((rule) => rule.unit === 'ore' && rule.kind === 'labor');
+        if (hourlyLaborRules.length) {
+          nextRules = nextRules.map((rule) =>
+            rule.unit === 'ore' && rule.kind === 'labor'
+              ? { ...rule, unitPrice: customUnitPriceSqm }
+              : rule,
+          );
+        }
       } else {
-        const stageCode =
-          stages.find((stage) => stage.code === 'executie')?.code ??
-          stages.find((stage) => stage.code === 'finisaj')?.code ??
-          stages[0]?.code ??
-          'executie';
+        // Construction categories: override m²-based labor rules
+        nextMeasurements.totalFloorArea ??=
+          nextMeasurements.finishArea ?? nextMeasurements.cleanArea ?? nextMeasurements.tileFloorArea ?? 12;
 
-        nextRules.push({
-          stageCode,
-          description: 'Manoperă personalizată / m²',
-          unit: 'm²',
-          qtyKey: 'totalFloorArea',
-          unitPrice: customUnitPriceSqm,
-          kind: 'labor',
-        });
+        const sqmLaborRules = nextRules.filter((rule) => rule.unit === 'm²' && rule.kind === 'labor');
+        if (sqmLaborRules.length) {
+          nextRules = nextRules.map((rule) =>
+            rule.unit === 'm²' && rule.kind === 'labor'
+              ? { ...rule, unitPrice: customUnitPriceSqm }
+              : rule,
+          );
+        } else {
+          const stageCode =
+            stages.find((stage) => stage.code === 'executie')?.code ??
+            stages.find((stage) => stage.code === 'finisaj')?.code ??
+            stages[0]?.code ??
+            'executie';
+
+          nextRules.push({
+            stageCode,
+            description: 'Cost Lucrări personalizat / m²',
+            unit: 'm²',
+            qtyKey: 'totalFloorArea',
+            unitPrice: customUnitPriceSqm,
+            kind: 'labor',
+          });
+        }
       }
     }
 
@@ -364,7 +385,7 @@ export class EstimatePricingEngine {
 
         nextRules.push({
           stageCode,
-          description: 'Manoperă personalizată',
+          description: 'Cost Lucrări personalizat',
           unit: 'ore',
           qtyKey: 'laborHours',
           unitPrice: config.defaultLaborRate,

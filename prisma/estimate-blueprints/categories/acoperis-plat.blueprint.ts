@@ -224,43 +224,43 @@ export const acoperisPlatBlueprint: EstimateBlueprintConfig = baseConfig({
 
     // Vapor barrier
     { stageCode: 'bariera_vapori', description: 'Folie barieră de vapori', unit: 'm²', qtyKey: 'vaporBarrierArea', unitPrice: 28, wastePct: 8, kind: 'material', moduleKey: 'vapor_barrier' },
-    { stageCode: 'bariera_vapori', description: 'Manoperă aplicare barieră', unit: 'm²', qtyKey: 'vaporBarrierArea', unitPrice: 30, kind: 'labor', moduleKey: 'vapor_barrier' },
+    { stageCode: 'bariera_vapori', description: 'Lucrări aplicare barieră', unit: 'm²', qtyKey: 'vaporBarrierArea', unitPrice: 30, kind: 'labor', moduleKey: 'vapor_barrier' },
 
     // Insulation (XPS/PIR boards)
     { stageCode: 'izolare', description: 'Plăci izolație XPS/PIR', unit: 'm³', qtyKey: 'insulationVolumeM3', unitPrice: 1850, wastePct: 5, kind: 'material', moduleKey: 'insulation' },
-    { stageCode: 'izolare', description: 'Manoperă montaj izolație', unit: 'm²', qtyKey: 'insulationArea', unitPrice: 60, kind: 'labor', moduleKey: 'insulation' },
+    { stageCode: 'izolare', description: 'Lucrări montaj izolație', unit: 'm²', qtyKey: 'insulationArea', unitPrice: 60, kind: 'labor', moduleKey: 'insulation' },
 
     // Waterproofing — one type fires at a time, based on membrane qty key
     { stageCode: 'hidroizolare', description: 'Membrană bituminoasă', unit: 'm²', qtyKey: 'membraneAreaBitumen', unitPrice: 75, wastePct: 12, kind: 'material', moduleKey: 'waterproofing', enabledWhen: { anyQtyKeys: ['membraneAreaBitumen'] } },
-    { stageCode: 'hidroizolare', description: 'Manoperă montaj membrană bituminoasă', unit: 'm²', qtyKey: 'membraneAreaBitumen', unitPrice: 60, kind: 'labor', moduleKey: 'waterproofing', enabledWhen: { anyQtyKeys: ['membraneAreaBitumen'] } },
+    { stageCode: 'hidroizolare', description: 'Lucrări montaj membrană bituminoasă', unit: 'm²', qtyKey: 'membraneAreaBitumen', unitPrice: 60, kind: 'labor', moduleKey: 'waterproofing', enabledWhen: { anyQtyKeys: ['membraneAreaBitumen'] } },
     { stageCode: 'hidroizolare', description: 'Membrană TPO', unit: 'm²', qtyKey: 'membraneAreaTpo', unitPrice: 180, wastePct: 10, kind: 'material', moduleKey: 'waterproofing', enabledWhen: { anyQtyKeys: ['membraneAreaTpo'] } },
-    { stageCode: 'hidroizolare', description: 'Manoperă sudare TPO', unit: 'm²', qtyKey: 'membraneAreaTpo', unitPrice: 90, kind: 'labor', moduleKey: 'waterproofing', enabledWhen: { anyQtyKeys: ['membraneAreaTpo'] } },
+    { stageCode: 'hidroizolare', description: 'Lucrări sudare TPO', unit: 'm²', qtyKey: 'membraneAreaTpo', unitPrice: 90, kind: 'labor', moduleKey: 'waterproofing', enabledWhen: { anyQtyKeys: ['membraneAreaTpo'] } },
     { stageCode: 'hidroizolare', description: 'Membrană PVC', unit: 'm²', qtyKey: 'membraneAreaPvc', unitPrice: 165, wastePct: 10, kind: 'material', moduleKey: 'waterproofing', enabledWhen: { anyQtyKeys: ['membraneAreaPvc'] } },
-    { stageCode: 'hidroizolare', description: 'Manoperă sudare PVC', unit: 'm²', qtyKey: 'membraneAreaPvc', unitPrice: 90, kind: 'labor', moduleKey: 'waterproofing', enabledWhen: { anyQtyKeys: ['membraneAreaPvc'] } },
+    { stageCode: 'hidroizolare', description: 'Lucrări sudare PVC', unit: 'm²', qtyKey: 'membraneAreaPvc', unitPrice: 90, kind: 'labor', moduleKey: 'waterproofing', enabledWhen: { anyQtyKeys: ['membraneAreaPvc'] } },
     { stageCode: 'hidroizolare', description: 'Membrană EPDM (cauciuc)', unit: 'm²', qtyKey: 'membraneAreaEpdm', unitPrice: 145, wastePct: 8, kind: 'material', moduleKey: 'waterproofing', enabledWhen: { anyQtyKeys: ['membraneAreaEpdm'] } },
-    { stageCode: 'hidroizolare', description: 'Manoperă montaj EPDM', unit: 'm²', qtyKey: 'membraneAreaEpdm', unitPrice: 95, kind: 'labor', moduleKey: 'waterproofing', enabledWhen: { anyQtyKeys: ['membraneAreaEpdm'] } },
+    { stageCode: 'hidroizolare', description: 'Lucrări montaj EPDM', unit: 'm²', qtyKey: 'membraneAreaEpdm', unitPrice: 95, kind: 'labor', moduleKey: 'waterproofing', enabledWhen: { anyQtyKeys: ['membraneAreaEpdm'] } },
 
     // Drains
     { stageCode: 'sifoane', description: 'Sifon scurgere internă (set complet)', unit: 'buc', qtyKey: 'drainCount', unitPrice: 850, kind: 'material', moduleKey: 'drains', enabledWhen: { anyQtyKeys: ['drainCount'] } },
-    { stageCode: 'sifoane', description: 'Manoperă montaj sifon', unit: 'buc', qtyKey: 'drainCount', unitPrice: 480, kind: 'labor', moduleKey: 'drains', enabledWhen: { anyQtyKeys: ['drainCount'] } },
+    { stageCode: 'sifoane', description: 'Lucrări montaj sifon', unit: 'buc', qtyKey: 'drainCount', unitPrice: 480, kind: 'labor', moduleKey: 'drains', enabledWhen: { anyQtyKeys: ['drainCount'] } },
 
     // Parapets
     { stageCode: 'atic', description: 'Capac metalic atic', unit: 'm', qtyKey: 'parapetLengthM', unitPrice: 95, wastePct: 5, kind: 'material', moduleKey: 'parapets', enabledWhen: { anyQtyKeys: ['parapetLengthM'] } },
     { stageCode: 'atic', description: 'Hidroizolație față interior atic', unit: 'm²', qtyKey: 'parapetFaceArea', unitPrice: 65, kind: 'material', moduleKey: 'parapets', enabledWhen: { anyQtyKeys: ['parapetFaceArea'] } },
-    { stageCode: 'atic', description: 'Manoperă montaj atic', unit: 'm', qtyKey: 'parapetLengthM', unitPrice: 75, kind: 'labor', moduleKey: 'parapets', enabledWhen: { anyQtyKeys: ['parapetLengthM'] } },
+    { stageCode: 'atic', description: 'Lucrări montaj atic', unit: 'm', qtyKey: 'parapetLengthM', unitPrice: 75, kind: 'labor', moduleKey: 'parapets', enabledWhen: { anyQtyKeys: ['parapetLengthM'] } },
 
     // Terrace pavers
     { stageCode: 'terasa', description: 'Dale terasă (material)', unit: 'm²', qtyKey: 'terraceArea', unitPrice: 145, wastePct: 8, kind: 'material', moduleKey: 'terrace_finish', enabledWhen: { moduleEnabled: 'terrace_finish', anyQtyKeys: ['terraceArea'] } },
     { stageCode: 'terasa', description: 'Puncte de plastic (suporți dale)', unit: 'm²', qtyKey: 'terraceArea', unitPrice: 38, kind: 'material', moduleKey: 'terrace_finish', enabledWhen: { moduleEnabled: 'terrace_finish', anyQtyKeys: ['terraceArea'] } },
-    { stageCode: 'terasa', description: 'Manoperă montaj dale', unit: 'm²', qtyKey: 'terraceArea', unitPrice: 85, kind: 'labor', moduleKey: 'terrace_finish', enabledWhen: { moduleEnabled: 'terrace_finish', anyQtyKeys: ['terraceArea'] } },
+    { stageCode: 'terasa', description: 'Lucrări montaj dale', unit: 'm²', qtyKey: 'terraceArea', unitPrice: 85, kind: 'labor', moduleKey: 'terrace_finish', enabledWhen: { moduleEnabled: 'terrace_finish', anyQtyKeys: ['terraceArea'] } },
 
     // Skylights flat
     { stageCode: 'lucarne_plate', description: 'Velux Flat / cupolă (per bucată)', unit: 'buc', qtyKey: 'skylightCount', unitPrice: 4500, kind: 'material', moduleKey: 'skylights_flat', enabledWhen: { moduleEnabled: 'skylights_flat', anyQtyKeys: ['skylightCount'] } },
-    { stageCode: 'lucarne_plate', description: 'Manoperă montaj Velux Flat', unit: 'buc', qtyKey: 'skylightCount', unitPrice: 1800, kind: 'labor', moduleKey: 'skylights_flat', enabledWhen: { moduleEnabled: 'skylights_flat', anyQtyKeys: ['skylightCount'] } },
+    { stageCode: 'lucarne_plate', description: 'Lucrări montaj Velux Flat', unit: 'buc', qtyKey: 'skylightCount', unitPrice: 1800, kind: 'labor', moduleKey: 'skylights_flat', enabledWhen: { moduleEnabled: 'skylights_flat', anyQtyKeys: ['skylightCount'] } },
 
     // Ballast
     { stageCode: 'balast', description: 'Pietriș rotund (material)', unit: 'm²', qtyKey: 'ballastArea', unitPrice: 28, kind: 'material', moduleKey: 'ballast', enabledWhen: { moduleEnabled: 'ballast', anyQtyKeys: ['ballastArea'] } },
-    { stageCode: 'balast', description: 'Manoperă aplicare balast', unit: 'm²', qtyKey: 'ballastArea', unitPrice: 18, kind: 'labor', moduleKey: 'ballast', enabledWhen: { moduleEnabled: 'ballast', anyQtyKeys: ['ballastArea'] } },
+    { stageCode: 'balast', description: 'Lucrări aplicare balast', unit: 'm²', qtyKey: 'ballastArea', unitPrice: 18, kind: 'labor', moduleKey: 'ballast', enabledWhen: { moduleEnabled: 'ballast', anyQtyKeys: ['ballastArea'] } },
 
     // Acceptance
     { stageCode: 'verificare', description: 'Test de etanșeitate cu apă', unit: 'm²', qtyKey: 'roofArea', unitPrice: 10, kind: 'labor', moduleKey: 'waterproofing' },

@@ -46,7 +46,7 @@ describe('EstimatePricingEngine integration (E-06)', () => {
 
     expect(measurements.pipeLengthM).toBe(33);
     expect(measurements.drainLengthM).toBe(8);
-    expect(measurements.pipeLengthMLabor).toBe(round2(33 * 1.15));
+    expect(measurements.pipeLengthMLabor).toBe(33);
 
     const lines = buildLines('santehnika', measurements, diagnostic);
     const descriptions = lines.map((line) => line.description.toLowerCase());
@@ -73,7 +73,7 @@ describe('EstimatePricingEngine integration (E-06)', () => {
     );
 
     expect(measurements.cableLengthM).toBe(85);
-    expect(measurements.cableLengthMLabor).toBe(round2(85 * 1.45));
+    expect(measurements.cableLengthMLabor).toBe(85);
 
     const lines = buildLines('elektrika', measurements, diagnostic);
     const descriptions = lines.map((line) => line.description.toLowerCase());

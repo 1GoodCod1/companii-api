@@ -57,6 +57,8 @@ export class FsmInterventionsController {
       description: string;
       address: string;
       technicianId?: string;
+      assigneeMemberIds?: string[];
+      crewId?: string;
       scheduledAt?: string;
       estimatedPrice?: number;
       internalNotes?: string;
@@ -76,6 +78,8 @@ export class FsmInterventionsController {
       description?: string;
       address?: string;
       technicianId?: string | null;
+      assigneeMemberIds?: string[];
+      crewId?: string | null;
       scheduledAt?: string | null;
       estimatedPrice?: number | null;
       finalPrice?: number | null;

@@ -155,7 +155,18 @@ export class EstimateWorksheetService {
         durationDays: stage.durationDays,
         checklist: stage.checklist,
         materials: stage.lines
-          .filter((line) => line.source !== 'stage-default')
+          .filter((line) => {
+            if (line.source === 'stage-default') return false;
+            const isLabor =
+              line.unit === 'ore' ||
+              line.unit === 'h' ||
+              line.description.toLowerCase().includes('manoperă') ||
+              line.description.toLowerCase().includes('manopera') ||
+              line.description.toLowerCase().includes('lucrări') ||
+              line.description.toLowerCase().includes('lucrari') ||
+              line.description.toLowerCase().includes('labor');
+            return !isLabor;
+          })
           .map((line) => ({
             id: line.id,
             description: line.description,
@@ -200,17 +211,29 @@ export class EstimateWorksheetService {
         laborHours: stage.laborHours ? Number(stage.laborHours) : null,
         durationDays: stage.durationDays,
         checklist: stage.checklist,
-        materials: stage.lines.map((line) => ({
-          id: line.id,
-          description: line.description,
-          qty: Number(line.qty),
-          unit: line.unit,
-          materialStore: line.materialStore,
-          receiptFileKey: line.receiptFileKey,
-          ...(hidePrices
-            ? {}
-            : { unitPrice: Number(line.unitPrice), lineTotal: Number(line.lineTotal) }),
-        })),
+        materials: stage.lines
+          .filter((line) => {
+            const isLabor =
+              line.unit === 'ore' ||
+              line.unit === 'h' ||
+              line.description.toLowerCase().includes('manoperă') ||
+              line.description.toLowerCase().includes('manopera') ||
+              line.description.toLowerCase().includes('lucrări') ||
+              line.description.toLowerCase().includes('lucrari') ||
+              line.description.toLowerCase().includes('labor');
+            return !isLabor;
+          })
+          .map((line) => ({
+            id: line.id,
+            description: line.description,
+            qty: Number(line.qty),
+            unit: line.unit,
+            materialStore: line.materialStore,
+            receiptFileKey: line.receiptFileKey,
+            ...(hidePrices
+              ? {}
+              : { unitPrice: Number(line.unitPrice), lineTotal: Number(line.lineTotal) }),
+          })),
         ...(hidePrices
           ? {}
           : {

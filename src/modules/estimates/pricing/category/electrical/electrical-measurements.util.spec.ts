@@ -20,7 +20,7 @@ describe('electrical measurements (elektrika)', () => {
     expect(result.cableLengthM).toBe(85); // max(15, 36) + 25 + 24
     expect(result.materialMultiplier).toBe(1.45);
     expect(result.wallChasingCostM).toBe(14.5);
-    expect(result.cableLengthMLabor).toBe(round2(85 * 1.45));
+    expect(result.cableLengthMLabor).toBe(85);
     expect(result.electricPoints).toBeGreaterThan(0);
   });
 

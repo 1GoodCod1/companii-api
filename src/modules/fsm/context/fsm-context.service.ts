@@ -25,10 +25,18 @@ export class FsmContextService {
     }
   }
 
+  /**
+   * Technicians see interventions where they are EITHER the legacy primary
+   * `technicianId` OR appear in the new multi-assignee `assignments` table.
+   */
   technicianInterventionFilter(user: JwtPayload): Prisma.InterventionWhereInput {
-    return this.isTechnician(user) && user.memberId
-      ? { technicianId: user.memberId }
-      : {};
+    if (!this.isTechnician(user) || !user.memberId) return {};
+    return {
+      OR: [
+        { technicianId: user.memberId },
+        { assignments: { some: { memberId: user.memberId } } },
+      ],
+    };
   }
 
   async resolveAssignableTechnicianId(

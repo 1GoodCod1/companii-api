@@ -33,6 +33,19 @@ export function resolveHardwareCostMultiplier(hardwareTier: unknown): number {
   return 1.0;
 }
 
+function resolveMaterialMultiplier(materialType: unknown): number {
+  const normalized = String(materialType ?? 'pal')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '');
+
+  if (normalized === 'hpl') return 1.8;
+  if (normalized === 'lemn') return 1.6;
+  if (normalized === 'mdf') return 1.3;
+  return 1.0; // pal base
+}
+
 /**
  * Category-specific measurements for `mobila` (implementation_plan.md §4.8).
  */
@@ -61,6 +74,12 @@ export function deriveMobilaMeasurements(
     manualLinearMeters ??
     round2(measurements.cabinetCount * 0.8 + measurements.wardrobeCount * 1.5);
   measurements.cuttingLinearM = measurements.linearMeters;
+
+  // Material premium: extra cost for mdf, lemn, hpl vs base pal
+  const materialMultiplier = resolveMaterialMultiplier(diagnostic?.materialType);
+  measurements.materialMultiplier = materialMultiplier;
+  measurements.cuttingMaterialPremiumM =
+    materialMultiplier > 1 ? round2(measurements.cuttingLinearM * (materialMultiplier - 1)) : 0;
 
   measurements.drawerCount = readNumber(diagnostic, 'drawerCount') ?? measurements.cabinetCount * 2;
   measurements.hingeCount =

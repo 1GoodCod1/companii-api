@@ -78,6 +78,8 @@ export class FsmService {
       description: string;
       address: string;
       technicianId?: string;
+      assigneeMemberIds?: string[];
+      crewId?: string;
       scheduledAt?: string;
       estimatedPrice?: number;
       internalNotes?: string;
@@ -94,6 +96,8 @@ export class FsmService {
       description?: string;
       address?: string;
       technicianId?: string | null;
+      assigneeMemberIds?: string[];
+      crewId?: string | null;
       scheduledAt?: string | null;
       estimatedPrice?: number | null;
       finalPrice?: number | null;
@@ -190,8 +194,13 @@ export class FsmService {
 
   // --- INVOICES ---
 
-  listInvoices(user: JwtPayload, cursor?: string, limit?: number) {
-    return this.invoices.list(user, cursor, limit);
+  listInvoices(
+    user: JwtPayload,
+    cursor?: string,
+    limit?: number,
+    status?: InvoicePaymentStatus,
+  ) {
+    return this.invoices.list(user, cursor, limit, status);
   }
 
   getInvoice(user: JwtPayload, id: string) {
@@ -215,6 +224,7 @@ export class FsmService {
     data: {
       paymentStatus?: InvoicePaymentStatus;
       dueDate?: string | null;
+      paymentReversalReason?: string;
     },
   ) {
     return this.invoices.update(user, id, data);
@@ -222,6 +232,22 @@ export class FsmService {
 
   deleteInvoice(user: JwtPayload, id: string) {
     return this.invoices.delete(user, id);
+  }
+
+  cancelInvoice(user: JwtPayload, id: string, reason: string) {
+    return this.invoices.cancel(user, id, reason);
+  }
+
+  recordInvoicePayment(
+    user: JwtPayload,
+    id: string,
+    data: { amount: number; note?: string },
+  ) {
+    return this.invoices.recordPayment(user, id, data);
+  }
+
+  sendInvoiceEmail(user: JwtPayload, id: string, customMessage?: string) {
+    return this.invoices.sendByEmail(user, id, customMessage);
   }
 
   getInvoicePdf(user: JwtPayload, id: string) {

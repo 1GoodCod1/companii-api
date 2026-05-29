@@ -6,6 +6,7 @@ import {
   buildEstimateEmail,
   buildEstimateFeedbackEmail,
   buildEstimateStatusEmail,
+  buildInvoiceEmail,
   buildNewLeadEmail,
   buildOwnershipTransferredEmail,
   buildPasswordResetEmail,
@@ -184,6 +185,36 @@ export class EmailService implements OnModuleInit {
     return this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
   }
 
+  async sendInvoiceEmail(params: {
+    to: string;
+    companyName: string;
+    invoiceNumber: string;
+    total: number;
+    dueDate?: string | null;
+    paymentStatus: 'UNPAID' | 'PAID' | 'OVERDUE' | 'CANCELLED';
+    customMessage?: string | null;
+    pdfBuffer?: Buffer;
+  }): Promise<boolean> {
+    const tpl = buildInvoiceEmail({
+      companyName: params.companyName,
+      invoiceNumber: params.invoiceNumber,
+      total: params.total,
+      dueDate: params.dueDate,
+      paymentStatus: params.paymentStatus,
+      customMessage: params.customMessage,
+    });
+    return this.send(
+      params.to,
+      tpl.subject,
+      tpl.html,
+      tpl.text,
+      `${tpl.devLog} → ${params.to}`,
+      params.pdfBuffer
+        ? [{ filename: `${params.invoiceNumber}.pdf`, content: params.pdfBuffer, contentType: 'application/pdf' }]
+        : undefined,
+    );
+  }
+
   async sendEstimateVarianceAlertEmail(params: {
     to: string;
     estimateNumber: string;
@@ -201,12 +232,13 @@ export class EmailService implements OnModuleInit {
     html: string,
     text: string,
     devLog?: string,
+    attachments?: Array<{ filename: string; content: Buffer; contentType?: string }>,
   ): Promise<boolean> {
     const from = this.config.get<string>('email.from') || 'noreply@faber.md';
 
     if (this.transporter) {
       try {
-        await this.transporter.sendMail({ from, to, subject, html, text });
+        await this.transporter.sendMail({ from, to, subject, html, text, attachments });
         this.logger.log(`Email sent to ${to}: "${subject}"`);
         return true;
       } catch (err) {
