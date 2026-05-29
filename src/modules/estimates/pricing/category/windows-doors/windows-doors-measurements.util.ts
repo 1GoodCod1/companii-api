@@ -1,15 +1,26 @@
 import type { Plan2dData } from '../../plan2d.types';
 import { round2 } from '../../../estimate.constants';
 import { readNumber, readBoolean, type MeasurementMap } from '../category-shared.util';
+import {
+  type CompanyPricingModifiers,
+  resolvePricingModifierFactor,
+} from '../../../../../../prisma/estimate-pricing-modifiers';
 
-export function resolveInstallationMultiplier(installationType: unknown): number {
+export function resolveInstallationMultiplier(
+  installationType: unknown,
+  overrides?: CompanyPricingModifiers | null,
+): number {
   const normalized = String(installationType ?? 'standard')
     .trim()
     .toLowerCase()
     .replace(/_/g, '-');
 
-  if (normalized === 'warm-installation' || normalized === 'warm') return 1.35;
-  if (normalized === 'renovation') return 1.2;
+  if (normalized === 'warm-installation' || normalized === 'warm') {
+    return resolvePricingModifierFactor('okna.installationType.warm_installation', overrides);
+  }
+  if (normalized === 'renovation') {
+    return resolvePricingModifierFactor('okna.installationType.renovation', overrides);
+  }
   return 1.0;
 }
 
@@ -17,6 +28,7 @@ export function deriveOknaDveriMeasurements(
   plan2d: Plan2dData | null | undefined,
   diagnostic: Record<string, unknown> | null | undefined,
   base: MeasurementMap,
+  overrides?: CompanyPricingModifiers | null,
 ): MeasurementMap {
   const measurements: MeasurementMap = { ...base };
   const pointsCount = (type: string) => plan2d?.points?.filter((point) => point.type === type).length ?? 0;
@@ -42,7 +54,7 @@ export function deriveOknaDveriMeasurements(
 
   measurements.mosquitoNetCount = readNumber(diagnostic, 'mosquitoNetCount') ?? 0;
 
-  const installationMultiplier = resolveInstallationMultiplier(diagnostic?.installationType);
+  const installationMultiplier = resolveInstallationMultiplier(diagnostic?.installationType, overrides);
   measurements.installationMultiplier = installationMultiplier;
   measurements.windowCountLabor = round2(measurements.windowCount * installationMultiplier);
   measurements.doorCountLabor = round2(measurements.doorCount * installationMultiplier);

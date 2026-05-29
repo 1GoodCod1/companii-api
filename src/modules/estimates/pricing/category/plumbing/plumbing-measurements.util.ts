@@ -1,36 +1,47 @@
 import type { Plan2dData } from '../../plan2d.types';
 import { round2 } from '../../../estimate.constants';
 import { readNumber, readBoolean, type MeasurementMap } from '../category-shared.util';
+import {
+  type CompanyPricingModifiers,
+  resolvePricingModifierFactor,
+} from '../../../../../../prisma/estimate-pricing-modifiers';
 
-export function resolvePlumbingAccessMultiplier(accessDifficulty: unknown): number {
+export function resolvePlumbingAccessMultiplier(
+  accessDifficulty: unknown,
+  overrides?: CompanyPricingModifiers | null,
+): number {
   const normalized = String(accessDifficulty ?? 'easy')
     .trim()
     .toLowerCase()
     .normalize('NFD')
     .replace(/\p{M}/gu, '');
 
-  if (normalized === 'medium' || normalized === 'mediu') return 1.15;
-  if (normalized === 'difficult' || normalized === 'dificil') return 1.35;
+  if (normalized === 'medium' || normalized === 'mediu') return resolvePricingModifierFactor('santehnika.accessDifficulty.medium', overrides);
+  if (normalized === 'difficult' || normalized === 'dificil') return resolvePricingModifierFactor('santehnika.accessDifficulty.difficult', overrides);
   return 1.0;
 }
 
-function resolvePipeMaterialMultiplier(pipeMaterial: unknown): number {
+function resolvePipeMaterialMultiplier(
+  pipeMaterial: unknown,
+  overrides?: CompanyPricingModifiers | null,
+): number {
   const normalized = String(pipeMaterial ?? 'ppr')
     .trim()
     .toLowerCase()
     .normalize('NFD')
     .replace(/\p{M}/gu, '');
 
-  if (normalized === 'cupru' || normalized === 'copper') return 1.45;
-  if (normalized === 'pex') return 1.2;
-  if (normalized === 'multistrat') return 1.15;
-  return 1.0; 
+  if (normalized === 'cupru' || normalized === 'copper') return resolvePricingModifierFactor('santehnika.pipeMaterial.cupru', overrides);
+  if (normalized === 'pex') return resolvePricingModifierFactor('santehnika.pipeMaterial.pex', overrides);
+  if (normalized === 'multistrat') return resolvePricingModifierFactor('santehnika.pipeMaterial.multistrat', overrides);
+  return 1.0;
 }
 
 export function deriveSantehnikaMeasurements(
   plan2d: Plan2dData | null | undefined,
   diagnostic: Record<string, unknown> | null | undefined,
   base: MeasurementMap,
+  overrides?: CompanyPricingModifiers | null,
 ): MeasurementMap {
   const measurements: MeasurementMap = { ...base };
   const pointsCount = (type: string) => plan2d?.points?.filter((point) => point.type === type).length ?? 0;
@@ -75,11 +86,11 @@ export function deriveSantehnikaMeasurements(
   measurements.demolitionHours = replacePipes
     ? Math.max(2, bathroomCount)
     : Math.max(1, Math.ceil(bathroomCount / 2));
-  const pipeMaterialMultiplier = resolvePipeMaterialMultiplier(diagnostic?.pipeMaterial);
+  const pipeMaterialMultiplier = resolvePipeMaterialMultiplier(diagnostic?.pipeMaterial, overrides);
   measurements.pipeMaterialMultiplier = pipeMaterialMultiplier;
   measurements.pipeLengthMMaterial = round2(measurements.pipeLengthM * pipeMaterialMultiplier);
 
-  const complexityMultiplier = resolvePlumbingAccessMultiplier(diagnostic?.accessDifficulty);
+  const complexityMultiplier = resolvePlumbingAccessMultiplier(diagnostic?.accessDifficulty, overrides);
   measurements.complexityMultiplier = complexityMultiplier;
   measurements.pipeLengthMLabor = measurements.pipeLengthM;
   measurements.drainLengthMLabor = measurements.drainLengthM;

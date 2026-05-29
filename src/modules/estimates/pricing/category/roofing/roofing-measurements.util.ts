@@ -1,6 +1,10 @@
 import type { Plan2dData } from '../../plan2d.types';
 import { round2 } from '../../../estimate.constants';
 import { readNumber, readBoolean, type MeasurementMap } from '../category-shared.util';
+import {
+  type CompanyPricingModifiers,
+  resolvePricingModifierFactor,
+} from '../../../../../../prisma/estimate-pricing-modifiers';
 
 export const ROOF_COS_GUARD = 0.1;
 
@@ -12,13 +16,15 @@ function normalizeRoofShape(shape: unknown): string {
     .replace(/_/g, '-');
 }
 
-export function resolveRoofShapeMultiplier(roofShape: unknown): number {
+export function resolveRoofShapeMultiplier(
+  roofShape: unknown,
+  overrides?: CompanyPricingModifiers | null,
+): number {
   const normalized = normalizeRoofShape(roofShape);
-  if (normalized === 'complex') return 1.5;
-  if (normalized === 'l-shape' || normalized === 'l') return 1.2;
-  if (normalized === 't-shape' || normalized === 'u-shape' || normalized === 't' || normalized === 'u') {
-    return 1.35;
-  }
+  if (normalized === 'complex') return resolvePricingModifierFactor('acoperis.roofShape.complex', overrides);
+  if (normalized === 'l-shape' || normalized === 'l') return resolvePricingModifierFactor('acoperis.roofShape.l-shape', overrides);
+  if (normalized === 't-shape' || normalized === 't') return resolvePricingModifierFactor('acoperis.roofShape.t-shape', overrides);
+  if (normalized === 'u-shape' || normalized === 'u') return resolvePricingModifierFactor('acoperis.roofShape.u-shape', overrides);
   return 1.0;
 }
 
@@ -71,6 +77,7 @@ export function deriveAcoperisMeasurements(
   plan2d: Plan2dData | null | undefined,
   diagnostic: Record<string, unknown> | null | undefined,
   base: MeasurementMap,
+  overrides?: CompanyPricingModifiers | null,
 ): MeasurementMap {
   const measurements: MeasurementMap = { ...base };
   const pointsCount = (type: string) => plan2d?.points?.filter((point) => point.type === type).length ?? 0;
@@ -92,7 +99,7 @@ export function deriveAcoperisMeasurements(
   measurements.roofArea = computeRoofAreaFromSlope(baseArea, roofSlope);
   measurements.timberVolumeM3 = round2(measurements.roofArea * 0.07);
 
-  const complexityMultiplier = resolveRoofShapeMultiplier(roofShape);
+  const complexityMultiplier = resolveRoofShapeMultiplier(roofShape, overrides);
   measurements.complexityMultiplier = complexityMultiplier;
   measurements.roofAreaLabor = round2(measurements.roofArea * complexityMultiplier);
 

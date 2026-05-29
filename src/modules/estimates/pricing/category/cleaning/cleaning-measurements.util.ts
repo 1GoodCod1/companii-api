@@ -1,28 +1,38 @@
 import type { Plan2dData } from '../../plan2d.types';
 import { round2 } from '../../../estimate.constants';
 import { readNumber, readBoolean, type MeasurementMap } from '../category-shared.util';
+import {
+  type CompanyPricingModifiers,
+  resolvePricingModifierFactor,
+} from '../../../../../../prisma/estimate-pricing-modifiers';
 
 
 /** implementation_plan.md §4.9 */
-export function resolveCleaningTypeMultiplier(cleaningType: unknown): number {
+export function resolveCleaningTypeMultiplier(
+  cleaningType: unknown,
+  overrides?: CompanyPricingModifiers | null,
+): number {
   const normalized = String(cleaningType ?? 'standard')
     .trim()
     .toLowerCase()
     .replace(/-/g, '_');
 
-  if (normalized === 'post_construction') return 1.65;
-  if (normalized === 'deep') return 1.35;
-  if (normalized === 'move_out') return 1.25;
+  if (normalized === 'post_construction') return resolvePricingModifierFactor('cleaning.cleaningType.post_construction', overrides);
+  if (normalized === 'deep') return resolvePricingModifierFactor('cleaning.cleaningType.deep', overrides);
+  if (normalized === 'move_out') return resolvePricingModifierFactor('cleaning.cleaningType.move_out', overrides);
   return 1.0;
 }
 
-export function resolveDustMultiplier(afterRepairDustLevel: unknown): number {
+export function resolveDustMultiplier(
+  afterRepairDustLevel: unknown,
+  overrides?: CompanyPricingModifiers | null,
+): number {
   const normalized = String(afterRepairDustLevel ?? 'low')
     .trim()
     .toLowerCase();
 
-  if (normalized === 'high') return 1.35;
-  if (normalized === 'medium') return 1.15;
+  if (normalized === 'high') return resolvePricingModifierFactor('cleaning.dust.high', overrides);
+  if (normalized === 'medium') return resolvePricingModifierFactor('cleaning.dust.medium', overrides);
   return 1.0;
 }
 
@@ -30,8 +40,11 @@ export function resolveCombinedCleaningMultiplier(
   cleaningType: unknown,
   afterRepairDustLevel: unknown,
   furniturePresent?: boolean,
+  overrides?: CompanyPricingModifiers | null,
 ): number {
-  let multiplier = resolveCleaningTypeMultiplier(cleaningType) * resolveDustMultiplier(afterRepairDustLevel);
+  let multiplier =
+    resolveCleaningTypeMultiplier(cleaningType, overrides) *
+    resolveDustMultiplier(afterRepairDustLevel, overrides);
   if (furniturePresent) multiplier *= 1.1;
   return round2(multiplier);
 }
@@ -40,6 +53,7 @@ export function deriveCleaningMeasurements(
   plan2d: Plan2dData | null | undefined,
   diagnostic: Record<string, unknown> | null | undefined,
   base: MeasurementMap,
+  overrides?: CompanyPricingModifiers | null,
 ): MeasurementMap {
   const measurements: MeasurementMap = { ...base };
   const pointsCount = (type: string) => plan2d?.points?.filter((point) => point.type === type).length ?? 0;
@@ -59,12 +73,13 @@ export function deriveCleaningMeasurements(
 
   const cleaningType = diagnostic?.cleaningType ?? 'standard';
   const furniturePresent = readBoolean(diagnostic, 'furniturePresent');
-  measurements.complexityMultiplier = resolveCleaningTypeMultiplier(cleaningType);
-  measurements.dustMultiplier = resolveDustMultiplier(diagnostic?.afterRepairDustLevel);
+  measurements.complexityMultiplier = resolveCleaningTypeMultiplier(cleaningType, overrides);
+  measurements.dustMultiplier = resolveDustMultiplier(diagnostic?.afterRepairDustLevel, overrides);
   measurements.totalCleaningMultiplier = resolveCombinedCleaningMultiplier(
     cleaningType,
     diagnostic?.afterRepairDustLevel,
     furniturePresent,
+    overrides,
   );
 
   measurements.cleanAreaLabor = round2(cleanArea * measurements.totalCleaningMultiplier);

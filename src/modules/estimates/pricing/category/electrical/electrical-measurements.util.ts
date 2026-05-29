@@ -1,6 +1,10 @@
 import type { Plan2dData } from '../../plan2d.types';
 import { round2 } from '../../../estimate.constants';
 import { readNumber, readBoolean, type MeasurementMap } from '../category-shared.util';
+import {
+  type CompanyPricingModifiers,
+  resolvePricingModifierFactor,
+} from '../../../../../../prisma/estimate-pricing-modifiers';
 
 
 function readSelect(source: Record<string, unknown> | null | undefined, key: string): string {
@@ -9,28 +13,31 @@ function readSelect(source: Record<string, unknown> | null | undefined, key: str
   return '';
 }
 
-export function resolveWallMaterialMultiplier(wallMaterial: unknown): number {
+export function resolveWallMaterialMultiplier(
+  wallMaterial: unknown,
+  overrides?: CompanyPricingModifiers | null,
+): number {
   const normalized = String(wallMaterial ?? 'gips')
     .trim()
     .toLowerCase()
     .normalize('NFD')
     .replace(/\p{M}/gu, '');
 
-  if (normalized === 'beton' || normalized === 'concrete') return 1.45;
-  if (normalized === 'caramida' || normalized === 'brick') return 1.2;
-  if (normalized === 'bca' || normalized === 'aac') return 1.1;
+  if (normalized === 'beton' || normalized === 'concrete') return resolvePricingModifierFactor('elektrika.wallMaterial.beton', overrides);
+  if (normalized === 'caramida' || normalized === 'brick') return resolvePricingModifierFactor('elektrika.wallMaterial.caramida', overrides);
+  if (normalized === 'bca' || normalized === 'aac') return resolvePricingModifierFactor('elektrika.wallMaterial.bca', overrides);
   return 1.0;
 }
 
-function resolveCableSegmentMultiplier(segment: string): number {
-  if (segment === '4 mm²') return 1.4;
-  if (segment === '6 mm²') return 1.7;
-  return 1.0; 
+function resolveCableSegmentMultiplier(segment: string, overrides?: CompanyPricingModifiers | null): number {
+  if (segment === '4 mm²') return resolvePricingModifierFactor('elektrika.cableSegment.4', overrides);
+  if (segment === '6 mm²') return resolvePricingModifierFactor('elektrika.cableSegment.6', overrides);
+  return 1.0;
 }
 
-function resolveDeviceTierMultiplier(tier: string): number {
-  if (tier === 'premium') return 2.5;
-  if (tier === 'standard') return 1.5;
+function resolveDeviceTierMultiplier(tier: string, overrides?: CompanyPricingModifiers | null): number {
+  if (tier === 'premium') return resolvePricingModifierFactor('elektrika.deviceTier.premium', overrides);
+  if (tier === 'standard') return resolvePricingModifierFactor('elektrika.deviceTier.standard', overrides);
   return 1.0;
 }
 
@@ -38,6 +45,7 @@ export function deriveElektrikaMeasurements(
   plan2d: Plan2dData | null | undefined,
   diagnostic: Record<string, unknown> | null | undefined,
   base: MeasurementMap,
+  overrides?: CompanyPricingModifiers | null,
 ): MeasurementMap {
   const measurements: MeasurementMap = { ...base };
   const pointsCount = (type: string) => plan2d?.points?.filter((point) => point.type === type).length ?? 0;
@@ -85,13 +93,13 @@ export function deriveElektrikaMeasurements(
     (cableReplace ? 25 : 0) +
     dedicatedLinesCount * 12;
 
-  const cableSegmentMultiplier = resolveCableSegmentMultiplier(readSelect(diagnostic, 'cableSegmentMm2') || '2.5 mm²');
+  const cableSegmentMultiplier = resolveCableSegmentMultiplier(readSelect(diagnostic, 'cableSegmentMm2') || '2.5 mm²', overrides);
   measurements.cableSegmentMultiplier = cableSegmentMultiplier;
-  const deviceTierMultiplier = resolveDeviceTierMultiplier(readSelect(diagnostic, 'deviceTier') || 'standard');
+  const deviceTierMultiplier = resolveDeviceTierMultiplier(readSelect(diagnostic, 'deviceTier') || 'standard', overrides);
   measurements.deviceTierMultiplier = deviceTierMultiplier;
 
   measurements.wallChasingM = wallChasingM > 0 ? wallChasingM : 0;
-  const materialMultiplier = resolveWallMaterialMultiplier(diagnostic?.wallMaterial);
+  const materialMultiplier = resolveWallMaterialMultiplier(diagnostic?.wallMaterial, overrides);
   measurements.materialMultiplier = materialMultiplier;
   measurements.wallChasingCostM = isNewConstruction ? 0 : round2(measurements.wallChasingM * materialMultiplier);
   measurements.cableLengthMLabor = round2(measurements.cableLengthM);

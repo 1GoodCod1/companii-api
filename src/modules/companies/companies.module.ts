@@ -10,18 +10,14 @@ import { CompanyGuard } from './guards/company.guard';
 import { PortalModule } from '../portal/portal.module';
 import { TeamInviteModule } from './team/team-invite.module';
 import { TeamMembersService } from './team/team-members.service';
-import { CompaniesCoreService } from './services/companies-core.service';
-import { CompaniesLeadsService } from './services/companies-leads.service';
-import { CompaniesPublicService } from './services/companies-public.service';
+import { LeadNotificationService } from './services/lead-notification.service';
 import { COMPANIES_USE_CASE_PROVIDERS } from './use-cases/companies-use-cases.providers';
 
 @Module({
   imports: [AuthModule, AuditModule, PortalModule, TeamInviteModule, CompanyAuthorizationModule],
   controllers: [MembersController, WaitlistController, CompaniesController],
   providers: [
-    CompaniesCoreService,
-    CompaniesPublicService,
-    CompaniesLeadsService,
+    LeadNotificationService,
     ...COMPANIES_USE_CASE_PROVIDERS,
     CompaniesService,
     TeamMembersService,

@@ -1,6 +1,10 @@
 import type { Plan2dData } from '../../plan2d.types';
 import { round2 } from '../../../estimate.constants';
 import { readNumber, readBoolean, type MeasurementMap } from '../category-shared.util';
+import {
+  type CompanyPricingModifiers,
+  resolvePricingModifierFactor,
+} from '../../../../../../prisma/estimate-pricing-modifiers';
 
 function normalizeRoofType(roofType: unknown): string {
   return String(roofType ?? 'metal')
@@ -17,11 +21,14 @@ function normalizeGridConnection(gridConnection: unknown): string {
     .replace(/-/g, '_');
 }
 
-export function resolveRoofMultiplier(roofType: unknown): number {
+export function resolveRoofMultiplier(
+  roofType: unknown,
+  overrides?: CompanyPricingModifiers | null,
+): number {
   const normalized = normalizeRoofType(roofType);
-  if (normalized === 'tile') return 1.15;
-  if (normalized === 'flat') return 1.25;
-  if (normalized === 'ground') return 1.35;
+  if (normalized === 'tile') return resolvePricingModifierFactor('solar.roofType.tile', overrides);
+  if (normalized === 'flat') return resolvePricingModifierFactor('solar.roofType.flat', overrides);
+  if (normalized === 'ground') return resolvePricingModifierFactor('solar.roofType.ground', overrides);
   return 1.0;
 }
 
@@ -33,6 +40,7 @@ export function derivePanouriSolareMeasurements(
   plan2d: Plan2dData | null | undefined,
   diagnostic: Record<string, unknown> | null | undefined,
   base: MeasurementMap,
+  overrides?: CompanyPricingModifiers | null,
 ): MeasurementMap {
   const measurements: MeasurementMap = { ...base };
   const pointsCount = (type: string) => plan2d?.points?.filter((point) => point.type === type).length ?? 0;
@@ -66,7 +74,7 @@ export function derivePanouriSolareMeasurements(
     measurements.systemPowerKw = 0;
   }
 
-  const roofMultiplier = resolveRoofMultiplier(diagnostic?.roofType);
+  const roofMultiplier = resolveRoofMultiplier(diagnostic?.roofType, overrides);
   measurements.roofMultiplier = roofMultiplier;
   measurements.structureQty = panelCount;
   measurements.structureLaborQty = round2(panelCount * roofMultiplier);

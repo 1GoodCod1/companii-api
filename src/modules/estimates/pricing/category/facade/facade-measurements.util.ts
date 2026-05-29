@@ -1,16 +1,24 @@
 import type { Plan2dData } from '../../plan2d.types';
 import { round2 } from '../../../estimate.constants';
 import { readNumber, type MeasurementMap } from '../category-shared.util';
+import {
+  type CompanyPricingModifiers,
+  resolvePricingModifierFactor,
+} from '../../../../../../prisma/estimate-pricing-modifiers';
 
-export function resolveFacadeHeightMultiplier(buildingHeightM: unknown): number {
+export function resolveFacadeHeightMultiplier(
+  buildingHeightM: unknown,
+  overrides?: CompanyPricingModifiers | null,
+): number {
   const height = readNumber({ buildingHeightM }, 'buildingHeightM') ?? 0;
-  return height > 9 ? 1.2 : 1.0;
+  return height > 9 ? resolvePricingModifierFactor('fatade.height.over9m', overrides) : 1.0;
 }
 
 export function deriveFatadeMeasurements(
   plan2d: Plan2dData | null | undefined,
   diagnostic: Record<string, unknown> | null | undefined,
   base: MeasurementMap,
+  overrides?: CompanyPricingModifiers | null,
 ): MeasurementMap {
   const measurements: MeasurementMap = { ...base };
   const pointsCount = (type: string) => plan2d?.points?.filter((point) => point.type === type).length ?? 0;
@@ -40,7 +48,7 @@ export function deriveFatadeMeasurements(
 
   const buildingHeightM = readNumber(diagnostic, 'buildingHeightM') ?? 0;
   measurements.buildingHeightM = buildingHeightM;
-  measurements.heightMultiplier = resolveFacadeHeightMultiplier(buildingHeightM);
+  measurements.heightMultiplier = resolveFacadeHeightMultiplier(buildingHeightM, overrides);
   measurements.facadeAreaLabor = round2(facadeArea * measurements.heightMultiplier);
   measurements.meshAreaLabor = round2(measurements.meshArea * measurements.heightMultiplier);
   measurements.preparationArea = facadeArea;

@@ -3,7 +3,6 @@ import { EstimateProjectStatus } from '@prisma/client';
 import type { JwtPayload } from '../auth/types/jwt-payload';
 import type { Plan2dData } from './pricing/plan2d.types';
 import { EstimateBlueprintsService } from './services/blueprints/estimate-blueprints.service';
-import { EstimateConversionService } from './services/portal/estimate-conversion.service';
 import { EstimatePortalService } from './services/portal/estimate-portal.service';
 import { EstimateProjectPhotosService } from './services/projects/estimate-project-photos.service';
 import { EstimateProjectsService } from './services/projects/estimate-projects.service';
@@ -19,8 +18,20 @@ import { EstimateVersionService } from './services/history/estimate-version.serv
 import { EstimateCommentService } from './services/history/estimate-comment.service';
 import { EstimateProjectActualsService } from './services/projects/estimate-project-actuals.service';
 import { EstimateProjectShoppingListService } from './services/projects/estimate-project-shopping-list.service';
+import { CreateProjectCommandHandler } from './application/commands/create-project.command';
+import { DeleteProjectCommandHandler } from './application/commands/delete-project.command';
+import { SaveSitePlanCommandHandler } from './application/commands/save-site-plan.command';
+import { CalculateProjectCommandHandler } from './application/commands/calculate-project.command';
+import { CreateReceiptCommandHandler } from './application/commands/create-receipt.command';
+import { LockActualsCommandHandler } from './application/commands/lock-actuals.command';
+import { GetProjectQuery } from './application/queries/get-project.query';
+import { ListProjectsQuery } from './application/queries/list-projects.query';
+import { GetVarianceReportQuery } from './application/queries/get-variance-report.query';
+import { ListBlueprintsQuery } from './application/queries/list-blueprints.query';
+import { GenerateQuoteUseCase } from './application/use-cases/generate-quote.use-case';
+import { SendEstimateToClientUseCase } from './application/use-cases/send-estimate-to-client.use-case';
+import { ConvertToInterventionsUseCase } from './application/use-cases/convert-to-interventions.use-case';
 
-/** Facade — сохраняет публичный API для EstimatesController и внешних потребителей. */
 @Injectable()
 export class EstimatesService {
   constructor(
@@ -29,7 +40,6 @@ export class EstimatesService {
     private readonly stages: EstimateStagesService,
     private readonly quotes: EstimateQuotesService,
     private readonly portal: EstimatePortalService,
-    private readonly conversion: EstimateConversionService,
     private readonly worksheet: EstimateWorksheetService,
     private readonly receipts: EstimateReceiptsService,
     private readonly photos: EstimateProjectPhotosService,
@@ -38,6 +48,19 @@ export class EstimatesService {
     private readonly actuals: EstimateProjectActualsService,
     private readonly shoppingList: EstimateProjectShoppingListService,
     private readonly lines: EstimateLinesService,
+    private readonly createProjectHandler: CreateProjectCommandHandler,
+    private readonly deleteProjectHandler: DeleteProjectCommandHandler,
+    private readonly saveSitePlanHandler: SaveSitePlanCommandHandler,
+    private readonly calculateProjectHandler: CalculateProjectCommandHandler,
+    private readonly createReceiptHandler: CreateReceiptCommandHandler,
+    private readonly lockActualsHandler: LockActualsCommandHandler,
+    private readonly getProjectQuery: GetProjectQuery,
+    private readonly listProjectsQuery: ListProjectsQuery,
+    private readonly getVarianceReportQuery: GetVarianceReportQuery,
+    private readonly listBlueprintsQuery: ListBlueprintsQuery,
+    private readonly generateQuoteUseCase: GenerateQuoteUseCase,
+    private readonly sendToClientUseCase: SendEstimateToClientUseCase,
+    private readonly convertToInterventionsUseCase: ConvertToInterventionsUseCase,
   ) {}
 
   listProjectPhotos(user: JwtPayload, projectId: string) {
@@ -61,9 +84,8 @@ export class EstimatesService {
     return this.photos.delete(user, projectId, photoId);
   }
 
-  // V-02 / V-03 / V-14
   createReceipt(user: JwtPayload, projectId: string, body: CreateReceiptInput) {
-    return this.receipts.create(user, projectId, body);
+    return this.createReceiptHandler.execute(user, projectId, body);
   }
 
   updateReceipt(
@@ -80,7 +102,7 @@ export class EstimatesService {
   }
 
   lockActuals(user: JwtPayload, projectId: string) {
-    return this.actuals.lockActuals(user, projectId);
+    return this.lockActualsHandler.execute(user, projectId);
   }
 
   unlockActuals(user: JwtPayload, projectId: string) {
@@ -96,7 +118,7 @@ export class EstimatesService {
   }
 
   listBlueprints() {
-    return this.blueprints.list();
+    return this.listBlueprintsQuery.execute();
   }
 
   getBlueprintByCategorySlug(slug: string) {
@@ -104,11 +126,11 @@ export class EstimatesService {
   }
 
   listProjects(user: JwtPayload, cursor?: string, limit?: number) {
-    return this.projects.list(user, cursor, limit);
+    return this.listProjectsQuery.execute(user, cursor, limit);
   }
 
   getProject(user: JwtPayload, id: string) {
-    return this.projects.get(user, id);
+    return this.getProjectQuery.execute(user, id);
   }
 
   createProject(
@@ -122,7 +144,7 @@ export class EstimatesService {
       validUntil?: string;
     },
   ) {
-    return this.projects.create(user, data);
+    return this.createProjectHandler.execute({ user, data });
   }
 
   updateProject(
@@ -160,15 +182,15 @@ export class EstimatesService {
       clientDraftId?: string;
     },
   ) {
-    return this.projects.saveSitePlan(user, id, plan2d, options);
+    return this.saveSitePlanHandler.execute(user, id, plan2d, options);
   }
 
   deleteProject(user: JwtPayload, id: string) {
-    return this.projects.delete(user, id);
+    return this.deleteProjectHandler.execute(user, id);
   }
 
   calculateProject(user: JwtPayload, id: string) {
-    return this.stages.calculate(user, id);
+    return this.calculateProjectHandler.execute(user, id);
   }
 
   updateStage(
@@ -223,18 +245,17 @@ export class EstimatesService {
   }
 
   generateQuote(user: JwtPayload, id: string) {
-    return this.quotes.generateQuote(user, id);
+    return this.generateQuoteUseCase.execute(user, id);
   }
 
   sendToClient(user: JwtPayload, id: string) {
-    return this.quotes.sendToClient(user, id);
+    return this.sendToClientUseCase.execute(user, id);
   }
 
   getProjectPdf(user: JwtPayload, id: string, lang?: 'ro' | 'ru') {
     return this.quotes.getProjectPdf(user, id, lang);
   }
 
-  // U-04: Returns a readable stream instead of a buffer.
   getProjectPdfStream(user: JwtPayload, id: string, lang?: 'ro' | 'ru') {
     return this.quotes.getProjectPdfStream(user, id, lang);
   }
@@ -252,7 +273,7 @@ export class EstimatesService {
     id: string,
     mode: 'single' | 'by-stage' = 'single',
   ) {
-    return this.conversion.convertToInterventions(user, id, mode);
+    return this.convertToInterventionsUseCase.execute(user, id, mode);
   }
 
   getPortalProject(customerId: string, projectId: string) {
@@ -284,10 +305,9 @@ export class EstimatesService {
   }
 
   getVarianceReport(user: JwtPayload, projectId: string) {
-    return this.actuals.getVarianceReport(user, projectId);
+    return this.getVarianceReportQuery.execute(user, projectId);
   }
 
-  // V-05: Version history
   listVersions(projectId: string) {
     return this.versions.listVersions(projectId);
   }
@@ -296,7 +316,6 @@ export class EstimatesService {
     return this.versions.diff(projectId, from, to);
   }
 
-  // V-06: Comment thread
   listComments(projectId: string) {
     return this.comments.listComments(projectId);
   }

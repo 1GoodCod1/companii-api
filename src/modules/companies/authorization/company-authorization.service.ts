@@ -82,6 +82,19 @@ export class CompanyAuthorizationService {
     }
   }
 
+  async assertCompanyManagerAccess(user: JwtPayload, companyId: string): Promise<void> {
+    if (user.accountKind === 'PLATFORM_ADMIN') return;
+    const m = await this.prisma.companyMember.findFirst({
+      where: {
+        companyId,
+        userId: user.sub,
+        status: 'ACTIVE',
+        role: { in: ['OWNER', 'MANAGER'] },
+      },
+    });
+    if (!m) throw AppErrors.forbidden(AppErrorMessages.COMPANY_ACCESS_DENIED);
+  }
+
   assertInvitableRole(role: CompanyRole): void {
     if (!INVITABLE_ROLES.includes(role)) {
       throw AppErrors.badRequest(AppErrorMessages.VALIDATION_FAILED);

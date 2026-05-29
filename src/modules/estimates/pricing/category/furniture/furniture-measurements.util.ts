@@ -1,36 +1,47 @@
 import type { Plan2dData } from '../../plan2d.types';
 import { round2 } from '../../../estimate.constants';
 import { readNumber, readBoolean, type MeasurementMap } from '../category-shared.util';
+import {
+  type CompanyPricingModifiers,
+  resolvePricingModifierFactor,
+} from '../../../../../../prisma/estimate-pricing-modifiers';
 
-export function resolveHardwareCostMultiplier(hardwareTier: unknown): number {
+export function resolveHardwareCostMultiplier(
+  hardwareTier: unknown,
+  overrides?: CompanyPricingModifiers | null,
+): number {
   const normalized = String(hardwareTier ?? 'basic')
     .trim()
     .toLowerCase()
     .normalize('NFD')
     .replace(/\p{M}/gu, '');
 
-  if (normalized === 'premium') return 1.7;
-  if (normalized === 'standard') return 1.25;
+  if (normalized === 'premium') return resolvePricingModifierFactor('mobila.hardwareTier.premium', overrides);
+  if (normalized === 'standard') return resolvePricingModifierFactor('mobila.hardwareTier.standard', overrides);
   return 1.0;
 }
 
-function resolveMaterialMultiplier(materialType: unknown): number {
+function resolveMaterialMultiplier(
+  materialType: unknown,
+  overrides?: CompanyPricingModifiers | null,
+): number {
   const normalized = String(materialType ?? 'pal')
     .trim()
     .toLowerCase()
     .normalize('NFD')
     .replace(/\p{M}/gu, '');
 
-  if (normalized === 'hpl') return 1.8;
-  if (normalized === 'lemn') return 1.6;
-  if (normalized === 'mdf') return 1.3;
-  return 1.0; 
+  if (normalized === 'hpl') return resolvePricingModifierFactor('mobila.materialType.hpl', overrides);
+  if (normalized === 'lemn') return resolvePricingModifierFactor('mobila.materialType.lemn', overrides);
+  if (normalized === 'mdf') return resolvePricingModifierFactor('mobila.materialType.mdf', overrides);
+  return 1.0;
 }
 
 export function deriveMobilaMeasurements(
   plan2d: Plan2dData | null | undefined,
   diagnostic: Record<string, unknown> | null | undefined,
   base: MeasurementMap,
+  overrides?: CompanyPricingModifiers | null,
 ): MeasurementMap {
   const measurements: MeasurementMap = { ...base };
   const pointsCount = (type: string) => plan2d?.points?.filter((point) => point.type === type).length ?? 0;
@@ -53,7 +64,7 @@ export function deriveMobilaMeasurements(
     round2(measurements.cabinetCount * 0.8 + measurements.wardrobeCount * 1.5);
   measurements.cuttingLinearM = measurements.linearMeters;
 
-  const materialMultiplier = resolveMaterialMultiplier(diagnostic?.materialType);
+  const materialMultiplier = resolveMaterialMultiplier(diagnostic?.materialType, overrides);
   measurements.materialMultiplier = materialMultiplier;
   measurements.cuttingMaterialPremiumM =
     materialMultiplier > 1 ? round2(measurements.cuttingLinearM * (materialMultiplier - 1)) : 0;
@@ -62,7 +73,7 @@ export function deriveMobilaMeasurements(
   measurements.hingeCount =
     readNumber(diagnostic, 'hingeCount') ?? measurements.cabinetCount * 4 + measurements.wardrobeCount * 6;
 
-  const hardwareCostMultiplier = resolveHardwareCostMultiplier(diagnostic?.hardwareTier);
+  const hardwareCostMultiplier = resolveHardwareCostMultiplier(diagnostic?.hardwareTier, overrides);
   measurements.hardwareCostMultiplier = hardwareCostMultiplier;
   measurements.hardwareUnits = measurements.hingeCount + measurements.drawerCount;
   measurements.hardwareCostQty = round2(measurements.hardwareUnits * hardwareCostMultiplier);

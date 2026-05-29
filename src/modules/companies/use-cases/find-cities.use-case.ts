@@ -1,11 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import { CompaniesPublicService } from '../services/companies-public.service';
+import { PrismaService } from '../../shared/database/prisma.service';
 
 @Injectable()
 export class FindCitiesUseCase {
-  constructor(private readonly publicCatalog: CompaniesPublicService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   execute() {
-    return this.publicCatalog.findCities();
+    return this.prisma.city.findMany({
+      orderBy: { name: 'asc' },
+    });
   }
 }

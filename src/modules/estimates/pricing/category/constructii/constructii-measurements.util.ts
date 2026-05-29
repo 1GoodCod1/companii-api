@@ -20,7 +20,7 @@ function resolveWallMaterialMultiplier(wallMaterial: unknown): number {
   if (normalized === 'brick' || normalized === 'caramida') return 1.6;
   if (normalized === 'concrete' || normalized === 'beton') return 1.35;
   if (normalized === 'wood_frame') return 0.7;
-  return 1.0; // bca (default)
+  return 1.0; 
 }
 
 function resolveSlabTypeMultiplier(slabType: unknown): number {
