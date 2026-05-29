@@ -1,26 +1,12 @@
 import type { Plan2dData } from '../../plan2d.types';
 import { round2 } from '../../../estimate.constants';
-
-export type MeasurementMap = Record<string, number>;
-
-function readNumber(source: Record<string, unknown> | null | undefined, key: string): number | undefined {
-  const value = source?.[key];
-  if (typeof value === 'number' && Number.isFinite(value)) return value;
-  if (typeof value === 'string' && value.trim() !== '') {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  return undefined;
-}
+import { readNumber, type MeasurementMap } from '../category-shared.util';
 
 export function resolveFacadeHeightMultiplier(buildingHeightM: unknown): number {
   const height = readNumber({ buildingHeightM }, 'buildingHeightM') ?? 0;
   return height > 9 ? 1.2 : 1.0;
 }
 
-/**
- * Category-specific measurements for `fatade` (implementation_plan.md §4.6).
- */
 export function deriveFatadeMeasurements(
   plan2d: Plan2dData | null | undefined,
   diagnostic: Record<string, unknown> | null | undefined,
@@ -43,9 +29,6 @@ export function deriveFatadeMeasurements(
   const insulationThicknessCm = readNumber(diagnostic, 'insulationThicknessCm') ?? 10;
   measurements.insulationThicknessCm = insulationThicknessCm;
   measurements.insulationVolumeM3 = round2(facadeArea * (insulationThicknessCm / 100));
-  // Dowel density depends on wall material:
-  //  brick (default) 6/m², BCA 8/m² (softer, needs more anchors),
-  //  panel 5/m² (denser), wood 3/m² (screws instead of expansion dowels).
   const wallMaterial = String(diagnostic?.wallMaterial ?? 'brick').toLowerCase();
   const dowelDensityPerM2 =
     wallMaterial === 'bca' ? 8 :

@@ -80,6 +80,44 @@ describe('Pavement measurements (pavaj)', () => {
     expect(pavingLines.some((line) => line.description.toLowerCase().includes('pavele'))).toBe(true);
     expect(removalLines.some((line) => line.description.toLowerCase().includes('pavele'))).toBe(false);
   });
+
+  it('reads optional add-on quantities (concrete base, manholes, steps)', () => {
+    const result = derivePavajMeasurements(
+      null,
+      { pavementArea: 60, concreteBaseArea: 60, manholeCount: 2, stepsLengthM: 4 },
+      {},
+    );
+    expect(result.concreteBaseArea).toBe(60);
+    expect(result.manholeCount).toBe(2);
+    expect(result.stepsLengthM).toBe(4);
+  });
+
+  it('gates concrete base, manholes and steps lines behind their modules', () => {
+    const engine = new EstimatePricingEngine();
+    const measurements = derivePavajMeasurements(
+      null,
+      { pavementArea: 60, borderLengthM: 31, concreteBaseArea: 60, manholeCount: 2, stepsLengthM: 4 },
+      {},
+    );
+    const config = pavajBlueprint as EstimateBlueprintConfig;
+
+    const baseLines = engine.buildLinesFromRules(config.pricingRules, measurements, {
+      enabledWorkModules: ['paving', 'compaction'],
+      config,
+    });
+    expect(baseLines.some((l) => l.description.toLowerCase().includes('beton'))).toBe(false);
+    expect(baseLines.some((l) => l.description.toLowerCase().includes('cămine'))).toBe(false);
+    expect(baseLines.some((l) => l.description.toLowerCase().includes('trepte'))).toBe(false);
+
+    const withAddons = engine.buildLinesFromRules(config.pricingRules, measurements, {
+      enabledWorkModules: ['paving', 'compaction', 'concrete_base', 'manholes', 'steps'],
+      config,
+    });
+    expect(withAddons.some((l) => l.description.toLowerCase().includes('beton'))).toBe(true);
+    const manholeLine = withAddons.find((l) => l.description.toLowerCase().includes('cămine'));
+    expect(manholeLine?.qty).toBe(2);
+    expect(withAddons.some((l) => l.description.toLowerCase().includes('trepte'))).toBe(true);
+  });
 });
 
 function roundExpected(value: number): number {

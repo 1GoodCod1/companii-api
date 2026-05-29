@@ -1,26 +1,7 @@
 import type { Plan2dData } from '../../plan2d.types';
 import { round2 } from '../../../estimate.constants';
+import { readNumber, readBoolean, type MeasurementMap } from '../category-shared.util';
 
-export type MeasurementMap = Record<string, number>;
-
-function readNumber(source: Record<string, unknown> | null | undefined, key: string): number | undefined {
-  const value = source?.[key];
-  if (typeof value === 'number' && Number.isFinite(value)) return value;
-  if (typeof value === 'string' && value.trim() !== '') {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  return undefined;
-}
-
-function readBoolean(source: Record<string, unknown> | null | undefined, key: string): boolean {
-  const value = source?.[key];
-  if (value === true || value === 'true') return true;
-  if (value === false || value === 'false') return false;
-  return false;
-}
-
-/** implementation_plan.md §4.7 */
 export function resolveInstallationMultiplier(installationType: unknown): number {
   const normalized = String(installationType ?? 'standard')
     .trim()
@@ -32,9 +13,6 @@ export function resolveInstallationMultiplier(installationType: unknown): number
   return 1.0;
 }
 
-/**
- * Category-specific measurements for `okna-dveri` (implementation_plan.md §4.7).
- */
 export function deriveOknaDveriMeasurements(
   plan2d: Plan2dData | null | undefined,
   diagnostic: Record<string, unknown> | null | undefined,
@@ -54,9 +32,6 @@ export function deriveOknaDveriMeasurements(
     0,
     readNumber(diagnostic, 'doorCount') ?? (planDoorCount > 0 ? planDoorCount : 0),
   );
-
-  measurements.windowAreaM2 = readNumber(diagnostic, 'windowAreaM2') ?? 0;
-  measurements.doorAreaM2 = readNumber(diagnostic, 'doorAreaM2') ?? 0;
 
   const openingCount = measurements.windowCount + measurements.doorCount;
   measurements.foamTubes = Math.ceil(openingCount * 0.7);

@@ -2,20 +2,23 @@ import { Injectable } from '@nestjs/common';
 import { EstimateProjectStatus } from '@prisma/client';
 import type { JwtPayload } from '../auth/types/jwt-payload';
 import type { Plan2dData } from './pricing/plan2d.types';
-import { EstimateBlueprintsService } from './services/estimate-blueprints.service';
-import { EstimateConversionService } from './services/estimate-conversion.service';
-import { EstimatePortalService } from './services/estimate-portal.service';
-import { EstimateProjectPhotosService } from './services/estimate-project-photos.service';
-import { EstimateProjectsService } from './services/estimate-projects.service';
-import { EstimateQuotesService } from './services/estimate-quotes.service';
+import { EstimateBlueprintsService } from './services/blueprints/estimate-blueprints.service';
+import { EstimateConversionService } from './services/portal/estimate-conversion.service';
+import { EstimatePortalService } from './services/portal/estimate-portal.service';
+import { EstimateProjectPhotosService } from './services/projects/estimate-project-photos.service';
+import { EstimateProjectsService } from './services/projects/estimate-projects.service';
+import { EstimateQuotesService } from './services/projects/estimate-quotes.service';
 import {
   EstimateReceiptsService,
   type CreateReceiptInput,
-} from './services/estimate-receipts.service';
-import { EstimateStagesService } from './services/estimate-stages.service';
-import { EstimateWorksheetService } from './services/estimate-worksheet.service';
-import { EstimateVersionService } from './services/estimate-version.service';
-import { EstimateCommentService } from './services/estimate-comment.service';
+} from './services/projects/estimate-receipts.service';
+import { EstimateStagesService } from './services/projects/estimate-stages.service';
+import { EstimateLinesService } from './services/projects/estimate-lines.service';
+import { EstimateWorksheetService } from './services/projects/estimate-worksheet.service';
+import { EstimateVersionService } from './services/history/estimate-version.service';
+import { EstimateCommentService } from './services/history/estimate-comment.service';
+import { EstimateProjectActualsService } from './services/projects/estimate-project-actuals.service';
+import { EstimateProjectShoppingListService } from './services/projects/estimate-project-shopping-list.service';
 
 /** Facade — сохраняет публичный API для EstimatesController и внешних потребителей. */
 @Injectable()
@@ -32,6 +35,9 @@ export class EstimatesService {
     private readonly photos: EstimateProjectPhotosService,
     private readonly versions: EstimateVersionService,
     private readonly comments: EstimateCommentService,
+    private readonly actuals: EstimateProjectActualsService,
+    private readonly shoppingList: EstimateProjectShoppingListService,
+    private readonly lines: EstimateLinesService,
   ) {}
 
   listProjectPhotos(user: JwtPayload, projectId: string) {
@@ -74,11 +80,11 @@ export class EstimatesService {
   }
 
   lockActuals(user: JwtPayload, projectId: string) {
-    return this.projects.lockActuals(user, projectId);
+    return this.actuals.lockActuals(user, projectId);
   }
 
   unlockActuals(user: JwtPayload, projectId: string) {
-    return this.projects.unlockActuals(user, projectId);
+    return this.actuals.unlockActuals(user, projectId);
   }
 
   setLinesActualStatus(
@@ -195,7 +201,7 @@ export class EstimatesService {
       receiptFileKey?: string | null;
     },
   ) {
-    return this.stages.updateLine(user, projectId, stageId, lineId, data);
+    return this.lines.updateLine(user, projectId, stageId, lineId, data);
   }
 
   addLine(
@@ -209,11 +215,11 @@ export class EstimatesService {
       unitPrice: number;
     },
   ) {
-    return this.stages.addLine(user, projectId, stageId, data);
+    return this.lines.addLine(user, projectId, stageId, data);
   }
 
   deleteLine(user: JwtPayload, projectId: string, stageId: string, lineId: string) {
-    return this.stages.deleteLine(user, projectId, stageId, lineId);
+    return this.lines.deleteLine(user, projectId, stageId, lineId);
   }
 
   generateQuote(user: JwtPayload, id: string) {
@@ -270,15 +276,15 @@ export class EstimatesService {
   }
 
   getShoppingList(user: JwtPayload, projectId: string) {
-    return this.projects.getShoppingList(user, projectId);
+    return this.shoppingList.getShoppingList(user, projectId);
   }
 
   getShoppingListPdfStream(user: JwtPayload, projectId: string) {
-    return this.projects.getShoppingListPdfStream(user, projectId);
+    return this.shoppingList.getShoppingListPdfStream(user, projectId);
   }
 
   getVarianceReport(user: JwtPayload, projectId: string) {
-    return this.projects.getVarianceReport(user, projectId);
+    return this.actuals.getVarianceReport(user, projectId);
   }
 
   // V-05: Version history

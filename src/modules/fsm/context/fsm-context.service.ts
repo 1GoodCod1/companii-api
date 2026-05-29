@@ -24,11 +24,7 @@ export class FsmContextService {
       throw AppErrors.forbidden(AppErrorMessages.COMPANY_ACCESS_DENIED);
     }
   }
-
-  /**
-   * Technicians see interventions where they are EITHER the legacy primary
-   * `technicianId` OR appear in the new multi-assignee `assignments` table.
-   */
+  
   technicianInterventionFilter(user: JwtPayload): Prisma.InterventionWhereInput {
     if (!this.isTechnician(user) || !user.memberId) return {};
     return {

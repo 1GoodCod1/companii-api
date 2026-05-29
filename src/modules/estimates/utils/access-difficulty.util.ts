@@ -20,10 +20,6 @@ export function normalizeAccessDifficulty(raw: unknown): AccessDifficultyLevel {
   return 'easy';
 }
 
-/**
- * Resolves access difficulty as project-level first (Slice 2), else falls back
- * to diagnostic answer (legacy santehnika `accessDifficulty` customField).
- */
 export function resolveAccessDifficultyLevel(
   projectAccessDifficulty: unknown,
   diagnostic: Record<string, unknown> | null | undefined,
@@ -34,12 +30,6 @@ export function resolveAccessDifficultyLevel(
   return normalizeAccessDifficulty(diagnostic?.accessDifficulty);
 }
 
-/**
- * Returns the labor multiplier the category's blueprint declared for the
- * resolved access level. Blueprints without `accessDifficultyImpact` get 1.0
- * (= no impact), matching the implementation_plan.md note that cleaning /
- * it-networks shouldn't be affected.
- */
 export function resolveAccessDifficultyLaborMultiplier(
   config: EstimateBlueprintConfig | null | undefined,
   level: AccessDifficultyLevel,
@@ -51,10 +41,6 @@ export function resolveAccessDifficultyLaborMultiplier(
   return Number.isFinite(impact.easy) ? impact.easy : 1.0;
 }
 
-/**
- * Same as labor multiplier but only applies when the blueprint explicitly opted
- * in via `appliesToMaterial: true` (mobila / okna-dveri transport risk).
- */
 export function resolveAccessDifficultyMaterialMultiplier(
   config: EstimateBlueprintConfig | null | undefined,
   level: AccessDifficultyLevel,

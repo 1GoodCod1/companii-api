@@ -1,24 +1,7 @@
 import type { Plan2dData } from '../../plan2d.types';
 import { round2 } from '../../../estimate.constants';
+import { readNumber, readBoolean, type MeasurementMap } from '../category-shared.util';
 
-export type MeasurementMap = Record<string, number>;
-
-function readNumber(source: Record<string, unknown> | null | undefined, key: string): number | undefined {
-  const value = source?.[key];
-  if (typeof value === 'number' && Number.isFinite(value)) return value;
-  if (typeof value === 'string' && value.trim() !== '') {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  return undefined;
-}
-
-function readBoolean(source: Record<string, unknown> | null | undefined, key: string): boolean {
-  const value = source?.[key];
-  if (value === true || value === 'true') return true;
-  if (value === false || value === 'false') return false;
-  return false;
-}
 
 function normalizeFoundationType(foundationType: unknown): string {
   return String(foundationType ?? 'strip')
@@ -49,7 +32,7 @@ function resolveSlabTypeMultiplier(slabType: unknown): number {
 
   if (normalized === 'prefab') return 1.25;
   if (normalized === 'wood') return 0.65;
-  return 1.0; // monolithic (default)
+  return 1.0;
 }
 
 function resolveFoundationMultiplier(foundationType: unknown): number {
@@ -58,10 +41,9 @@ function resolveFoundationMultiplier(foundationType: unknown): number {
   if (normalized === 'slab') return 1.3;
   if (normalized === 'pile') return 1.8;
   if (normalized === 'isolated') return 1.15;
-  return 1.0; // strip (default)
+  return 1.0; 
 }
 
-/** implementation_plan.md §4.12 — MVP uses area-based coefficients only. */
 export function resolveFoundationConcreteM3(
   foundationType: unknown,
   builtArea: number,
@@ -88,10 +70,6 @@ export function shouldRequireConstructiiManualReview(
   );
 }
 
-/**
- * Category-specific measurements for `constructii` (implementation_plan.md §4.12).
- * All area/volume formulas are preliminary MVP estimates.
- */
 export function deriveConstructiiMeasurements(
   plan2d: Plan2dData | null | undefined,
   diagnostic: Record<string, unknown> | null | undefined,
@@ -133,7 +111,6 @@ export function deriveConstructiiMeasurements(
     readNumber(diagnostic, 'foundationConcreteM3'),
   );
 
-  // Foundation type affects cost per m³ beyond volume
   const foundationMultiplier = resolveFoundationMultiplier(diagnostic?.foundationType);
   measurements.foundationMultiplier = foundationMultiplier;
   measurements.foundationConcreteCostM3 = round2(measurements.foundationConcreteM3 * foundationMultiplier);
@@ -150,12 +127,10 @@ export function deriveConstructiiMeasurements(
       ? manualMasonry
       : round2(measurements.builtAreaTotal * 0.22);
 
-  // Wall material affects cost per m³ of masonry
   const wallMaterialMultiplier = resolveWallMaterialMultiplier(diagnostic?.wallMaterial);
   measurements.wallMaterialMultiplier = wallMaterialMultiplier;
   measurements.masonryMaterialM3 = round2(measurements.masonryVolumeM3 * wallMaterialMultiplier);
 
-  // Slab type affects cost per m²
   const slabTypeMultiplier = resolveSlabTypeMultiplier(diagnostic?.slabType);
   measurements.slabTypeMultiplier = slabTypeMultiplier;
   measurements.slabAreaCost = round2(measurements.slabAreaTotal * slabTypeMultiplier);
@@ -179,8 +154,6 @@ export function deriveConstructiiMeasurements(
   )
     ? 1
     : 0;
-
-  /** MVP: construction estimates are always preliminary (implementation_plan.md §4.12). */
   measurements.preliminaryEstimate = 1;
 
   return measurements;

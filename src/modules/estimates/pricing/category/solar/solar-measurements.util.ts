@@ -1,24 +1,6 @@
 import type { Plan2dData } from '../../plan2d.types';
 import { round2 } from '../../../estimate.constants';
-
-export type MeasurementMap = Record<string, number>;
-
-function readNumber(source: Record<string, unknown> | null | undefined, key: string): number | undefined {
-  const value = source?.[key];
-  if (typeof value === 'number' && Number.isFinite(value)) return value;
-  if (typeof value === 'string' && value.trim() !== '') {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  return undefined;
-}
-
-function readBoolean(source: Record<string, unknown> | null | undefined, key: string): boolean {
-  const value = source?.[key];
-  if (value === true || value === 'true') return true;
-  if (value === false || value === 'false') return false;
-  return false;
-}
+import { readNumber, readBoolean, type MeasurementMap } from '../category-shared.util';
 
 function normalizeRoofType(roofType: unknown): string {
   return String(roofType ?? 'metal')
@@ -35,7 +17,6 @@ function normalizeGridConnection(gridConnection: unknown): string {
     .replace(/-/g, '_');
 }
 
-/** implementation_plan.md §4.11 */
 export function resolveRoofMultiplier(roofType: unknown): number {
   const normalized = normalizeRoofType(roofType);
   if (normalized === 'tile') return 1.15;
@@ -48,9 +29,6 @@ export function shouldRequireSolarManualReview(panelCount: number, systemPowerKw
   return panelCount > 30 || systemPowerKw > 15;
 }
 
-/**
- * Category-specific measurements for `panouri-solare` (implementation_plan.md §4.11).
- */
 export function derivePanouriSolareMeasurements(
   plan2d: Plan2dData | null | undefined,
   diagnostic: Record<string, unknown> | null | undefined,
@@ -93,6 +71,8 @@ export function derivePanouriSolareMeasurements(
   measurements.structureQty = panelCount;
   measurements.structureLaborQty = round2(panelCount * roofMultiplier);
   measurements.panelLaborQty = round2(panelCount * roofMultiplier);
+  measurements.optimizerCount = panelCount;
+  measurements.evChargerCount = Math.max(0, readNumber(diagnostic, 'evChargerCount') ?? 0);
 
   const manualCableLengthM = readNumber(diagnostic, 'cableLengthM');
   measurements.cableLengthM =

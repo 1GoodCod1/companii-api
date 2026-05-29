@@ -20,10 +20,11 @@ import { RemoveGalleryImageUseCase } from './use-cases/remove-gallery-image.use-
 import { RequestPublicServiceUseCase } from './use-cases/request-public-service.use-case';
 import { RequestPublicProjectUseCase } from './use-cases/request-public-project.use-case';
 import { GetCompanyAuditLogsUseCase } from './use-cases/get-company-audit-logs.use-case';
+import { GetPricingModifiersUseCase } from './use-cases/get-pricing-modifiers.use-case';
+import { UpdatePricingModifiersUseCase } from './use-cases/update-pricing-modifiers.use-case';
 
 export type { FindPublicListParams };
 
-/** Facade — публичный API для контроллеров; сценарии в `use-cases/`. */
 @Injectable()
 export class CompaniesService {
   constructor(
@@ -40,6 +41,8 @@ export class CompaniesService {
     private readonly requestPublicServiceUc: RequestPublicServiceUseCase,
     private readonly requestPublicProjectUc: RequestPublicProjectUseCase,
     private readonly getCompanyAuditLogsUc: GetCompanyAuditLogsUseCase,
+    private readonly getPricingModifiersUc: GetPricingModifiersUseCase,
+    private readonly updatePricingModifiersUc: UpdatePricingModifiersUseCase,
   ) {}
 
   findCities() {
@@ -101,5 +104,17 @@ export class CompaniesService {
     query: { action?: string; userId?: string; limit?: number },
   ) {
     return this.getCompanyAuditLogsUc.execute(user, companyId, query);
+  }
+
+  getPricingModifiers(user: JwtPayload, companyId: string) {
+    return this.getPricingModifiersUc.execute(user, companyId);
+  }
+
+  updatePricingModifiers(
+    user: JwtPayload,
+    companyId: string,
+    modifiers: Record<string, number | null>,
+  ) {
+    return this.updatePricingModifiersUc.execute(user, companyId, modifiers);
   }
 }

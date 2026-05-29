@@ -1,22 +1,23 @@
 import { Injectable } from '@nestjs/common';
 import { InterventionStatus, InvoicePaymentStatus, QuoteStatus } from '@prisma/client';
 import type { JwtPayload } from '../auth/types/jwt-payload';
-import { CalendarService } from './services/calendar.service';
-import { CompanyServicesService } from './services/company-services.service';
-import { CustomerTimelineService } from './services/customer-timeline.service';
-import { CustomersService } from './services/customers.service';
-import { InterventionNotesService } from './services/intervention-notes.service';
-import { InterventionPhotosService } from './services/intervention-photos.service';
-import { InterventionsService } from './services/interventions.service';
-import { InvoicesService } from './services/invoices.service';
-import { QuotesService } from './services/quotes.service';
+import { CalendarService } from './services/interventions/calendar.service';
+import { CompanyServicesService } from './services/interventions/company-services.service';
+import { CustomerTimelineService } from './services/customers/customer-timeline.service';
+import { CustomersService } from './services/customers/customers.service';
+import { InterventionNotesService } from './services/interventions/intervention-notes.service';
+import { InterventionPhotosService } from './services/interventions/intervention-photos.service';
+import { InterventionsService } from './services/interventions/interventions.service';
+import { InterventionLifecycleService } from './services/interventions/intervention-lifecycle.service';
+import { InvoicesService } from './services/invoices/invoices.service';
+import { QuotesService } from './services/quotes/quotes.service';
 
-/** Facade — сохраняет публичный API для FsmController и внешних потребителей. */
 @Injectable()
 export class FsmService {
   constructor(
     private readonly customers: CustomersService,
     private readonly interventions: InterventionsService,
+    private readonly interventionLifecycle: InterventionLifecycleService,
     private readonly interventionNotes: InterventionNotesService,
     private readonly interventionPhotos: InterventionPhotosService,
     private readonly quotes: QuotesService,
@@ -25,8 +26,6 @@ export class FsmService {
     private readonly customerTimeline: CustomerTimelineService,
     private readonly companyServices: CompanyServicesService,
   ) {}
-
-  // --- CUSTOMERS ---
 
   listCustomers(user: JwtPayload, cursor?: string, limit?: number) {
     return this.customers.list(user, cursor, limit);
@@ -113,7 +112,7 @@ export class FsmService {
     toStatus: InterventionStatus,
     note?: string,
   ) {
-    return this.interventions.updateStatus(user, id, toStatus, note);
+    return this.interventionLifecycle.updateStatus(user, id, toStatus, note);
   }
 
   deleteIntervention(user: JwtPayload, id: string) {
@@ -125,7 +124,7 @@ export class FsmService {
     interventionId: string,
     progress: Record<string, boolean>,
   ) {
-    return this.interventions.updateChecklistProgress(user, interventionId, progress);
+    return this.interventionLifecycle.updateChecklistProgress(user, interventionId, progress);
   }
 
   // --- NOTES ---

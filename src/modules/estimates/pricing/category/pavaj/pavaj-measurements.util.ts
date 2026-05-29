@@ -1,26 +1,7 @@
 import type { Plan2dData } from '../../plan2d.types';
 import { round2 } from '../../../estimate.constants';
+import { readNumber, readBoolean, type MeasurementMap } from '../category-shared.util';
 
-export type MeasurementMap = Record<string, number>;
-
-function readNumber(source: Record<string, unknown> | null | undefined, key: string): number | undefined {
-  const value = source?.[key];
-  if (typeof value === 'number' && Number.isFinite(value)) return value;
-  if (typeof value === 'string' && value.trim() !== '') {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  return undefined;
-}
-
-function readBoolean(source: Record<string, unknown> | null | undefined, key: string): boolean {
-  const value = source?.[key];
-  if (value === true || value === 'true') return true;
-  if (value === false || value === 'false') return false;
-  return false;
-}
-
-/** implementation_plan.md §4.13 */
 export function resolvePatternMultiplier(patternComplexity: unknown): number {
   const normalized = String(patternComplexity ?? 'simple')
     .trim()
@@ -45,9 +26,6 @@ function estimatePerimeterFromArea(area: number): number {
   return round2(Math.sqrt(area) * 4);
 }
 
-/**
- * Category-specific measurements for `pavaj` (implementation_plan.md §4.13).
- */
 export function derivePavajMeasurements(
   plan2d: Plan2dData | null | undefined,
   diagnostic: Record<string, unknown> | null | undefined,
@@ -104,6 +82,9 @@ export function derivePavajMeasurements(
   measurements.pavementLaborQty = round2(pavementArea * patternMultiplier * loadMultiplier);
   measurements.compactionArea = pavementArea;
   measurements.handoverUnits = 1;
+  measurements.concreteBaseArea = Math.max(0, readNumber(diagnostic, 'concreteBaseArea') ?? 0);
+  measurements.manholeCount = Math.max(0, readNumber(diagnostic, 'manholeCount') ?? 0);
+  measurements.stepsLengthM = Math.max(0, readNumber(diagnostic, 'stepsLengthM') ?? 0);
 
   return measurements;
 }

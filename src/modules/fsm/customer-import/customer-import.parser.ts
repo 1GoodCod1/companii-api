@@ -113,102 +113,126 @@ function parseCsvLine(line: string): string[] {
 }
 
 function decodeCsvBuffer(buffer: Buffer): string {
-  if (buffer.length >= 3 && buffer[0] === 0xef && buffer[1] === 0xbb && buffer[2] === 0xbf) {
-    return buffer.toString('utf8');
-  }
   return buffer.toString('utf8');
 }
 
+export interface CustomerImportParserStrategy {
+  parse(buffer: Buffer): Promise<ParsedCustomerImportRow[]> | ParsedCustomerImportRow[];
+}
+
+export class CsvCustomerImportParserStrategy implements CustomerImportParserStrategy {
+  parse(buffer: Buffer): ParsedCustomerImportRow[] {
+    const text = decodeCsvBuffer(buffer).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const lines = text.split('\n').filter((line) => line.trim().length > 0);
+    if (lines.length === 0) return [];
+
+    const headerLine = lines[0]!;
+    const delimiter =
+      headerLine.includes(';') && !headerLine.includes(',') ? ';' : headerLine.includes('\t') ? '\t' : ',';
+    const headers = (delimiter === ','
+      ? parseCsvLine(headerLine)
+      : headerLine.split(delimiter).map((cell) => cell.trim())
+    ).map((cell, index) => (index === 0 ? cell.replace(/^\uFEFF/, '') : cell));
+
+    const columnMap = resolveColumnMap(headers);
+    if (!columnMap) {
+      throw new Error('Antetul fișierului CSV nu conține coloanele obligatorii: Nume complet, Telefon, Adresă.');
+    }
+
+    const rows: ParsedCustomerImportRow[] = [];
+    for (let i = 1; i < lines.length && rows.length < CUSTOMER_IMPORT_MAX_ROWS; i += 1) {
+      const line = lines[i]!;
+      const cells =
+        delimiter === ','
+          ? parseCsvLine(line)
+          : line.split(delimiter).map((cell) => cell.trim());
+      const parsed = parseRowValues(cells, columnMap, i + 1);
+      if (parsed) rows.push(parsed);
+    }
+
+    return rows;
+  }
+}
+
+export class XlsxCustomerImportParserStrategy implements CustomerImportParserStrategy {
+  async parse(buffer: Buffer): Promise<ParsedCustomerImportRow[]> {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer as unknown as ExcelJS.Buffer);
+
+    const sheet =
+      workbook.getWorksheet('Clienți') ??
+      workbook.getWorksheet('Clienti') ??
+      workbook.worksheets[0];
+    if (!sheet) return [];
+
+    let headerRowNumber = 1;
+    let columnMap: ColumnMap | null = null;
+
+    sheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+      if (columnMap) return;
+      const headers = (row.values as unknown[])
+        .slice(1)
+        .map((value) => String(value ?? ''));
+      const resolved = resolveColumnMap(headers);
+      if (resolved) {
+        columnMap = resolved;
+        headerRowNumber = rowNumber;
+      }
+    });
+
+    if (!columnMap) {
+      throw new Error(
+        'Fișierul Excel nu conține antetul obligatoriu (Nume complet, Telefon, Adresă). Folosiți șablonul Faber.',
+      );
+    }
+
+    const rows: ParsedCustomerImportRow[] = [];
+    sheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+      if (rowNumber <= headerRowNumber || rows.length >= CUSTOMER_IMPORT_MAX_ROWS) return;
+
+      const cells = Array.from({ length: 20 }, (_, index) =>
+        String(row.getCell(index + 1).text ?? '').trim(),
+      );
+
+      const parsed = parseRowValues(cells, columnMap!, rowNumber);
+      if (parsed) rows.push(parsed);
+    });
+
+    return rows;
+  }
+}
+
+export class CustomerImportParserFactory {
+  static getStrategy(filename: string): CustomerImportParserStrategy {
+    const lower = filename.toLowerCase();
+    if (lower.endsWith('.csv')) {
+      return new CsvCustomerImportParserStrategy();
+    }
+    if (lower.endsWith('.xlsx') || lower.endsWith('.xls')) {
+      return new XlsxCustomerImportParserStrategy();
+    }
+    throw new Error('Format neacceptat. Folosiți fișier .xlsx sau .csv.');
+  }
+}
+
+// ----------------------------------------------------
+// 🌟 Backward Compatibility Orchestrator
+// ----------------------------------------------------
+
 export function parseCustomerImportCsv(buffer: Buffer): ParsedCustomerImportRow[] {
-  const text = decodeCsvBuffer(buffer).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-  const lines = text.split('\n').filter((line) => line.trim().length > 0);
-  if (lines.length === 0) return [];
-
-  const headerLine = lines[0]!;
-  const delimiter =
-    headerLine.includes(';') && !headerLine.includes(',') ? ';' : headerLine.includes('\t') ? '\t' : ',';
-  const headers = (delimiter === ','
-    ? parseCsvLine(headerLine)
-    : headerLine.split(delimiter).map((cell) => cell.trim())
-  ).map((cell, index) => (index === 0 ? cell.replace(/^\uFEFF/, '') : cell));
-
-  const columnMap = resolveColumnMap(headers);
-  if (!columnMap) {
-    throw new Error('Antetul fișierului CSV nu conține coloanele obligatorii: Nume complet, Telefon, Adresă.');
-  }
-
-  const rows: ParsedCustomerImportRow[] = [];
-  for (let i = 1; i < lines.length && rows.length < CUSTOMER_IMPORT_MAX_ROWS; i += 1) {
-    const line = lines[i]!;
-    const cells =
-      delimiter === ','
-        ? parseCsvLine(line)
-        : line.split(delimiter).map((cell) => cell.trim());
-    const parsed = parseRowValues(cells, columnMap, i + 1);
-    if (parsed) rows.push(parsed);
-  }
-
-  return rows;
+  return new CsvCustomerImportParserStrategy().parse(buffer);
 }
 
 export async function parseCustomerImportXlsx(buffer: Buffer): Promise<ParsedCustomerImportRow[]> {
-  const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(buffer as unknown as ExcelJS.Buffer);
-
-  const sheet =
-    workbook.getWorksheet('Clienți') ??
-    workbook.getWorksheet('Clienti') ??
-    workbook.worksheets[0];
-  if (!sheet) return [];
-
-  let headerRowNumber = 1;
-  let columnMap: ColumnMap | null = null;
-
-  sheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
-    if (columnMap) return;
-    const headers = (row.values as unknown[])
-      .slice(1)
-      .map((value) => String(value ?? ''));
-    const resolved = resolveColumnMap(headers);
-    if (resolved) {
-      columnMap = resolved;
-      headerRowNumber = rowNumber;
-    }
-  });
-
-  if (!columnMap) {
-    throw new Error(
-      'Fișierul Excel nu conține antetul obligatoriu (Nume complet, Telefon, Adresă). Folosiți șablonul Faber.',
-    );
-  }
-
-  const rows: ParsedCustomerImportRow[] = [];
-  sheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
-    if (rowNumber <= headerRowNumber || rows.length >= CUSTOMER_IMPORT_MAX_ROWS) return;
-
-    const cells = Array.from({ length: 20 }, (_, index) =>
-      String(row.getCell(index + 1).text ?? '').trim(),
-    );
-
-    const parsed = parseRowValues(cells, columnMap!, rowNumber);
-    if (parsed) rows.push(parsed);
-  });
-
-  return rows;
+  return new XlsxCustomerImportParserStrategy().parse(buffer);
 }
 
 export function parseCustomerImportFile(
   buffer: Buffer,
   filename: string,
 ): Promise<ParsedCustomerImportRow[]> {
-  const lower = filename.toLowerCase();
-  if (lower.endsWith('.csv')) {
-    return Promise.resolve(parseCustomerImportCsv(buffer));
-  }
-  if (lower.endsWith('.xlsx') || lower.endsWith('.xls')) {
-    return parseCustomerImportXlsx(buffer);
-  }
-  throw new Error('Format neacceptat. Folosiți fișier .xlsx sau .csv.');
+  const strategy = CustomerImportParserFactory.getStrategy(filename);
+  return Promise.resolve(strategy.parse(buffer));
 }
 
 export function isDuplicatePhoneInFile(

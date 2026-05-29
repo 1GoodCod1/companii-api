@@ -186,6 +186,40 @@ const CHECKS_BY_SLUG: Record<string, Check[]> = {
       },
     },
   ],
+  'lucrari-finisaj': [
+    {
+      // A module that needs an explicit quantity was enabled but left at 0 — its
+      // lines silently never appear in the deviz. Prompt the manager to fill it.
+      key: 'enabledModuleWithoutQuantity',
+      severity: 'warning',
+      test: (m, d) => {
+        const enabled = Array.isArray(d.enabledWorkModules)
+          ? (d.enabledWorkModules as unknown[]).filter((k): k is string => typeof k === 'string')
+          : [];
+        const modulesNeedingQty: Array<[module: string, key: string, label: string]> = [
+          ['demolition', 'demolitionArea', 'Demontare'],
+          ['plaster', 'plasterArea', 'Tencuială'],
+          ['partition', 'partitionArea', 'Pereți despărțitori GK'],
+          ['drywall', 'drywallArea', 'Gips-carton'],
+          ['decorative_plaster', 'decorativePlasterArea', 'Tencuială decorativă'],
+          ['wallpaper', 'wallpaperArea', 'Tapet'],
+          ['waterproofing', 'waterproofingArea', 'Hidroizolație'],
+          ['tile', 'tileArea', 'Gresie & faianță'],
+          ['screed', 'screedArea', 'Șapă'],
+          ['flooring', 'flooringArea', 'Laminat/vinil'],
+          ['parquet', 'parquetArea', 'Parchet'],
+          ['slopes', 'doorSlopeLengthM', 'Glafuri uși/ferestre'],
+        ];
+        const missing = modulesNeedingQty
+          .filter(([mod, key]) => enabled.includes(mod) && (m[key] ?? 0) <= 0)
+          .map(([, , label]) => label);
+        if (missing.length) {
+          return `Module activate fără cantitate introdusă: ${missing.join(', ')}. Completați suprafața/lungimea în „Detalii avansate" — altfel nu apar în deviz.`;
+        }
+        return null;
+      },
+    },
+  ],
 };
 
 const UNIVERSAL_CHECKS: Check[] = [

@@ -6,7 +6,6 @@ export function buildInvoiceEmail(params: {
   total: number;
   dueDate?: string | null;
   paymentStatus: 'UNPAID' | 'PAID' | 'OVERDUE' | 'CANCELLED';
-  /** Personal message from the master (optional, plain text). */
   customMessage?: string | null;
 }): EmailTemplateResult {
   const total = formatRoMoney(params.total);

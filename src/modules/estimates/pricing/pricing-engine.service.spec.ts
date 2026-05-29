@@ -4,6 +4,7 @@ import {
   elektrikaBlueprint,
   fatadeBlueprint,
   itNetworksBlueprint,
+  lucrariFinisajBlueprint,
   santehnikaBlueprint,
 } from '../../../../prisma/estimate-blueprints/registry';
 import { readEnabledWorkModules } from '../utils/work-modules.util';
@@ -24,6 +25,31 @@ describe('EstimatePricingEngine integration (E-06)', () => {
       config: config as EstimateBlueprintConfig,
     });
   }
+
+  it('lucrari-finisaj: includeMaterials=false drops material lines, keeps labor', () => {
+    const diagnostic = { finishArea: 30, enabledWorkModules: ['surface_preparation', 'putty', 'paint'] };
+    const config = lucrariFinisajBlueprint as EstimateBlueprintConfig;
+    const measurements = engine.deriveMeasurements(null, diagnostic, 'lucrari-finisaj');
+
+    const withMaterials = engine.buildLinesFromRules(config.pricingRules, measurements, {
+      enabledWorkModules: readEnabledWorkModules(diagnostic, config),
+      config,
+      includeMaterials: true,
+    });
+    const laborOnly = engine.buildLinesFromRules(config.pricingRules, measurements, {
+      enabledWorkModules: readEnabledWorkModules(diagnostic, config),
+      config,
+      includeMaterials: false,
+    });
+
+    expect(withMaterials.some((l) => l.kind === 'material')).toBe(true);
+    expect(laborOnly.some((l) => l.kind === 'material')).toBe(false);
+    expect(laborOnly.every((l) => l.kind === 'labor')).toBe(true);
+    // labor lines are unchanged between the two runs
+    expect(laborOnly.filter((l) => l.kind === 'labor')).toEqual(
+      withMaterials.filter((l) => l.kind === 'labor'),
+    );
+  });
 
   it('santehnika: derives pipe lengths and emits water pipe labor lines', () => {
     const diagnostic = {

@@ -1,19 +1,5 @@
 import type { Plan2dData } from '../../plan2d.types';
-
-export type MeasurementMap = Record<string, number>;
-
-function readNumber(
-  source: Record<string, unknown> | null | undefined,
-  key: string,
-): number | undefined {
-  const value = source?.[key];
-  if (typeof value === 'number' && Number.isFinite(value)) return value;
-  if (typeof value === 'string' && value.trim() !== '') {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  return undefined;
-}
+import { readNumber, type MeasurementMap } from '../category-shared.util';
 
 function normalizeRepairComplexity(
   repairComplexity: unknown,
@@ -44,7 +30,6 @@ export function deriveItHardwareMeasurements(
 ): MeasurementMap {
   const measurements: MeasurementMap = { ...base };
 
-  // Raw field values
   measurements.deviceCount = readNumber(diagnostic, 'deviceCount') ?? 1;
   measurements.repairCount = readNumber(diagnostic, 'repairCount') ?? 0;
   measurements.assemblyCount = readNumber(diagnostic, 'assemblyCount') ?? 0;
@@ -54,22 +39,16 @@ export function deriveItHardwareMeasurements(
   measurements.dataRecoveryCount = readNumber(diagnostic, 'dataRecoveryCount') ?? 0;
   measurements.peripheralCount = readNumber(diagnostic, 'peripheralCount') ?? 0;
 
-  // Repair complexity distribution
   const repairComplexity = normalizeRepairComplexity(diagnostic?.repairComplexity);
   measurements.simpleRepairCount = repairComplexity === 'simple' ? measurements.repairCount : 0;
   measurements.mediumRepairCount = repairComplexity === 'medium' ? measurements.repairCount : 0;
   measurements.complexRepairCount = repairComplexity === 'complex' ? measurements.repairCount : 0;
-
-  // OS license: 1 license per OS install (material rule handles this)
   measurements.osLicenseCount = measurements.osInstallCount;
 
-  // Recovery severity distribution
   const recoverySeverity = normalizeRecoverySeverity(diagnostic?.recoverySeverity);
   measurements.logicRecoveryCount = recoverySeverity === 'logic' ? measurements.dataRecoveryCount : 0;
   measurements.physicalRecoveryCount = recoverySeverity === 'physical' ? measurements.dataRecoveryCount : 0;
   measurements.severeRecoveryCount = recoverySeverity === 'severe' ? measurements.dataRecoveryCount : 0;
-
-  // Warranty: fixed project unit for reference
   measurements.projectUnits = 1;
 
   return measurements;

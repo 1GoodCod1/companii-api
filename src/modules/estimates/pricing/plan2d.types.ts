@@ -1,18 +1,9 @@
-/**
- * Контракт Plan2dData (backend source of truth).
- * Синхронизировать с companii-web/src/types/estimate-plan2d.types.ts (задача A-03).
- *
- * `globalParameters` хранится в plan2d JSON и дублируется в diagnosticAnswers
- * при saveSitePlan (см. syncGlobalParamsToDiagnostic) для pricing engine.
- */
-
 export type Plan2dWorkContext = 'indoor' | 'roof' | 'facade' | 'general';
 
 export type Plan2dRoomShapeType = 'rectangle' | 'l-shape' | 't-shape' | 'u-shape';
 
 export type Plan2dRoofType = 'flat' | 'gable' | 'hip';
 
-/** Глобальные параметры объекта (кровля, фасад, этажность). */
 export type Plan2dGlobalParameters = {
   workContext: Plan2dWorkContext;
   baseArea?: number;

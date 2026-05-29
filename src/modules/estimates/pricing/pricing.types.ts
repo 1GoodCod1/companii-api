@@ -1,6 +1,3 @@
-/**
- * Pricing types — re-export blueprint config contract used by pricing engine.
- */
 export type {
   EstimateBlueprintConfig,
   BlueprintPricingRule,

@@ -24,9 +24,6 @@ export class AuthJwtPayloadService {
     payload: JwtPayload,
     options?: { preferredCompanyId?: string },
   ): Promise<JwtPayload> {
-    // Treat the input as read-only so callers can rely on referential
-    // equality and tests don't see surprise mutations. All enrichment
-    // returns a fresh object built from the original.
     const base: JwtPayload = { ...payload };
     return this.prisma.withRlsContext(
       rlsContextFromUserId(base.sub, base.accountKind, {

@@ -256,6 +256,8 @@ model Company {
   isPublished  Boolean  @default(false) @map("is_published")
   isVerified   Boolean  @default(false) @map("is_verified")
   logoUrl      String?  @map("logo_url")
+  /** Sparse per-company overrides of pricing-modifier percentages, keyed by registry key ({ "finishing.finishLevel.premium": 20 }). Null/absent = registry default. */
+  pricingModifiers Json? @map("pricing_modifiers")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 

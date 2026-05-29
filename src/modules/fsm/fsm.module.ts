@@ -14,20 +14,24 @@ import {
   FsmQuotesController,
   FsmServicesController,
 } from './controllers';
-import { LeadsService } from './services/leads.service';
+import { LeadsService } from './services/leads/leads.service';
 import { InvoicePdfModule } from './pdf/invoice-pdf.module';
 import { CustomerImportService } from './customer-import/customer-import.service';
 import { FsmContextService } from './context/fsm-context.service';
-import { CalendarService } from './services/calendar.service';
-import { CompanyServicesService } from './services/company-services.service';
-import { CrewsService } from './services/crews.service';
-import { CustomerTimelineService } from './services/customer-timeline.service';
-import { CustomersService } from './services/customers.service';
-import { InterventionNotesService } from './services/intervention-notes.service';
-import { InterventionPhotosService } from './services/intervention-photos.service';
-import { InterventionsService } from './services/interventions.service';
-import { InvoicesService } from './services/invoices.service';
-import { QuotesService } from './services/quotes.service';
+import { CalendarService } from './services/interventions/calendar.service';
+import { CompanyServicesService } from './services/interventions/company-services.service';
+import { CrewsService } from './services/interventions/crews.service';
+import { CustomerTimelineService } from './services/customers/customer-timeline.service';
+import { CustomersService } from './services/customers/customers.service';
+import { InterventionNotesService } from './services/interventions/intervention-notes.service';
+import { InterventionPhotosService } from './services/interventions/intervention-photos.service';
+import { InterventionsService } from './services/interventions/interventions.service';
+import { InterventionLifecycleService } from './services/interventions/intervention-lifecycle.service';
+import { InvoicesService } from './services/invoices/invoices.service';
+import { QuotesService } from './services/quotes/quotes.service';
+import { InvoiceQueriesService } from './services/invoices/invoice-queries.service';
+import { InvoicePdfCacheService } from './services/invoices/invoice-pdf-cache.service';
+import { InvoiceLifecycleService } from './services/invoices/invoice-lifecycle.service';
 
 @Module({
   imports: [AuthModule, CompaniesModule, InvoicePdfModule, FilesModule],
@@ -46,10 +50,14 @@ import { QuotesService } from './services/quotes.service';
     FsmContextService,
     CustomersService,
     InterventionsService,
+    InterventionLifecycleService,
     InterventionNotesService,
     InterventionPhotosService,
     QuotesService,
     InvoicesService,
+    InvoiceQueriesService,
+    InvoicePdfCacheService,
+    InvoiceLifecycleService,
     CalendarService,
     CustomerTimelineService,
     CompanyServicesService,

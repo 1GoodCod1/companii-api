@@ -8,6 +8,7 @@ import { AdminCompaniesService } from './services/admin-companies.service';
 import { AdminModerationService } from './services/admin-moderation.service';
 import { AdminReferenceDataService } from './services/admin-reference-data.service';
 import { AdminStatsService } from './services/admin-stats.service';
+import { AdminBlueprintsService } from './services/admin-blueprints.service';
 
 @Module({
   imports: [AuditModule],
@@ -18,6 +19,7 @@ import { AdminStatsService } from './services/admin-stats.service';
     AdminReferenceDataService,
     AdminStatsService,
     AdminClientsService,
+    AdminBlueprintsService,
     AdminService,
     RolesGuard,
   ],

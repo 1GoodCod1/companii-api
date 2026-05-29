@@ -12,12 +12,6 @@ export type ConflictMetadata = {
 
 type TxClient = Prisma.TransactionClient | PrismaClient;
 
-/**
- * M-05: optimistic concurrency check. Throws a typed 409 when the
- * expected version doesn't match the current row version. Callers should
- * be inside a transaction with `FOR UPDATE` so version cannot change
- * between this check and the subsequent UPDATE.
- */
 export function assertVersionMatch(
   current: number,
   expected: number | undefined,
@@ -34,11 +28,6 @@ export function assertVersionMatch(
   });
 }
 
-/**
- * Returns `true` if this mutation was already applied — caller should
- * skip the write and reply with the current server state (idempotent
- * replay safety for the offline queue).
- */
 export async function isMutationAlreadyApplied(
   tx: TxClient,
   projectId: string,

@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { Prisma, ReviewStatus } from '@prisma/client';
 import { AppErrorMessages, AppErrors } from '../../common/errors';
 import { findPortalCustomerForUser } from '../../common/utils/portal-customer.util';
@@ -8,13 +9,17 @@ import type { JwtPayload } from '../auth/types/jwt-payload';
 import { CreateCompanyReviewDto } from './dto/create-company-review.dto';
 import {
   REVIEWABLE_INTERVENTION_STATUSES,
+  REVIEW_PUBLIC_SELECT,
   type CanCreateReviewDto,
   type CompanyReviewPublicDto,
 } from './reviews.types';
 
 @Injectable()
 export class ReviewsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventEmitter: EventEmitter2,
+  ) {}
 
   async canCreate(user: JwtPayload, companyId: string): Promise<CanCreateReviewDto> {
     const customer = await findPortalCustomerForUser(this.prisma, user.sub);
@@ -65,32 +70,19 @@ export class ReviewsService {
       include: { review: true },
     });
 
-    if (!intervention) {
-      throw AppErrors.notFound(AppErrorMessages.REVIEW_INTERVENTION_NOT_FOUND);
-    }
-    if (intervention.companyId !== dto.companyId) {
-      throw AppErrors.badRequest(AppErrorMessages.REVIEW_COMPANY_MISMATCH);
-    }
-    if (intervention.review) {
-      throw AppErrors.badRequest(AppErrorMessages.REVIEW_ALREADY_EXISTS);
-    }
-    if (!REVIEWABLE_INTERVENTION_STATUSES.includes(intervention.status)) {
-      throw AppErrors.badRequest(AppErrorMessages.REVIEW_INTERVENTION_NOT_REVIEWABLE);
-    }
+    // 1. Specification Guard Pattern
+    this.validateInterventionForReview(intervention, dto.companyId);
 
     const author = await this.prisma.user.findUnique({
       where: { id: user.sub },
       select: { firstName: true, lastName: true },
     });
 
-    const displayName =
-      dto.clientName?.trim() ||
-      customer.fullName?.trim() ||
-      [author?.firstName, author?.lastName].filter(Boolean).join(' ').trim() ||
-      null;
+    // 2. Strategy Resolver Pattern
+    const displayName = this.resolveAuthorDisplayName(dto, customer, author);
 
     const review = await this.prisma.$transaction(async (tx) => {
-      const created = await tx.companyReview.create({
+      return tx.companyReview.create({
         data: {
           companyId: dto.companyId,
           customerId: customer.id,
@@ -102,12 +94,18 @@ export class ReviewsService {
           status: ReviewStatus.VISIBLE,
         },
       });
-
-      await this.recalculateCompanyRating(tx, dto.companyId);
-      return created;
     });
 
+    this.eventEmitter.emit('review.created', { companyId: dto.companyId });
+
     return review;
+  }
+
+  @OnEvent('review.created', { async: true })
+  async handleReviewCreatedEvent(payload: { companyId: string }) {
+    await this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async (tx) => {
+      await this.recalculateCompanyRating(tx, payload.companyId);
+    });
   }
 
   async findForCompany(companyId: string, page = 1, limit = 20) {
@@ -123,16 +121,7 @@ export class ReviewsService {
             orderBy: { createdAt: 'desc' },
             skip,
             take: safeLimit,
-            select: {
-              id: true,
-              rating: true,
-              comment: true,
-              clientName: true,
-              createdAt: true,
-              intervention: {
-                select: { id: true, number: true, type: true },
-              },
-            },
+            select: REVIEW_PUBLIC_SELECT,
           }),
         () =>
           this.prisma.companyReview.count({
@@ -174,16 +163,7 @@ export class ReviewsService {
           orderBy: { createdAt: 'desc' },
           skip,
           take: safeLimit,
-          select: {
-            id: true,
-            rating: true,
-            comment: true,
-            clientName: true,
-            createdAt: true,
-            intervention: {
-              select: { id: true, number: true, type: true },
-            },
-          },
+          select: REVIEW_PUBLIC_SELECT,
         }),
       () =>
         this.prisma.companyReview.count({
@@ -205,18 +185,39 @@ export class ReviewsService {
       where: { customerId: customer.id },
       orderBy: { createdAt: 'desc' },
       select: {
-        id: true,
-        rating: true,
-        comment: true,
-        clientName: true,
-        createdAt: true,
+        ...REVIEW_PUBLIC_SELECT,
         companyId: true,
         interventionId: true,
-        intervention: {
-          select: { id: true, number: true, type: true },
-        },
       },
     });
+  }
+
+  private validateInterventionForReview(intervention: any, companyId: string) {
+    if (!intervention) {
+      throw AppErrors.notFound(AppErrorMessages.REVIEW_INTERVENTION_NOT_FOUND);
+    }
+    if (intervention.companyId !== companyId) {
+      throw AppErrors.badRequest(AppErrorMessages.REVIEW_COMPANY_MISMATCH);
+    }
+    if (intervention.review) {
+      throw AppErrors.badRequest(AppErrorMessages.REVIEW_ALREADY_EXISTS);
+    }
+    if (!REVIEWABLE_INTERVENTION_STATUSES.includes(intervention.status)) {
+      throw AppErrors.badRequest(AppErrorMessages.REVIEW_INTERVENTION_NOT_REVIEWABLE);
+    }
+  }
+
+  private resolveAuthorDisplayName(
+    dto: CreateCompanyReviewDto,
+    customer: { fullName?: string | null },
+    author?: { firstName?: string | null; lastName?: string | null } | null,
+  ): string | null {
+    return (
+      dto.clientName?.trim() ||
+      customer.fullName?.trim() ||
+      [author?.firstName, author?.lastName].filter(Boolean).join(' ').trim() ||
+      null
+    );
   }
 
   private async recalculateCompanyRating(tx: Prisma.TransactionClient, companyId: string) {

@@ -1,9 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import path from 'path';
-import PDFDocument from 'pdfkit';
 import type { Company, CompanyCustomer, CompanyInvoice, Intervention } from '@prisma/client';
-
 import { formatDate, formatMoney, paymentStatusRoLabel } from './pdf-format.util';
+import { BasePdfService } from './base-pdf.service';
 
 type InvoicePdfData = CompanyInvoice & {
   company: Pick<Company, 'name' | 'legalName' | 'idno' | 'legalAddress' | 'contactPhone' | 'contactEmail' | 'isTvaPayer' | 'tvaCode'>;
@@ -11,34 +9,15 @@ type InvoicePdfData = CompanyInvoice & {
 };
 
 @Injectable()
-export class InvoicePdfService {
+export class InvoicePdfService extends BasePdfService {
   async build(data: InvoicePdfData): Promise<Buffer> {
-    const doc = new PDFDocument({ size: 'A4', margin: 48 });
-
-    const fontRegularPath = path.join(process.cwd(), 'assets', 'fonts', 'Arial-Regular.ttf');
-    const fontBoldPath = path.join(process.cwd(), 'assets', 'fonts', 'Arial-Bold.ttf');
-    doc.registerFont('Arial', fontRegularPath);
-    doc.registerFont('Arial-Bold', fontBoldPath);
-    doc.font('Arial');
-
-    const chunks: Buffer[] = [];
-
-    doc.on('data', (chunk: Buffer) => chunks.push(chunk));
-
-    const finished = new Promise<Buffer>((resolve, reject) => {
-      doc.on('end', () => resolve(Buffer.concat(chunks)));
-      doc.on('error', reject);
-    });
+    const { doc, finished } = this.initPdfDocument({ size: 'A4', margin: 48 });
 
     const base = Number(data.amount);
     const tva = Number(data.tvaAmount);
     const total = base + tva;
     const customer = data.intervention?.customer;
     const intervention = data.intervention;
-
-    // Header band. Factură = request to pay (UNPAID / OVERDUE).
-    // Chitanță = proof of payment (PAID). Cancelled invoices render in red so
-    // a returned PDF can't be mistaken for an active demand.
     const isCancelled = data.paymentStatus === 'CANCELLED';
     const docTitle = isCancelled
       ? 'FACTURĂ ANULATĂ'
@@ -128,8 +107,6 @@ export class InvoicePdfService {
       doc.page.height - 72,
       { width: doc.page.width - 96, align: 'center' },
     );
-
-    // Cancellation overlay — appears LAST so it sits on top of everything.
     if (isCancelled) {
       doc.save();
       doc.fillColor('#DC2626').font('Arial-Bold').fontSize(72);

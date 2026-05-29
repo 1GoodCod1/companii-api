@@ -16,6 +16,7 @@ import {
   buildTeamMemberLeftEmail,
   buildCompletedInterventionPendingReceiptsEmail,
   buildEstimateVarianceAlertEmail,
+  buildInterventionAssignedEmail,
 } from './templates';
 
 @Injectable()
@@ -139,6 +140,21 @@ export class EmailService implements OnModuleInit {
     leadsUrl: string;
   }): Promise<boolean> {
     const tpl = buildNewLeadEmail(params);
+    return this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
+  }
+
+  async sendInterventionAssignedEmail(params: {
+    to: string;
+    technicianName?: string | null;
+    companyName: string;
+    interventionNumber: string;
+    type: string;
+    address: string;
+    customerName?: string | null;
+    scheduledAt?: string | null;
+    interventionUrl: string;
+  }): Promise<boolean> {
+    const tpl = buildInterventionAssignedEmail(params);
     return this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
   }
 

@@ -18,6 +18,7 @@ export const acoperisBlueprint: EstimateBlueprintConfig = baseConfig({
       stageCodes: ['demontare'],
       fieldKeys: ['oldRoofRemoval'],
       requiresQtyKeys: ['oldRoofRemovalArea'],
+      section: 'Pregătire',
     },
     {
       key: 'timber_structure',
@@ -26,6 +27,7 @@ export const acoperisBlueprint: EstimateBlueprintConfig = baseConfig({
       defaultEnabled: true,
       stageCodes: ['structura'],
       fieldKeys: ['baseArea', 'roofShape'],
+      section: 'Structură',
     },
     {
       key: 'membrane',
@@ -34,6 +36,7 @@ export const acoperisBlueprint: EstimateBlueprintConfig = baseConfig({
       defaultEnabled: true,
       stageCodes: ['membrana'],
       fieldKeys: ['roofSlope'],
+      section: 'Structură',
     },
     {
       key: 'insulation',
@@ -43,6 +46,7 @@ export const acoperisBlueprint: EstimateBlueprintConfig = baseConfig({
       stageCodes: ['izolare'],
       fieldKeys: ['insulationRequired'],
       requiresQtyKeys: ['insulationArea'],
+      section: 'Structură',
     },
     {
       key: 'covering',
@@ -51,6 +55,7 @@ export const acoperisBlueprint: EstimateBlueprintConfig = baseConfig({
       defaultEnabled: true,
       stageCodes: ['invelitoare'],
       fieldKeys: [],
+      section: 'Învelitoare',
     },
     {
       key: 'valleys',
@@ -60,6 +65,7 @@ export const acoperisBlueprint: EstimateBlueprintConfig = baseConfig({
       stageCodes: ['accesorii', 'membrana', 'invelitoare'],
       fieldKeys: ['valleyLengthM'],
       requiresQtyKeys: ['valleyLengthM'],
+      section: 'Învelitoare',
     },
     {
       key: 'wall_flashing',
@@ -69,6 +75,7 @@ export const acoperisBlueprint: EstimateBlueprintConfig = baseConfig({
       stageCodes: ['accesorii', 'invelitoare'],
       fieldKeys: ['wallIntersectionLengthM'],
       requiresQtyKeys: ['wallIntersectionLengthM'],
+      section: 'Învelitoare',
     },
     {
       key: 'gutters',
@@ -77,6 +84,7 @@ export const acoperisBlueprint: EstimateBlueprintConfig = baseConfig({
       defaultEnabled: true,
       stageCodes: ['scurgere'],
       fieldKeys: ['gutterLengthM'],
+      section: 'Scurgere & streașină',
     },
     {
       key: 'snow_guards',
@@ -86,6 +94,7 @@ export const acoperisBlueprint: EstimateBlueprintConfig = baseConfig({
       stageCodes: ['accesorii'],
       fieldKeys: [],
       requiresQtyKeys: ['snowGuardLengthM'],
+      section: 'Învelitoare',
     },
     {
       key: 'soffit',
@@ -95,6 +104,7 @@ export const acoperisBlueprint: EstimateBlueprintConfig = baseConfig({
       stageCodes: ['streasina'],
       fieldKeys: ['soffitLengthM'],
       requiresQtyKeys: ['soffitLengthM'],
+      section: 'Scurgere & streașină',
     },
     {
       key: 'skylights',
@@ -104,6 +114,7 @@ export const acoperisBlueprint: EstimateBlueprintConfig = baseConfig({
       stageCodes: ['lucarne'],
       fieldKeys: ['skylightCount'],
       requiresQtyKeys: ['skylightCount'],
+      section: 'Extra',
     },
     {
       key: 'gable',
@@ -113,6 +124,7 @@ export const acoperisBlueprint: EstimateBlueprintConfig = baseConfig({
       stageCodes: ['fronton'],
       fieldKeys: ['gableArea'],
       requiresQtyKeys: ['gableArea'],
+      section: 'Extra',
     },
     {
       key: 'roof_drip_edge',
@@ -122,6 +134,7 @@ export const acoperisBlueprint: EstimateBlueprintConfig = baseConfig({
       stageCodes: ['picurator_streasina'],
       fieldKeys: ['roofDripEdgeLengthM'],
       requiresQtyKeys: ['roofDripEdgeLengthM'],
+      section: 'Scurgere & streașină',
     },
   ],
   customFields: [
@@ -159,6 +172,12 @@ export const acoperisBlueprint: EstimateBlueprintConfig = baseConfig({
       defaultValue: 'rectangle',
       helpText:
         'Coeficienți complexitate: rectangle ×1.0, L-shape ×1.2 (+dolii), T/U-shape ×1.35, complex ×1.5. Influențează manopera și lungimea doliilor.',
+      warningRules: [
+        { when: "roofShape === 'l-shape'", message: 'Acoperiș în L — manopera crește automat cu +20% și se adaugă dolii.' },
+        { when: "roofShape === 't-shape'", message: 'Acoperiș în T — manopera crește automat cu +35% și se adaugă dolii.' },
+        { when: "roofShape === 'u-shape'", message: 'Acoperiș în U — manopera crește automat cu +35% și se adaugă dolii.' },
+        { when: "roofShape === 'complex'", message: 'Formă complexă — manopera crește automat cu +50%; devizul necesită verificare manuală.' },
+      ],
       section: 'General',
     },
     {

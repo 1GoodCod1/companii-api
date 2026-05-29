@@ -59,8 +59,6 @@ export class ConsentService {
     this.logger.log(
       `Consent GRANTED: companyId=${companyId}, memberId=${memberId}, type=${consentType}, version=${meta.version}`,
     );
-
-    // Audit Log recording (GDPR requirement)
     await this.audit.log({
       userId: user.sub,
       action: AuditAction.CONSENT_GRANTED,

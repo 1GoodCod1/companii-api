@@ -8,13 +8,6 @@ import {
 import { isEmailLogin, normalizePhone } from '../../../common/utils/phone.util';
 import { RedisService } from '../../shared/redis/redis.service';
 
-/**
- * Canonical identifier used for lockout bookkeeping.
- * - Email: lowercased + trimmed.
- * - Phone: normalized to +373XXXXXXXX form (see phone.util).
- * - Anything else: trimmed (kept as-is). This prevents the same user being
- *   tracked under multiple bucket keys (e.g. `+37360...` vs `060...`).
- */
 function canonicalIdentifier(raw: string | undefined | null): string | null {
   if (!raw) return null;
   const trimmed = raw.trim();

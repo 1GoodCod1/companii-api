@@ -18,7 +18,6 @@ function parseValidOrigins(raw: string | undefined): string[] {
     .filter(Boolean)
     .map((s) => {
       try {
-        // Strip trailing slash, drop any path/query/hash; keep only the origin.
         return new URL(s).origin;
       } catch {
         logger.warn(`Ignored invalid CORS origin: ${s}`);
@@ -30,14 +29,6 @@ function parseValidOrigins(raw: string | undefined): string[] {
 
 let cachedOrigins: string | string[] | null = null;
 
-/**
- * Resolves the allow-listed origins for CORS once at bootstrap and caches the
- * result. Subsequent calls (e.g. from CookieOriginGuard) avoid re-parsing env
- * vars on every request.
- *
- * Prod: FRONTEND_URL (required, https only). Dev: FRONTEND_URL + local Vite
- * ports. CORS_ORIGINS overrides when set explicitly (legacy / multi-origin).
- */
 export function getCorsOrigins(): string | string[] {
   if (cachedOrigins !== null) return cachedOrigins;
 

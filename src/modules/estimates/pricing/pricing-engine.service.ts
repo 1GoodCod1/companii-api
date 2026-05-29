@@ -2,21 +2,18 @@ import { Injectable } from '@nestjs/common';
 import type { EstimateBlueprintConfig, BlueprintPricingRule } from './pricing.types';
 import type { Plan2dData } from './plan2d.types';
 import { isPricingRuleActive, getDefaultEnabledWorkModules } from '../utils/work-modules.util';
-import { deriveSantehnikaMeasurements } from './category/plumbing/plumbing-measurements.util';
-import { deriveElektrikaMeasurements } from './category/electrical/electrical-measurements.util';
-import { deriveClimaMeasurements } from './category/climate/climate-measurements.util';
-import { deriveFinisajMeasurements } from './category/finishing/finishing-measurements.util';
-import { deriveAcoperisMeasurements } from './category/roofing/roofing-measurements.util';
-import { deriveFlatRoofMeasurements } from './category/flat-roofing/flat-roofing-measurements.util';
-import { deriveFatadeMeasurements } from './category/facade/facade-measurements.util';
-import { deriveOknaDveriMeasurements } from './category/windows-doors/windows-doors-measurements.util';
-import { deriveMobilaMeasurements } from './category/furniture/furniture-measurements.util';
-import { deriveCleaningMeasurements } from './category/cleaning/cleaning-measurements.util';
-import { deriveItNetworksMeasurements } from './category/it-networks/it-networks-measurements.util';
-import { deriveItHardwareMeasurements } from './category/it-hardware/it-hardware-measurements.util';
-import { derivePanouriSolareMeasurements } from './category/solar/solar-measurements.util';
-import { deriveConstructiiMeasurements } from './category/constructii/constructii-measurements.util';
-import { derivePavajMeasurements } from './category/pavaj/pavaj-measurements.util';
+import {
+  round2,
+  applyBaseMeasurementFallbacks,
+  normalizeRateKey,
+  readOptionalPositiveNumber,
+  normalizeRoomLayout,
+  pointPositionInRoom,
+  CUSTOM_PRICING_KEYS,
+  ROOM_COLORS,
+} from './pricing-engine-utils';
+import { getCategoryStrategy } from './category/category-measurement.registry';
+import type { CompanyPricingModifiers } from '../../../../prisma/estimate-pricing-modifiers';
 
 export type { Plan2dData } from './plan2d.types';
 
@@ -36,6 +33,7 @@ export class EstimatePricingEngine {
     plan2d: Plan2dData | null | undefined,
     diagnosticAnswers: Record<string, unknown> | null | undefined,
     categorySlug?: string | null,
+    pricingModifiers?: CompanyPricingModifiers | null,
   ): MeasurementMap {
     const measurements: MeasurementMap = {};
     const pointsCount = (type: string) => plan2d?.points?.filter((p) => p.type === type).length ?? 0;
@@ -115,64 +113,12 @@ export class EstimatePricingEngine {
 
     applyBaseMeasurementFallbacks(measurements);
 
-    if (categorySlug === 'santehnika') {
-      return deriveSantehnikaMeasurements(plan2d, diagnosticAnswers, measurements);
-    }
-
-    if (categorySlug === 'elektrika') {
-      return deriveElektrikaMeasurements(plan2d, diagnosticAnswers, measurements);
-    }
-
-    if (categorySlug === 'clima') {
-      return deriveClimaMeasurements(plan2d, diagnosticAnswers, measurements);
-    }
-
-    if (categorySlug === 'lucrari-finisaj') {
-      return deriveFinisajMeasurements(plan2d, diagnosticAnswers, measurements);
-    }
-
-    if (categorySlug === 'acoperis') {
-      return deriveAcoperisMeasurements(plan2d, diagnosticAnswers, measurements);
-    }
-
-    if (categorySlug === 'acoperis-plat') {
-      return deriveFlatRoofMeasurements(plan2d, diagnosticAnswers, measurements);
-    }
-
-    if (categorySlug === 'fatade') {
-      return deriveFatadeMeasurements(plan2d, diagnosticAnswers, measurements);
-    }
-
-    if (categorySlug === 'okna-dveri') {
-      return deriveOknaDveriMeasurements(plan2d, diagnosticAnswers, measurements);
-    }
-
-    if (categorySlug === 'mobila') {
-      return deriveMobilaMeasurements(plan2d, diagnosticAnswers, measurements);
-    }
-
-    if (categorySlug === 'cleaning') {
-      return deriveCleaningMeasurements(plan2d, diagnosticAnswers, measurements);
-    }
-
-    if (categorySlug === 'it-networks') {
-      return deriveItNetworksMeasurements(plan2d, diagnosticAnswers, measurements);
-    }
-
-    if (categorySlug === 'it-hardware') {
-      return deriveItHardwareMeasurements(plan2d, diagnosticAnswers, measurements);
-    }
-
-    if (categorySlug === 'panouri-solare') {
-      return derivePanouriSolareMeasurements(plan2d, diagnosticAnswers, measurements);
-    }
-
-    if (categorySlug === 'constructii') {
-      return deriveConstructiiMeasurements(plan2d, diagnosticAnswers, measurements);
-    }
-
-    if (categorySlug === 'pavaj') {
-      return derivePavajMeasurements(plan2d, diagnosticAnswers, measurements);
+    // Strategy + Registry: delegate to category-specific measurement logic
+    if (categorySlug) {
+      const strategy = getCategoryStrategy(categorySlug);
+      if (strategy) {
+        return strategy.deriveMeasurements(plan2d, diagnosticAnswers, measurements, pricingModifiers);
+      }
     }
 
     return measurements;
@@ -206,13 +152,9 @@ export class EstimatePricingEngine {
     options?: {
       enabledWorkModules?: string[];
       config?: EstimateBlueprintConfig;
-      /**
-       * Composed labor unitPrice multiplier (Slice 2+3 — access × urgency × future).
-       * Caller is responsible for composition. Defaults to 1.0.
-       */
       laborMultiplier?: number;
-      /** Composed material unitPrice multiplier (rare — only when transport risk). */
       materialMultiplier?: number;
+      includeMaterials?: boolean;
     },
   ): Array<{
     stageCode: string;
@@ -237,8 +179,13 @@ export class EstimatePricingEngine {
 
     const laborMult = options?.laborMultiplier ?? 1;
     const materialMult = options?.materialMultiplier ?? 1;
+    const includeMaterials = options?.includeMaterials ?? true;
 
     for (const rule of rules) {
+      if (!includeMaterials && (rule.kind ?? 'material') === 'material') {
+        continue;
+      }
+
       if (options?.config?.workModules?.length) {
         const enabledModules =
           options.enabledWorkModules ?? getDefaultEnabledWorkModules(options.config);
@@ -334,7 +281,6 @@ export class EstimatePricingEngine {
       const isServiceCategory = categorySlug === 'it-networks' || categorySlug === 'it-hardware';
 
       if (isServiceCategory) {
-        // IT/networks: override ore-based labor rules
         const hourlyLaborRules = nextRules.filter((rule) => rule.unit === 'ore' && rule.kind === 'labor');
         if (hourlyLaborRules.length) {
           nextRules = nextRules.map((rule) =>
@@ -344,7 +290,6 @@ export class EstimatePricingEngine {
           );
         }
       } else {
-        // Construction categories: override m²-based labor rules
         nextMeasurements.totalFloorArea ??=
           nextMeasurements.finishArea ?? nextMeasurements.cleanArea ?? nextMeasurements.tileFloorArea ?? 12;
 
@@ -437,90 +382,3 @@ export class EstimatePricingEngine {
   }
 }
 
-function round2(value: number): number {
-  return Math.round(value * 100) / 100;
-}
-
-/** E-01: only base plan metrics get global fallbacks; optional qty keys belong to category hooks. */
-function applyBaseMeasurementFallbacks(measurements: MeasurementMap): void {
-  if (measurements.totalFloorArea != null && measurements.totalFloorArea > 0) {
-    measurements.wallArea ??= round2(measurements.totalFloorArea * 2.5);
-  }
-}
-
-function normalizeRateKey(value: string): string {
-  return value.trim().toLowerCase();
-}
-
-const ROOM_COLORS = ['#6366f1', '#2563eb', '#16a34a', '#d97706', '#dc2626', '#ea580c'];
-const ROOM_GAP_M = 0.6;
-
-export const CUSTOM_PRICING_KEYS = {
-  unitPriceSqm: 'customUnitPriceSqm',
-  durationDays: 'customDurationDays',
-  laborHours: 'customLaborHours',
-  laborTotal: 'customLaborTotal',
-} as const;
-
-function readOptionalPositiveNumber(
-  diagnostic: Record<string, unknown> | null | undefined,
-  key: string,
-): number | undefined {
-  const value = diagnostic?.[key];
-  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return undefined;
-  return value;
-}
-
-export function distributeDurationDays(
-  totalDays: number,
-  stages: Array<{ id: string; durationDays: number | null }>,
-): Array<{ id: string; durationDays: number }> {
-  if (!stages.length) return [];
-
-  const weights = stages.map((stage) => Math.max(1, stage.durationDays ?? 1));
-  const weightSum = weights.reduce((acc, value) => acc + value, 0);
-  let assigned = 0;
-
-  return stages.map((stage, index) => {
-    if (index === stages.length - 1) {
-      return { id: stage.id, durationDays: Math.max(1, totalDays - assigned) };
-    }
-
-    const days = Math.max(1, Math.round((totalDays * weights[index]!) / weightSum));
-    assigned += days;
-    return { id: stage.id, durationDays: days };
-  });
-}
-
-type LayoutRoom = Plan2dData['rooms'][number] & { layoutX: number; layoutY: number };
-
-function normalizeRoomLayout(rooms: Plan2dData['rooms']): LayoutRoom[] {
-  let cursorX = 0;
-  return rooms.map((room) => {
-    const layoutX = room.x ?? cursorX;
-    const layoutY = room.y ?? 0;
-    cursorX = Math.max(cursorX, layoutX + room.width + ROOM_GAP_M);
-    return { ...room, layoutX, layoutY };
-  });
-}
-
-function pointPositionInRoom(
-  room: LayoutRoom,
-  point: Plan2dData['points'][number],
-  indexInRoom: number,
-): { x: number; y: number } {
-  if (point.x != null && point.y != null) {
-    return {
-      x: room.layoutX + point.x * room.width,
-      y: room.layoutY + point.y * room.height,
-    };
-  }
-
-  const cols = Math.max(2, Math.ceil(Math.sqrt(indexInRoom + 1)));
-  const col = indexInRoom % cols;
-  const row = Math.floor(indexInRoom / cols);
-  return {
-    x: room.layoutX + 0.35 + col * 0.55,
-    y: room.layoutY + 0.35 + row * 0.55,
-  };
-}

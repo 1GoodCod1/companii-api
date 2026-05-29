@@ -1,7 +1,12 @@
-import { parseCustomerImportCsv, isDuplicatePhoneInFile } from './customer-import.parser';
+import { parseCustomerImportCsv, isDuplicatePhoneInFile, CustomerImportParserFactory, CsvCustomerImportParserStrategy } from './customer-import.parser';
 import { buildCustomerImportCsvTemplate } from './customer-import.template';
 
 describe('customer import', () => {
+  it('resolves CSV strategy using the strategy factory', () => {
+    const strategy = CustomerImportParserFactory.getStrategy('clients.csv');
+    expect(strategy).toBeInstanceOf(CsvCustomerImportParserStrategy);
+  });
+
   it('parses semicolon CSV with required columns', () => {
     const { buffer } = buildCustomerImportCsvTemplate();
     const rows = parseCustomerImportCsv(buffer);

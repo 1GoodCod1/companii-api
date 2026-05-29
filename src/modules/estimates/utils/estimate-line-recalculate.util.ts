@@ -54,3 +54,21 @@ export function nextRuleLineSortOrder(existingLines: Array<{ sortOrder: number }
   if (!existingLines.length) return 0;
   return Math.max(...existingLines.map((line) => line.sortOrder)) + 1;
 }
+
+export function calculateTva(
+  lines: Array<{ lineTotal: any; vatRate?: any | null }>,
+  projectTvaRate: any | null,
+  marginPct: number,
+  riskReservePct = 0,
+): number {
+  const priceFactor = (1 + riskReservePct / 100) * (1 + marginPct / 100);
+  let tvaAmount = 0;
+  for (const line of lines) {
+    const rate = line.vatRate !== null && line.vatRate !== undefined ? Number(line.vatRate) : Number(projectTvaRate ?? 0);
+    const lineTotal = Number(line.lineTotal);
+    const lineTva = lineTotal * priceFactor * (rate / 100);
+    tvaAmount += lineTva;
+  }
+  return round2(tvaAmount);
+}
+

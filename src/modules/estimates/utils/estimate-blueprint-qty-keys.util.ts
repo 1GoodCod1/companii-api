@@ -1,7 +1,6 @@
 import type { EstimateBlueprintConfig } from '../../../../prisma/estimate-blueprint-config.types';
 import { mergeEnabledWorkModulesIntoDiagnostic } from '../utils/work-modules.util';
 
-/** Keys populated from plan2d / globalParameters in EstimatePricingEngine.deriveMeasurements */
 export const GLOBAL_PLAN_DERIVED_QTY_KEYS = new Set<string>([
   'baseArea',
   'wallHeight',

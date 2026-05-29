@@ -1,27 +1,9 @@
 import type { Plan2dData } from '../../plan2d.types';
 import { round2 } from '../../../estimate.constants';
+import { readNumber, readBoolean, type MeasurementMap } from '../category-shared.util';
 
-export type MeasurementMap = Record<string, number>;
-
-/** Guard: cos below this → slope too steep for reliable geometry. */
 export const ROOF_COS_GUARD = 0.1;
 
-function readNumber(source: Record<string, unknown> | null | undefined, key: string): number | undefined {
-  const value = source?.[key];
-  if (typeof value === 'number' && Number.isFinite(value)) return value;
-  if (typeof value === 'string' && value.trim() !== '') {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  return undefined;
-}
-
-function readBoolean(source: Record<string, unknown> | null | undefined, key: string): boolean {
-  const value = source?.[key];
-  if (value === true || value === 'true') return true;
-  if (value === false || value === 'false') return false;
-  return false;
-}
 
 function normalizeRoofShape(shape: unknown): string {
   return String(shape ?? 'rectangle')
@@ -30,7 +12,6 @@ function normalizeRoofShape(shape: unknown): string {
     .replace(/_/g, '-');
 }
 
-/** implementation_plan.md §4.5 */
 export function resolveRoofShapeMultiplier(roofShape: unknown): number {
   const normalized = normalizeRoofShape(roofShape);
   if (normalized === 'complex') return 1.5;
@@ -86,9 +67,6 @@ function inferShapeFromPlan(plan2d: Plan2dData | null | undefined): string | und
   return shape;
 }
 
-/**
- * Category-specific measurements for `acoperis` (implementation_plan.md §4.5).
- */
 export function deriveAcoperisMeasurements(
   plan2d: Plan2dData | null | undefined,
   diagnostic: Record<string, unknown> | null | undefined,
@@ -133,14 +111,8 @@ export function deriveAcoperisMeasurements(
 
   measurements.ridgeLengthM =
     readNumber(diagnostic, 'ridgeLengthM') ?? round2(Math.sqrt(baseArea) * 2);
-
-  // Soffit length defaults to building perimeter when not set explicitly —
-  // module is gated by requiresQtyKeys/moduleEnabled, so this is safe.
   measurements.soffitLengthM =
     readNumber(diagnostic, 'soffitLengthM') ?? Math.max(10, perimeterEstimate);
-
-  // Drip edge along the eave: same length as gutters by definition. Fall back
-  // to gutterLengthM so users don't need to enter the same number twice.
   measurements.roofDripEdgeLengthM =
     readNumber(diagnostic, 'roofDripEdgeLengthM') ?? measurements.gutterLengthM;
 

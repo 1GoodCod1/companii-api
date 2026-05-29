@@ -8,7 +8,6 @@ export function formatDate(value: Date, locale: string = 'ro-MD'): string {
   return value.toLocaleDateString(locale, { day: '2-digit', month: 'long', year: 'numeric' });
 }
 
-/** Human-readable RO label for invoice payment status (used in PDF + CSV exports). */
 export function paymentStatusRoLabel(status: InvoicePaymentStatus): string {
   switch (status) {
     case 'PAID':

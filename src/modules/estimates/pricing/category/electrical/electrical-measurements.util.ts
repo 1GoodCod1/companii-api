@@ -1,24 +1,7 @@
 import type { Plan2dData } from '../../plan2d.types';
 import { round2 } from '../../../estimate.constants';
+import { readNumber, readBoolean, type MeasurementMap } from '../category-shared.util';
 
-export type MeasurementMap = Record<string, number>;
-
-function readNumber(source: Record<string, unknown> | null | undefined, key: string): number | undefined {
-  const value = source?.[key];
-  if (typeof value === 'number' && Number.isFinite(value)) return value;
-  if (typeof value === 'string' && value.trim() !== '') {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  return undefined;
-}
-
-function readBoolean(source: Record<string, unknown> | null | undefined, key: string): boolean {
-  const value = source?.[key];
-  if (value === true || value === 'true') return true;
-  if (value === false || value === 'false') return false;
-  return false;
-}
 
 function readSelect(source: Record<string, unknown> | null | undefined, key: string): string {
   const value = source?.[key];
@@ -26,7 +9,6 @@ function readSelect(source: Record<string, unknown> | null | undefined, key: str
   return '';
 }
 
-/** implementation_plan.md §4.2 — gips 1.0, bca 1.1, caramida 1.2, beton 1.45 */
 export function resolveWallMaterialMultiplier(wallMaterial: unknown): number {
   const normalized = String(wallMaterial ?? 'gips')
     .trim()
@@ -43,18 +25,15 @@ export function resolveWallMaterialMultiplier(wallMaterial: unknown): number {
 function resolveCableSegmentMultiplier(segment: string): number {
   if (segment === '4 mm²') return 1.4;
   if (segment === '6 mm²') return 1.7;
-  return 1.0; // 1.5 mm² or 2.5 mm² (default)
+  return 1.0; 
 }
 
 function resolveDeviceTierMultiplier(tier: string): number {
   if (tier === 'premium') return 2.5;
   if (tier === 'standard') return 1.5;
-  return 1.0; // economic
+  return 1.0;
 }
 
-/**
- * Category-specific measurements for `elektrika` (implementation_plan.md §4.2).
- */
 export function deriveElektrikaMeasurements(
   plan2d: Plan2dData | null | undefined,
   diagnostic: Record<string, unknown> | null | undefined,
@@ -106,20 +85,15 @@ export function deriveElektrikaMeasurements(
     (cableReplace ? 25 : 0) +
     dedicatedLinesCount * 12;
 
-  // Cable segment type affects material cost per meter
   const cableSegmentMultiplier = resolveCableSegmentMultiplier(readSelect(diagnostic, 'cableSegmentMm2') || '2.5 mm²');
   measurements.cableSegmentMultiplier = cableSegmentMultiplier;
-  // Device tier affects material cost per point
   const deviceTierMultiplier = resolveDeviceTierMultiplier(readSelect(diagnostic, 'deviceTier') || 'standard');
   measurements.deviceTierMultiplier = deviceTierMultiplier;
 
   measurements.wallChasingM = wallChasingM > 0 ? wallChasingM : 0;
   const materialMultiplier = resolveWallMaterialMultiplier(diagnostic?.wallMaterial);
   measurements.materialMultiplier = materialMultiplier;
-  // New construction: no wall chasing needed (cables go before plaster)
   measurements.wallChasingCostM = isNewConstruction ? 0 : round2(measurements.wallChasingM * materialMultiplier);
-  // materialMultiplier applies ONLY to wall chasing — cable pulling and device mounting
-  // are the same difficulty regardless of wall material (the chase is already cut).
   measurements.cableLengthMLabor = round2(measurements.cableLengthM);
   measurements.electricPointsLabor = round2(measurements.electricPoints);
 
@@ -130,9 +104,7 @@ export function deriveElektrikaMeasurements(
   measurements.demolitionHours = cableReplace ? Math.max(2, roomCount) : 0;
   measurements.projectHours = Math.max(2, Math.ceil(roomCount / 2));
   measurements.testingPointCount = measurements.electricPoints;
-  // Material costs for devices (separate from labor), adjusted by device tier
   measurements.electricPointsMaterial = round2(measurements.electricPoints * deviceTierMultiplier);
-  // Cable material cost adjusted by segment type
   measurements.cableMaterialM = round2(measurements.cableLengthM * cableSegmentMultiplier);
 
   return measurements;

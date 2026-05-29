@@ -15,7 +15,7 @@ import { SubscriptionGuard } from '../../auth/guards/subscription.guard';
 import { RequiresFeature } from '../../../common/decorators/requires-feature.decorator';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../../auth/types/jwt-payload';
-import { EstimateTemplatesService } from '../services/estimate-templates.service';
+import { EstimateTemplatesService } from '../services/blueprints/estimate-templates.service';
 import { CreateTemplateDto, UpdateTemplateDto } from '../dto/template.dto';
 
 @Controller(`${CONTROLLER_PATH.estimates}/templates`)

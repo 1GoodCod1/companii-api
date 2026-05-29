@@ -6,13 +6,14 @@ import type { CreateAdminCategoryDto, UpdateAdminCategoryDto } from './dto/admin
 import type { CreateAdminCityDto, UpdateAdminCityDto } from './dto/admin-city.dto';
 import type { UpdateAdminClientDto } from './dto/admin-client.dto';
 import type { AdminAuditQueryDto } from './dto/admin-audit-query.dto';
+import type { CreateAdminBlueprintDto, UpdateAdminBlueprintDto } from './dto/admin-blueprint.dto';
 import { AdminClientsService } from './services/admin-clients.service';
 import { AdminCompaniesService } from './services/admin-companies.service';
 import { AdminModerationService } from './services/admin-moderation.service';
 import { AdminReferenceDataService } from './services/admin-reference-data.service';
 import { AdminStatsService } from './services/admin-stats.service';
+import { AdminBlueprintsService } from './services/admin-blueprints.service';
 
-/** Facade — сохраняет публичный API для AdminController. */
 @Injectable()
 export class AdminService {
   constructor(
@@ -21,6 +22,7 @@ export class AdminService {
     private readonly referenceData: AdminReferenceDataService,
     private readonly statsService: AdminStatsService,
     private readonly clients: AdminClientsService,
+    private readonly blueprints: AdminBlueprintsService,
   ) {}
 
   assertAdmin(user: JwtPayload): void {
@@ -111,5 +113,21 @@ export class AdminService {
 
   updateClient(id: string, dto: UpdateAdminClientDto) {
     return this.clients.updateClient(id, dto);
+  }
+
+  listBlueprints() {
+    return this.blueprints.list();
+  }
+
+  createBlueprint(dto: CreateAdminBlueprintDto) {
+    return this.blueprints.create(dto);
+  }
+
+  updateBlueprint(id: string, dto: UpdateAdminBlueprintDto) {
+    return this.blueprints.update(id, dto);
+  }
+
+  deleteBlueprint(id: string) {
+    return this.blueprints.delete(id);
   }
 }

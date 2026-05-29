@@ -11,7 +11,6 @@ export type CalculationTraceEntry = {
   source: MeasurementSource;
 };
 
-/** Internal flags derived during pricing — not persisted as EstimateMeasurement rows. */
 export const INTERNAL_MEASUREMENT_KEYS = new Set<string>([
   'requiresManualReview',
   'preliminaryEstimate',

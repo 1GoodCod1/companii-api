@@ -1,8 +1,6 @@
 export const CUSTOMER_IMPORT_MAX_ROWS = 1000;
-
 export const CUSTOMER_IMPORT_TEMPLATE_FILENAME = 'faber-clienti-import';
 
-/** Romanian headers used in the official template (order matters for export). */
 export const CUSTOMER_IMPORT_TEMPLATE_COLUMNS = [
   { key: 'fullName' as const, header: 'Nume complet *', width: 28 },
   { key: 'phone' as const, header: 'Telefon *', width: 18 },

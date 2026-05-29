@@ -1,5 +1,11 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { AppErrorMessages, AppErrors } from '../../../common/errors';
+import {
+  PRICING_MODIFIERS,
+  isKnownPricingModifierKey,
+  parseCompanyPricingModifiers,
+} from '../../../../prisma/estimate-pricing-modifiers';
 import { COMPANY_GALLERY_MAX_VIDEOS } from '../../../common/constants';
 import { CacheService } from '../../shared/cache/cache.service';
 import { PrismaService } from '../../shared/database/prisma.service';
@@ -157,6 +163,57 @@ export class CompaniesCoreService {
     });
     await this.cache.invalidatePublicCompanies(updated.slug);
     return updated;
+  }
+
+  async getPricingModifiers(user: JwtPayload, companyId: string) {
+    this.companyAuth.assertSameCompanyContext(user, companyId);
+    await this.assertCompanyAccess(user, companyId);
+    const company = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      select: { pricingModifiers: true },
+    });
+    return {
+      catalog: PRICING_MODIFIERS,
+      overrides: parseCompanyPricingModifiers(company?.pricingModifiers),
+    };
+  }
+
+  async updatePricingModifiers(
+    user: JwtPayload,
+    companyId: string,
+    modifiers: Record<string, number | null>,
+  ) {
+    this.companyAuth.assertSameCompanyContext(user, companyId);
+    await this.assertCompanyAccess(user, companyId);
+
+    const company = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      select: { pricingModifiers: true },
+    });
+    const next = parseCompanyPricingModifiers(company?.pricingModifiers);
+
+    for (const [key, value] of Object.entries(modifiers)) {
+      if (!isKnownPricingModifierKey(key)) {
+        throw AppErrors.badRequest(`Coeficient de preț necunoscut: ${key}`);
+      }
+      if (value === null) {
+        delete next[key];
+        continue;
+      }
+      if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 300) {
+        throw AppErrors.badRequest(`Valoare invalidă pentru „${key}" (permis 0–300%).`);
+      }
+      next[key] = value;
+    }
+
+    const updated = await this.prisma.company.update({
+      where: { id: companyId },
+      data: { pricingModifiers: next as Prisma.InputJsonValue },
+    });
+    return {
+      catalog: PRICING_MODIFIERS,
+      overrides: parseCompanyPricingModifiers(updated.pricingModifiers),
+    };
   }
 
   async addGalleryImage(user: JwtPayload, companyId: string, dto: AddGalleryImageDto) {

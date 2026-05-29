@@ -22,7 +22,6 @@ import { CONTROLLER_PATH } from '../../../common/constants';
 import { AuthService } from '../../auth/auth.service';
 import { RefreshCookieService } from '../../auth/services/refresh-cookie.service';
 
-/** Paths handled by sibling controllers — must not match @Get(':slug'). */
 const RESERVED_COMPANY_SLUGS = new Set([
   'members',
   'waitlist',
@@ -39,6 +38,7 @@ import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../../auth/types/jwt-payload';
 import { ClientProjectRequestDto } from '../dto/client-project-request.dto';
 import { ClientServiceRequestDto } from '../dto/client-service-request.dto';
+import { UpdatePricingModifiersDto } from '../dto/update-pricing-modifiers.dto';
 
 @Controller(CONTROLLER_PATH.companies)
 export class CompaniesController {
@@ -151,6 +151,24 @@ export class CompaniesController {
   @CompanyRoles('OWNER')
   publish(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.companies.publish(user, id);
+  }
+
+  @Get(':id/pricing-modifiers')
+  @UseGuards(CompanyGuard)
+  @CompanyRoles('OWNER', 'MANAGER')
+  getPricingModifiers(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    return this.companies.getPricingModifiers(user, id);
+  }
+
+  @Patch(':id/pricing-modifiers')
+  @UseGuards(CompanyGuard)
+  @CompanyRoles('OWNER', 'MANAGER')
+  updatePricingModifiers(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() dto: UpdatePricingModifiersDto,
+  ) {
+    return this.companies.updatePricingModifiers(user, id, dto.modifiers);
   }
 
   @Post(':id/gallery')

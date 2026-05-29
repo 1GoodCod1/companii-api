@@ -1,26 +1,7 @@
 import type { Plan2dData } from '../../plan2d.types';
 import { round2 } from '../../../estimate.constants';
+import { readNumber, readBoolean, type MeasurementMap } from '../category-shared.util';
 
-export type MeasurementMap = Record<string, number>;
-
-function readNumber(source: Record<string, unknown> | null | undefined, key: string): number | undefined {
-  const value = source?.[key];
-  if (typeof value === 'number' && Number.isFinite(value)) return value;
-  if (typeof value === 'string' && value.trim() !== '') {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  return undefined;
-}
-
-function readBoolean(source: Record<string, unknown> | null | undefined, key: string): boolean {
-  const value = source?.[key];
-  if (value === true || value === 'true') return true;
-  if (value === false || value === 'false') return false;
-  return false;
-}
-
-/** implementation_plan.md §4.8 */
 export function resolveHardwareCostMultiplier(hardwareTier: unknown): number {
   const normalized = String(hardwareTier ?? 'basic')
     .trim()
@@ -43,12 +24,9 @@ function resolveMaterialMultiplier(materialType: unknown): number {
   if (normalized === 'hpl') return 1.8;
   if (normalized === 'lemn') return 1.6;
   if (normalized === 'mdf') return 1.3;
-  return 1.0; // pal base
+  return 1.0; 
 }
 
-/**
- * Category-specific measurements for `mobila` (implementation_plan.md §4.8).
- */
 export function deriveMobilaMeasurements(
   plan2d: Plan2dData | null | undefined,
   diagnostic: Record<string, unknown> | null | undefined,
@@ -75,7 +53,6 @@ export function deriveMobilaMeasurements(
     round2(measurements.cabinetCount * 0.8 + measurements.wardrobeCount * 1.5);
   measurements.cuttingLinearM = measurements.linearMeters;
 
-  // Material premium: extra cost for mdf, lemn, hpl vs base pal
   const materialMultiplier = resolveMaterialMultiplier(diagnostic?.materialType);
   measurements.materialMultiplier = materialMultiplier;
   measurements.cuttingMaterialPremiumM =

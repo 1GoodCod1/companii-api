@@ -8,7 +8,7 @@ import {
   isCustomFieldRequired,
   readEnabledWorkModules,
 } from './work-modules.util';
-import { CUSTOM_PRICING_KEYS } from '../pricing/pricing-engine.service';
+import { CUSTOM_PRICING_KEYS } from '../pricing/pricing-engine-utils';
 
 export const ESTIMATE_VALIDATION_FAILED = 'ESTIMATE_VALIDATION_FAILED';
 
@@ -40,7 +40,7 @@ function collectKnownDiagnosticKeys(config: EstimateBlueprintConfig): Set<string
   for (const question of config.diagnosticQuestions) {
     keys.add(question.key);
   }
-  for (const key of Object.values(CUSTOM_PRICING_KEYS)) {
+  for (const key of Object.values(CUSTOM_PRICING_KEYS) as string[]) {
     keys.add(key);
   }
   return keys;

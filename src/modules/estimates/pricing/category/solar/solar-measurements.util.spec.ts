@@ -74,6 +74,41 @@ describe('Solar measurements (panouri-solare)', () => {
     expect(result.requiresManualReview).toBe(1);
   });
 
+  it('derives one optimizer per panel and reads ev charger count', () => {
+    const result = derivePanouriSolareMeasurements(
+      null,
+      { panelCount: 10, evChargerCount: 1 },
+      {},
+    );
+    expect(result.optimizerCount).toBe(10);
+    expect(result.evChargerCount).toBe(1);
+  });
+
+  it('gates optimizer & ev-charger lines behind their modules', () => {
+    const engine = new EstimatePricingEngine();
+    const measurements = derivePanouriSolareMeasurements(
+      null,
+      { panelCount: 10, evChargerCount: 1 },
+      {},
+    );
+    const config = panouriSolareBlueprint as EstimateBlueprintConfig;
+
+    const baseLines = engine.buildLinesFromRules(config.pricingRules, measurements, {
+      enabledWorkModules: ['panels', 'protection'],
+      config,
+    });
+    expect(baseLines.some((l) => l.description.toLowerCase().includes('optimizatoare'))).toBe(false);
+    expect(baseLines.some((l) => l.description.toLowerCase().includes('încărcare'))).toBe(false);
+
+    const withExtras = engine.buildLinesFromRules(config.pricingRules, measurements, {
+      enabledWorkModules: ['panels', 'protection', 'optimizers', 'ev_charger'],
+      config,
+    });
+    const optimizerLine = withExtras.find((l) => l.description.toLowerCase().includes('optimizatoare'));
+    expect(optimizerLine?.qty).toBe(10);
+    expect(withExtras.some((l) => l.description.toLowerCase().includes('încărcare'))).toBe(true);
+  });
+
   it('prices inverter labor by inverterCount, not panelCount', () => {
     const engine = new EstimatePricingEngine();
     const measurements = derivePanouriSolareMeasurements(

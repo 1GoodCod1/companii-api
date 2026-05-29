@@ -40,6 +40,7 @@ import { WebVitalsModule } from './modules/web-vitals/web-vitals.module';
 import { RlsModule } from './common/rls/rls.module';
 import { HealthController } from './health.controller';
 import { AUTH_THROTTLER_NAME } from './common/constants';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -68,6 +69,7 @@ const isProd = process.env.NODE_ENV === 'production';
       { name: 'default', ttl: 60_000, limit: 120 },
       { name: AUTH_THROTTLER_NAME, ttl: 60_000, limit: 20 },
     ]),
+    EventEmitterModule.forRoot(),
     PrismaModule,
     RlsModule,
     RedisModule,

@@ -11,6 +11,7 @@ import { CreateAdminCityDto, UpdateAdminCityDto } from './dto/admin-city.dto';
 import { UpdateAdminClientDto } from './dto/admin-client.dto';
 import { ModerateCompanyDto } from './dto/admin-company-moderation.dto';
 import { UpdateAdminReviewDto } from './dto/admin-review.dto';
+import { CreateAdminBlueprintDto, UpdateAdminBlueprintDto } from './dto/admin-blueprint.dto';
 
 @Controller(CONTROLLER_PATH.admin)
 @UseGuards(RolesGuard)
@@ -140,5 +141,28 @@ export class AdminController {
   @Patch('clients/:id')
   updateClient(@Param('id') id: string, @Body() dto: UpdateAdminClientDto) {
     return this.admin.updateClient(id, dto);
+  }
+
+  @Get('blueprints')
+  blueprints() {
+    return this.admin.listBlueprints();
+  }
+
+  @Post('blueprints')
+  createBlueprint(@Body() dto: CreateAdminBlueprintDto) {
+    return this.admin.createBlueprint(dto);
+  }
+
+  @Patch('blueprints/:id')
+  updateBlueprint(
+    @Param('id') id: string,
+    @Body() dto: UpdateAdminBlueprintDto,
+  ) {
+    return this.admin.updateBlueprint(id, dto);
+  }
+
+  @Delete('blueprints/:id')
+  deleteBlueprint(@Param('id') id: string) {
+    return this.admin.deleteBlueprint(id);
   }
 }

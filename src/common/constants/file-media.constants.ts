@@ -8,7 +8,6 @@ export const FILE_MEDIA_LIMITS = {
   maxBatchCount: 10,
   maxGalleryVideos: 2,
   maxVideoDurationSeconds: 120,
-  /** Multer hard limit — per-type checks happen in FilesValidationService. */
   uploadMaxBytes: 150 * 1024 * 1024,
 } as const;
 

@@ -29,6 +29,64 @@ describe('finishing measurements (lucrari-finisaj)', () => {
     expect(result.tileArea).toBe(0);
   });
 
+  it('auto-derives putty, preparation & paint from the room skin for default modules', () => {
+    const result = deriveFinisajMeasurements(
+      null,
+      { finishArea: 30, wallHeight: 2.7, enabledWorkModules: ['surface_preparation', 'putty', 'paint'] },
+      {},
+    );
+    expect(result.wallArea).toBe(75);
+    expect(result.puttyArea).toBe(105);
+    expect(result.preparationArea).toBe(105);
+    expect(result.paintArea).toBe(105);
+    expect(result.puttyAreaLabor).toBe(105);
+  });
+
+  it('scales wall area by ceiling height (wallHeight is no longer dead)', () => {
+    const tall = deriveFinisajMeasurements(
+      null,
+      { finishArea: 30, wallHeight: 3.0, enabledWorkModules: ['putty'] },
+      {},
+    );
+    expect(tall.wallArea).toBe(round2(30 * 2.5 * (3.0 / 2.7)));
+    expect(tall.wallArea).toBeGreaterThan(75);
+  });
+
+  it('estimates baseboard length from perimeter (4·√area)', () => {
+    const result = deriveFinisajMeasurements(
+      null,
+      { finishArea: 30, enabledWorkModules: ['baseboards'] },
+      {},
+    );
+    expect(result.baseboardLengthM).toBe(round2(4 * Math.sqrt(30)));
+  });
+
+  it('subtracts wallpaper & decorative plaster from the auto paint area', () => {
+    const result = deriveFinisajMeasurements(
+      null,
+      {
+        finishArea: 30,
+        wallHeight: 2.7,
+        wallpaperArea: 20,
+        decorativePlasterArea: 10,
+        enabledWorkModules: ['paint', 'wallpaper', 'decorative_plaster'],
+      },
+      {},
+    );
+    expect(result.paintArea).toBe(75);
+  });
+
+  it('derives new module quantities (stretch ceiling auto, partition explicit)', () => {
+    const result = deriveFinisajMeasurements(
+      null,
+      { finishArea: 40, partitionArea: 12, enabledWorkModules: ['stretch_ceiling', 'partition'] },
+      {},
+    );
+    expect(result.stretchCeilingArea).toBe(40);
+    expect(result.partitionArea).toBe(12);
+    expect(result.partitionAreaLabor).toBe(12);
+  });
+
   it('keeps optional module areas at zero unless explicitly set or module enabled', () => {
     const result = deriveFinisajMeasurements(null, { finishArea: 40 }, {});
 
@@ -57,6 +115,22 @@ describe('finishing measurements (lucrari-finisaj)', () => {
     expect(resolveSurfaceConditionMultiplier('old')).toBe(1.15);
     expect(resolveSurfaceConditionMultiplier('very_bad')).toBe(1.35);
     expect(resolveFinisajComplexityMultiplier('new', 'premium')).toBe(1.15);
+  });
+
+  it('applies company pricing-modifier overrides to the complexity multiplier', () => {
+    const diagnostic = {
+      finishArea: 30,
+      surfaceCondition: 'old',
+      finishLevel: 'premium',
+      enabledWorkModules: ['paint'],
+    };
+    expect(deriveFinisajMeasurements(null, diagnostic, {}).complexityMultiplier).toBe(1.3);
+    const overridden = deriveFinisajMeasurements(null, diagnostic, {}, {
+      'finishing.surfaceCondition.old': 25,
+      'finishing.finishLevel.premium': 30,
+    });
+    expect(overridden.complexityMultiplier).toBe(round2(1.25 + 0.3));
+    expect(resolveSurfaceConditionMultiplier('old', { 'finishing.surfaceCondition.old': 25 })).toBeCloseTo(1.25, 5);
   });
 
   it('creates paint lines only when paint module is enabled', () => {

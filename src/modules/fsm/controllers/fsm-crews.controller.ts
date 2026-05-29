@@ -15,7 +15,7 @@ import { CompanyRoles } from '../../companies/decorators/company-roles.decorator
 import { SubscriptionGuard } from '../../auth/guards/subscription.guard';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../../auth/types/jwt-payload';
-import { CrewsService } from '../services/crews.service';
+import { CrewsService } from '../services/interventions/crews.service';
 
 @Controller(`${CONTROLLER_PATH.fsm}/crews`)
 @UseGuards(CompanyGuard, SubscriptionGuard)

@@ -11,6 +11,8 @@ import { RequestPublicProjectUseCase } from './request-public-project.use-case';
 import { RequestPublicServiceUseCase } from './request-public-service.use-case';
 import { UpdateCompanyUseCase } from './update-company.use-case';
 import { GetCompanyAuditLogsUseCase } from './get-company-audit-logs.use-case';
+import { GetPricingModifiersUseCase } from './get-pricing-modifiers.use-case';
+import { UpdatePricingModifiersUseCase } from './update-pricing-modifiers.use-case';
 
 export const COMPANIES_USE_CASE_PROVIDERS = [
   FindCitiesUseCase,
@@ -26,4 +28,6 @@ export const COMPANIES_USE_CASE_PROVIDERS = [
   RequestPublicServiceUseCase,
   RequestPublicProjectUseCase,
   GetCompanyAuditLogsUseCase,
+  GetPricingModifiersUseCase,
+  UpdatePricingModifiersUseCase,
 ];

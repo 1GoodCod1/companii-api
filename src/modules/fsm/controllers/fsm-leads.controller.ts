@@ -9,7 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { CompanyLeadStatus } from '@prisma/client';
-import { LeadsService } from '../services/leads.service';
+import { LeadsService } from '../services/leads/leads.service';
 import { CONTROLLER_PATH } from '../../../common/constants';
 import { CompanyGuard } from '../../companies/guards/company.guard';
 import { CompanyRoles } from '../../companies/decorators/company-roles.decorator';
