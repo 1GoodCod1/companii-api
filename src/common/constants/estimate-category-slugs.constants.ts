@@ -1,5 +1,5 @@
 /**
- * Category slugs with estimate blueprints (13 active) and excluded categories (6).
+ * Category slugs with estimate blueprints (16 active) and excluded categories (6).
  * Keep in sync with companii-web/src/constants/estimateCategorySlugs.constants.ts (A-02).
  */
 export const ESTIMATE_BLUEPRINT_CATEGORY_SLUGS = [
@@ -14,6 +14,8 @@ export const ESTIMATE_BLUEPRINT_CATEGORY_SLUGS = [
   'mobila',
   'cleaning',
   'it-networks',
+  'it-hardware',
+  'it-web',
   'panouri-solare',
   'constructii',
   'pavaj',

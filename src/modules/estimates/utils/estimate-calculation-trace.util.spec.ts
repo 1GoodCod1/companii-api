@@ -51,8 +51,8 @@ describe('estimate-calculation-trace.util (E-05, E-07)', () => {
 
     const itMeasurements = engine.deriveMeasurements(
       null,
-      { projectScope: 'enterprise', itDirection: 'web' },
-      'it-networks',
+      { projectScope: 'enterprise' },
+      'it-web',
     );
     expect(resolveRequiresManualReview(itMeasurements)).toBe(true);
 

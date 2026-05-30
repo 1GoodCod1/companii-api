@@ -11,6 +11,7 @@ import { deriveMobilaMeasurements } from './furniture/furniture-measurements.uti
 import { deriveCleaningMeasurements } from './cleaning/cleaning-measurements.util';
 import { deriveItNetworksMeasurements } from './it-networks/it-networks-measurements.util';
 import { deriveItHardwareMeasurements } from './it-hardware/it-hardware-measurements.util';
+import { deriveItWebMeasurements } from './it-web/it-web-measurements.util';
 import { derivePanouriSolareMeasurements } from './solar/solar-measurements.util';
 import { deriveConstructiiMeasurements } from './constructii/constructii-measurements.util';
 import { derivePavajMeasurements } from './pavaj/pavaj-measurements.util';
@@ -28,6 +29,7 @@ const STRATEGIES: CategoryMeasurementStrategy[] = [
   { slug: 'cleaning',        deriveMeasurements: deriveCleaningMeasurements },
   { slug: 'it-networks',     deriveMeasurements: deriveItNetworksMeasurements },
   { slug: 'it-hardware',     deriveMeasurements: deriveItHardwareMeasurements },
+  { slug: 'it-web',          deriveMeasurements: deriveItWebMeasurements },
   { slug: 'panouri-solare',  deriveMeasurements: derivePanouriSolareMeasurements },
   { slug: 'constructii',     deriveMeasurements: deriveConstructiiMeasurements },
   { slug: 'pavaj',           deriveMeasurements: derivePavajMeasurements },

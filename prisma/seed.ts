@@ -194,6 +194,16 @@ const CATEGORIES: CategorySeed[] = [
     translations: { ro: { name: 'Servicii IT și Securitate' }, ru: { name: 'IT и безопасность' } },
   },
   {
+    name: 'Reparații și deservire hardware IT',
+    slug: 'it-hardware',
+    translations: { ro: { name: 'Reparații și deservire hardware IT' }, ru: { name: 'Ремонт и обслуживание IT оборудования' } },
+  },
+  {
+    name: 'Dezvoltare Web și Aplicații',
+    slug: 'it-web',
+    translations: { ro: { name: 'Dezvoltare Web și Aplicații' }, ru: { name: 'Веб-разработка и приложения' } },
+  },
+  {
     name: 'Panouri solare',
     slug: 'panouri-solare',
     translations: { ro: { name: 'Panouri solare' }, ru: { name: 'Солнечные панели' } },

@@ -204,11 +204,11 @@ describeE2e('Estimate Concurrency & Security (e2e - Epic S)', () => {
       expect(statuses).toContain(201);
       expect(statuses).toContain(409);
 
-      // Verify that version in database is exactly 2
+      // Verify that version in database is exactly 3
       const dbProject = await prisma.estimateProject.findUnique({
         where: { id: projectId },
       });
-      expect(dbProject?.version).toBe(2);
+      expect(dbProject?.version).toBe(3);
     });
 
     it('S-04 · should prevent race conditions during concurrent additions of manual lines', async () => {

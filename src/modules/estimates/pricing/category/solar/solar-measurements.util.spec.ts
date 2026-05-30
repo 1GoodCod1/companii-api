@@ -49,6 +49,17 @@ describe('Solar measurements (panouri-solare)', () => {
     expect(tile.structureQty).toBe(10);
   });
 
+  it('applies a company pricing-modifier override to roofMultiplier', () => {
+    expect(resolveRoofMultiplier('tile', { 'solar.roofType.tile': 30 })).toBeCloseTo(1.3, 5);
+    const m = derivePanouriSolareMeasurements(
+      null,
+      { panelCount: 10, roofType: 'tile' },
+      {},
+      { 'solar.roofType.tile': 30 },
+    );
+    expect(m.panelLaborQty).toBe(13); // 10 × 1.30
+  });
+
   it('derives cableLengthM and systemPowerKw from formulas', () => {
     const result = derivePanouriSolareMeasurements(
       null,

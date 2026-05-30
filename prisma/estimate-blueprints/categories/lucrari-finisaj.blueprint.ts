@@ -5,12 +5,7 @@ export const lucrariFinisajBlueprint: EstimateBlueprintConfig = baseConfig({
   wizardSteps: ['object', 'diagnostic', 'stages', 'review'],
   accessDifficultyImpact: { easy: 1.0, medium: 1.05, difficult: 1.15 },
   urgencyImpact: { urgent: 1.15, emergency: 1.35 },
-  planPointTypes: [
-    { type: 'wall', label: 'Perete', color: '#c084fc' },
-    { type: 'ceiling', label: 'Tavan', color: '#e879f9' },
-    { type: 'floor', label: 'Pardoseală', color: '#fb7185' },
-    { type: 'door', label: 'Ușă', color: '#f43f5e' },
-  ],
+  planPointTypes: [],
   workModules: [
     // ---- Pregătire ----
     {
@@ -26,8 +21,8 @@ export const lucrariFinisajBlueprint: EstimateBlueprintConfig = baseConfig({
     {
       key: 'surface_preparation',
       label: 'Pregătire & amorsare',
-      helpText: 'Curățare strat suport și aplicare amorsă pe pereți + tavan. Suprafața se calculează automat din cameră.',
-      defaultEnabled: true,
+      helpText: 'Curățare strat suport și aplicare amorsă pe pereți (tavanul se finisează prin modulele dedicate). Suprafața se calculează automat.',
+      defaultEnabled: false,
       stageCodes: ['pregatire'],
       fieldKeys: [],
       section: 'Pregătire',
@@ -55,8 +50,8 @@ export const lucrariFinisajBlueprint: EstimateBlueprintConfig = baseConfig({
     {
       key: 'putty',
       label: 'Glet & șlefuire',
-      helpText: 'Glet de finisare (start + finiș) și șlefuire pe pereți + tavan. Suprafața se calculează automat.',
-      defaultEnabled: true,
+      helpText: 'Glet de finisare (start + finiș) și șlefuire pe pereți (tavanul se finisează prin modulele dedicate). Suprafața se calculează automat.',
+      defaultEnabled: false,
       stageCodes: ['glet'],
       fieldKeys: [],
       section: 'Pereți',
@@ -64,8 +59,8 @@ export const lucrariFinisajBlueprint: EstimateBlueprintConfig = baseConfig({
     {
       key: 'paint',
       label: 'Vopsire lavabilă',
-      helpText: 'Vopsire pereți + tavan cu lavabilă. Suprafața se calculează automat (pereți + tavan minus tapet/decorativă).',
-      defaultEnabled: true,
+      helpText: 'Vopsire pereți cu lavabilă. Suprafața se calculează automat (pereți minus tapet/decorativă).',
+      defaultEnabled: false,
       stageCodes: ['vopsire_tapet'],
       fieldKeys: ['paintArea'],
       section: 'Pereți',
@@ -427,14 +422,14 @@ export const lucrariFinisajBlueprint: EstimateBlueprintConfig = baseConfig({
   diagnosticQuestions: [],
   defaultStages: [
     { code: 'demontare', name: 'Demontare & evacuare', kind: 'LABOR', defaultLaborHours: 6, durationDays: 2, checklist: ['Demontare finisaje vechi', 'Evacuare deșeuri'], optional: true, moduleKey: 'demolition' },
-    { code: 'pregatire', name: 'Pregătire & amorsare', kind: 'LABOR', defaultLaborHours: 5, durationDays: 1, checklist: ['Curățare strat suport', 'Aplicare amorsă'], moduleKey: 'surface_preparation' },
+    { code: 'pregatire', name: 'Pregătire & amorsare', kind: 'LABOR', defaultLaborHours: 5, durationDays: 1, checklist: ['Curățare strat suport', 'Aplicare amorsă'], optional: true, moduleKey: 'surface_preparation' },
     { code: 'pereti_gk', name: 'Pereți despărțitori gips-carton', kind: 'MIXED', defaultLaborHours: 10, durationDays: 2, checklist: ['Montaj schelet metalic', 'Izolație fonică', 'Dublă placare GKL'], optional: true, moduleKey: 'partition' },
     { code: 'tencuiala', name: 'Tencuială & nivelare', kind: 'MIXED', defaultLaborHours: 10, durationDays: 3, checklist: ['Montaj profile', 'Aplicare tencuială'], optional: true, moduleKey: 'plaster' },
-    { code: 'glet', name: 'Glet & șlefuire', kind: 'MIXED', defaultLaborHours: 12, durationDays: 3, checklist: ['Strat glet start', 'Strat glet finiș', 'Șlefuire fină'], moduleKey: 'putty' },
+    { code: 'glet', name: 'Glet & șlefuire', kind: 'MIXED', defaultLaborHours: 12, durationDays: 3, checklist: ['Strat glet start', 'Strat glet finiș', 'Șlefuire fină'], optional: true, moduleKey: 'putty' },
     { code: 'tavane', name: 'Tavane (GK / tensionat)', kind: 'MIXED', defaultLaborHours: 8, durationDays: 2, checklist: ['Structură tavan', 'Placare / montaj pânză'], optional: true, moduleKey: 'ceiling' },
     { code: 'gresie_faianta', name: 'Hidroizolație, gresie & faianță', kind: 'MIXED', defaultLaborHours: 14, durationDays: 4, checklist: ['Hidroizolație zone umede', 'Lipire plăci', 'Rostuire'], optional: true, moduleKey: 'tile' },
     { code: 'pardoseala', name: 'Șapă & pardoseală', kind: 'MIXED', defaultLaborHours: 12, durationDays: 3, checklist: ['Șapă autonivelantă', 'Montaj pardoseală'], optional: true, moduleKey: 'flooring' },
-    { code: 'vopsire_tapet', name: 'Vopsire, tapet & decorativă', kind: 'MIXED', defaultLaborHours: 8, durationDays: 2, checklist: ['Protecție elemente', 'Finisare decorativă'], moduleKey: 'paint' },
+    { code: 'vopsire_tapet', name: 'Vopsire, tapet & decorativă', kind: 'MIXED', defaultLaborHours: 8, durationDays: 2, checklist: ['Protecție elemente', 'Finisare decorativă'], optional: true, moduleKey: 'paint' },
     { code: 'finisaje_detalii', name: 'Plinte & glafuri', kind: 'MIXED', defaultLaborHours: 4, durationDays: 1, checklist: ['Montaj plinte', 'Finisaj glafuri'], optional: true, moduleKey: 'baseboards' },
     { code: 'curatenie_predare', name: 'Curățenie & predare', kind: 'LABOR', defaultLaborHours: 3, durationDays: 1, checklist: ['Curățenie post-șantier', 'Predare client'], optional: true, moduleKey: 'cleaning' },
   ],

@@ -7,7 +7,9 @@ import { climaBlueprint } from './categories/clima.blueprint';
 import { constructiiBlueprint } from './categories/constructii.blueprint';
 import { elektrikaBlueprint } from './categories/elektrika.blueprint';
 import { fatadeBlueprint } from './categories/fatade.blueprint';
+import { itHardwareBlueprint } from './categories/it-hardware.blueprint';
 import { itNetworksBlueprint } from './categories/it-networks.blueprint';
+import { itWebBlueprint } from './categories/it-web.blueprint';
 import { lucrariFinisajBlueprint } from './categories/lucrari-finisaj.blueprint';
 import { mobilaBlueprint } from './categories/mobila.blueprint';
 import { oknaDveriBlueprint } from './categories/okna-dveri.blueprint';
@@ -27,6 +29,8 @@ export const CATEGORY_BLUEPRINTS = {
   mobila: mobilaBlueprint,
   cleaning: cleaningBlueprint,
   'it-networks': itNetworksBlueprint,
+  'it-hardware': itHardwareBlueprint,
+  'it-web': itWebBlueprint,
   'panouri-solare': panouriSolareBlueprint,
   constructii: constructiiBlueprint,
   pavaj: pavajBlueprint,
@@ -44,7 +48,9 @@ export {
   constructiiBlueprint,
   elektrikaBlueprint,
   fatadeBlueprint,
+  itHardwareBlueprint,
   itNetworksBlueprint,
+  itWebBlueprint,
   lucrariFinisajBlueprint,
   mobilaBlueprint,
   oknaDveriBlueprint,

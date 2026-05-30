@@ -19,14 +19,14 @@ describeE2e('Estimate TVA & Rounding (e2e - Epic T)', () => {
   let cityId: string;
   let categoryId: string;
   
-  let ownerAToken: string; // Payer TVA
-  let ownerBToken: string; // Neplătitor TVA
+  let ownerAToken: string;
+  let ownerBToken: string; 
   
   let customerAId: string;
   let customerBId: string;
   
-  const ownerAEmail = uniqueEmail('owner-ta');
-  const ownerBEmail = uniqueEmail('owner-tb');
+  const ownerAEmail = uniqueEmail('owner-tva');
+  const ownerBEmail = uniqueEmail('owner-tvb');
   const password = 'TestPass1!@#';
 
   beforeAll(async () => {
@@ -133,10 +133,10 @@ describeE2e('Estimate TVA & Rounding (e2e - Epic T)', () => {
     }
 
     await prisma.refreshToken.deleteMany({
-      where: { user: { email: { startsWith: 'owner-t' } } },
+      where: { user: { email: { startsWith: 'owner-tv' } } },
     });
     await prisma.user.deleteMany({
-      where: { email: { startsWith: 'owner-t' } },
+      where: { email: { startsWith: 'owner-tv' } },
     });
 
     // Get city
@@ -434,6 +434,11 @@ describeE2e('Estimate TVA & Rounding (e2e - Epic T)', () => {
         .expect(201);
       const interventionId = unwrapBody<any>(convertRes.body).intervention.id;
 
+      await prisma.intervention.update({
+        where: { id: interventionId },
+        data: { status: 'COMPLETED' },
+      });
+
       const invoiceRes = await request(app.getHttpServer())
         .post(api('/fsm/invoices'))
         .set('Authorization', `Bearer ${ownerAToken}`)
@@ -468,6 +473,11 @@ describeE2e('Estimate TVA & Rounding (e2e - Epic T)', () => {
         .send({ mode: 'single' })
         .expect(201);
       const intIdB = unwrapBody<any>(convertBRes.body).intervention.id;
+
+      await prisma.intervention.update({
+        where: { id: intIdB },
+        data: { status: 'COMPLETED' },
+      });
 
       const invBRes = await request(app.getHttpServer())
         .post(api('/fsm/invoices'))

@@ -1,13 +1,12 @@
 import type { Plan2dData } from '../../plan2d.types';
 import { round2 } from '../../../estimate.constants';
-import { readNumber, readBoolean, type MeasurementMap } from '../category-shared.util';
+import { readNumber, readBoolean, readAutoNumber, type MeasurementMap } from '../category-shared.util';
 import {
   type CompanyPricingModifiers,
   resolvePricingModifierFactor,
 } from '../../../../../../prisma/estimate-pricing-modifiers';
 
 export const CLIMATE_ROUTE_INCLUDED_M = 5;
-
 
 export function resolveClimateHeightMultiplier(
   heightWork: unknown,
@@ -16,6 +15,15 @@ export function resolveClimateHeightMultiplier(
   return readBoolean({ heightWork }, 'heightWork')
     ? resolvePricingModifierFactor('clima.heightWork', overrides)
     : 1.0;
+}
+
+function isClimateHeightLaborActive(
+  diagnostic: Record<string, unknown> | null | undefined,
+): boolean {
+  if (!readBoolean(diagnostic, 'heightWork')) return false;
+  const raw = diagnostic?.enabledWorkModules;
+  if (!Array.isArray(raw)) return false;
+  return raw.some((key) => key === 'height_work');
 }
 
 export function deriveClimaMeasurements(
@@ -31,8 +39,8 @@ export function deriveClimaMeasurements(
   const planOutdoorCount = pointsCount('outdoor');
   const planRouteCount = pointsCount('route');
 
-  const manualIndoor = readNumber(diagnostic, 'indoorUnitCount');
-  const manualOutdoor = readNumber(diagnostic, 'outdoorUnitCount');
+  const manualIndoor = readAutoNumber(diagnostic, 'indoorUnitCount');
+  const manualOutdoor = readAutoNumber(diagnostic, 'outdoorUnitCount');
   const manualAcUnits = readNumber(diagnostic, 'acUnits');
 
   const indoorUnitCount = manualIndoor ?? (planIndoorCount > 0 ? planIndoorCount : undefined);
@@ -43,17 +51,19 @@ export function deriveClimaMeasurements(
 
   measurements.acUnits = acUnits;
   measurements.indoorUnitCount = indoorUnitCount ?? acUnits;
-  measurements.outdoorUnitCount = manualOutdoor ?? (planOutdoorCount > 0 ? planOutdoorCount : acUnits);
+  measurements.outdoorUnitCount =
+    manualOutdoor ??
+    (planOutdoorCount > 0 ? planOutdoorCount : acUnits > 1 ? 1 : acUnits);
 
   const manualRouteLength = readNumber(diagnostic, 'routeLengthM');
   measurements.routeLengthM =
     manualRouteLength ??
     Math.max(2, planRouteCount > 0 ? planRouteCount * 5 : acUnits * 5);
 
-  const manualDrainLength = readNumber(diagnostic, 'drainLengthM');
+  const manualDrainLength = readAutoNumber(diagnostic, 'drainLengthM');
   measurements.drainLengthM = manualDrainLength ?? measurements.routeLengthM;
 
-  const wallCoreDrillingCount = readNumber(diagnostic, 'wallCoreDrillingCount');
+  const wallCoreDrillingCount = readAutoNumber(diagnostic, 'wallCoreDrillingCount');
   measurements.coreDrillingQty = wallCoreDrillingCount ?? acUnits;
 
   measurements.routeStandardLengthM = Math.min(measurements.routeLengthM, CLIMATE_ROUTE_INCLUDED_M);
@@ -61,22 +71,17 @@ export function deriveClimaMeasurements(
   measurements.freonRechargeQty =
     measurements.routeExtraLengthM > 0 ? Math.ceil(measurements.routeExtraLengthM / 5) : 0;
 
-  const heightWork = readBoolean(diagnostic, 'heightWork');
   const requiresPump = readBoolean(diagnostic, 'requiresPump');
   const equipmentIncluded = readBoolean(diagnostic, 'equipmentIncluded');
   const maintenancePackage = readBoolean(diagnostic, 'maintenancePackage');
 
-  measurements.heightMultiplier = resolveClimateHeightMultiplier(heightWork, overrides);
+  measurements.heightMultiplier = isClimateHeightLaborActive(diagnostic)
+    ? resolveClimateHeightMultiplier(true, overrides)
+    : 1.0;
   measurements.pumpCount = requiresPump ? acUnits : 0;
   measurements.maintenanceCount = maintenancePackage ? acUnits : 0;
   measurements.indoorEquipmentCount = equipmentIncluded ? measurements.indoorUnitCount : 0;
   measurements.outdoorEquipmentCount = equipmentIncluded ? measurements.outdoorUnitCount : 0;
-  measurements.heightSurchargeUnits = heightWork ? acUnits : 0;
-
-  measurements.acUnitsLabor = round2(acUnits * measurements.heightMultiplier);
-  measurements.routeStandardLengthMLabor = round2(measurements.routeStandardLengthM * measurements.heightMultiplier);
-  measurements.routeExtraLengthMLabor = round2(measurements.routeExtraLengthM * measurements.heightMultiplier);
-  measurements.drainLengthMLabor = round2(measurements.drainLengthM * measurements.heightMultiplier);
   measurements.inspectionHours = Math.max(1, Math.ceil(acUnits / 2));
 
   return measurements;

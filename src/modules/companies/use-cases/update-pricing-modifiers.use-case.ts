@@ -44,9 +44,23 @@ export class UpdatePricingModifiersUseCase {
     const updated = await this.prisma.company.update({
       where: { id: companyId },
       data: { pricingModifiers: next as Prisma.InputJsonValue },
+      select: {
+        pricingModifiers: true,
+        category: {
+          select: {
+            slug: true,
+          },
+        },
+      },
     });
+
+    const categorySlug = updated?.category?.slug;
+    const catalog = categorySlug
+      ? PRICING_MODIFIERS.filter((m) => m.categorySlug === categorySlug)
+      : [];
+
     return {
-      catalog: PRICING_MODIFIERS,
+      catalog,
       overrides: parseCompanyPricingModifiers(updated.pricingModifiers),
     };
   }

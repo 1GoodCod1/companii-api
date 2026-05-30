@@ -16,10 +16,23 @@ export class GetPricingModifiersUseCase {
     await this.companyAuth.assertCompanyManagerAccess(user, companyId);
     const company = await this.prisma.company.findUnique({
       where: { id: companyId },
-      select: { pricingModifiers: true },
+      select: {
+        pricingModifiers: true,
+        category: {
+          select: {
+            slug: true,
+          },
+        },
+      },
     });
+
+    const categorySlug = company?.category?.slug;
+    const catalog = categorySlug
+      ? PRICING_MODIFIERS.filter((m) => m.categorySlug === categorySlug)
+      : [];
+
     return {
-      catalog: PRICING_MODIFIERS,
+      catalog,
       overrides: parseCompanyPricingModifiers(company?.pricingModifiers),
     };
   }

@@ -8,7 +8,12 @@ describe('climate measurements (clima)', () => {
   it('splits long route into standard and extra segments', () => {
     const result = deriveClimaMeasurements(
       { rooms: [], points: [{ id: '1', type: 'indoor' }] },
-      { acUnits: 1, routeLengthM: 12, heightWork: true },
+      {
+        acUnits: 1,
+        routeLengthM: 12,
+        heightWork: true,
+        enabledWorkModules: ['route', 'indoor_outdoor_units', 'height_work'],
+      },
       {},
     );
 
@@ -16,7 +21,17 @@ describe('climate measurements (clima)', () => {
     expect(result.routeExtraLengthM).toBe(7);
     expect(result.freonRechargeQty).toBe(2);
     expect(result.heightMultiplier).toBe(1.25);
-    expect(result.routeExtraLengthMLabor).toBe(round2(7 * 1.25));
+    expect(result.acUnits).toBe(1);
+  });
+
+  it('does not apply height multiplier without height_work module', () => {
+    const result = deriveClimaMeasurements(
+      null,
+      { acUnits: 2, routeLengthM: 5, heightWork: true, enabledWorkModules: ['route', 'indoor_outdoor_units'] },
+      {},
+    );
+
+    expect(result.heightMultiplier).toBe(1.0);
   });
 
   it('resolves acUnits from indoor plan points', () => {
@@ -51,12 +66,21 @@ describe('climate measurements (clima)', () => {
     expect(result.coreDrillingQty).toBe(2);
   });
 
+  it('defaults outdoor units to 1 for multi-split without plan', () => {
+    const result = deriveClimaMeasurements(
+      null,
+      { acUnits: 3, routeLengthM: 5, equipmentIncluded: true },
+      {},
+    );
+
+    expect(result.acUnits).toBe(3);
+    expect(result.outdoorUnitCount).toBe(1);
+    expect(result.outdoorEquipmentCount).toBe(1);
+    expect(result.indoorEquipmentCount).toBe(3);
+  });
+
   it('applies height multiplier only when heightWork is enabled', () => {
     expect(resolveClimateHeightMultiplier(true)).toBe(1.25);
     expect(resolveClimateHeightMultiplier(false)).toBe(1.0);
   });
 });
-
-function round2(value: number): number {
-  return Math.round(value * 100) / 100;
-}

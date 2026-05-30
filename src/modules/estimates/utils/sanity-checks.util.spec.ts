@@ -79,8 +79,21 @@ describe('runSanityChecks (Slice 4)', () => {
     expect(warnings.some((w) => w.key === 'routeShortForUnits')).toBe(true);
   });
 
+  it('flags disabled core clima modules', () => {
+    const warnings = runSanityChecks(
+      'clima',
+      { acUnits: 1, routeLengthM: 5 },
+      { enabledWorkModules: ['drain'] },
+    );
+    expect(warnings.some((w) => w.key === 'coreModulesDisabled')).toBe(true);
+  });
+
+  it('flags missing acUnits for clima', () => {
+    const warnings = runSanityChecks('clima', { acUnits: 0, routeLengthM: 5 }, { acUnits: 0 });
+    expect(warnings.some((w) => w.key === 'acUnitsMissing')).toBe(true);
+  });
+
   it('flags short borders for pavaj', () => {
-    // pavementArea 100 → estimated min perimeter sqrt(100)*3 = 30. We pass 10.
     const warnings = runSanityChecks(
       'pavaj',
       { pavementArea: 100, borderLengthM: 10 },
@@ -101,5 +114,32 @@ describe('runSanityChecks (Slice 4)', () => {
   it('returns empty for unknown category (universal-only checks)', () => {
     const warnings = runSanityChecks('unknown-slug', { roomCount: 5 }, {});
     expect(warnings).toEqual([]);
+  });
+
+  it('it-web: warns when design module is enabled but pages count is 0', () => {
+    const warnings = runSanityChecks(
+      'it-web',
+      { pagesCount: 0 },
+      { enabledWorkModules: ['web_design'] },
+    );
+    expect(warnings.some((w) => w.key === 'webPagesMissing')).toBe(true);
+  });
+
+  it('it-networks: warns when cabling module is enabled but ports count is 0', () => {
+    const warnings = runSanityChecks(
+      'it-networks',
+      { networkPoints: 0 },
+      { enabledWorkModules: ['network_cabling'] },
+    );
+    expect(warnings.some((w) => w.key === 'networksMissingQuantity')).toBe(true);
+  });
+
+  it('it-hardware: warns when repair module is enabled but repair count is 0', () => {
+    const warnings = runSanityChecks(
+      'it-hardware',
+      { repairCount: 0 },
+      { enabledWorkModules: ['repair'] },
+    );
+    expect(warnings.some((w) => w.key === 'hardwareMissingQuantity')).toBe(true);
   });
 });

@@ -63,6 +63,12 @@ describe('work modules util', () => {
     ).toEqual(['paint', 'tile']);
   });
 
+  it('preserves empty enabledWorkModules array when explicitly empty', () => {
+    expect(
+      readEnabledWorkModules({ enabledWorkModules: [] }, config),
+    ).toEqual([]);
+  });
+
   it('filters pricing rules by enabled modules', () => {
     const measurements = { paintArea: 20, tileArea: 10 };
     const paintRule = config.pricingRules[0]!;

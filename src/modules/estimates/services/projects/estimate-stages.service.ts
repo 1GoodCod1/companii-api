@@ -43,11 +43,11 @@ export function isStageDefaultLaborChargeable(
   config: EstimateBlueprintConfig,
   measurements: Record<string, number>,
 ): boolean {
-  if (!def?.optional) return true;
-
-  if (def.moduleKey && !enabledModules.includes(def.moduleKey)) {
+  if (def?.moduleKey && !enabledModules.includes(def.moduleKey)) {
     return false;
   }
+
+  if (!def?.optional) return true;
 
   const requiresQtyKeys = def.moduleKey
     ? config.workModules?.find((m) => m.key === def.moduleKey)?.requiresQtyKeys
@@ -135,6 +135,7 @@ export class EstimateStagesService {
       laborMultiplier,
       materialMultiplier,
       includeMaterials,
+      diagnostic,
     });
     const calculationTrace = buildCalculationTrace(measurements, plan2d, diagnostic);
     const sanityWarnings = runSanityChecks(project.category?.slug, measurements, diagnostic);

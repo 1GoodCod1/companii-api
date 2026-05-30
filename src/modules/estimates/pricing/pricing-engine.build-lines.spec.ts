@@ -104,4 +104,26 @@ describe('EstimatePricingEngine.buildLinesFromRules (E-02, E-04)', () => {
       expect(labor.unitPrice).toBe(225); // 100 * 2.25
     });
   });
+
+  it('applies laborUnitPriceMultiplierKey to labor unitPrice only', () => {
+    const lines = engine.buildLinesFromRules(
+      [
+        {
+          stageCode: 'montaj',
+          description: 'Montaj split',
+          unit: 'buc',
+          qtyKey: 'acUnits',
+          unitPrice: 1200,
+          kind: 'labor',
+          laborUnitPriceMultiplierKey: 'heightMultiplier',
+        },
+      ],
+      { acUnits: 2, heightMultiplier: 1.25 },
+    );
+
+    expect(lines).toHaveLength(1);
+    expect(lines[0]?.qty).toBe(2);
+    expect(lines[0]?.unitPrice).toBe(1500);
+    expect(lines[0]?.lineTotal).toBe(3000);
+  });
 });

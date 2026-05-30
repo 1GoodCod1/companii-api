@@ -7,9 +7,9 @@ import {
 } from '../../../common/constants/estimate-category-slugs.constants';
 
 describe('Estimate blueprint registry (C-14)', () => {
-  it('registers exactly 14 category blueprints', () => {
+  it('registers exactly 16 category blueprints', () => {
     expect(Object.keys(CATEGORY_BLUEPRINTS)).toHaveLength(EXPECTED_ESTIMATE_BLUEPRINT_COUNT);
-    expect(Object.keys(CATEGORY_BLUEPRINTS)).toHaveLength(14);
+    expect(Object.keys(CATEGORY_BLUEPRINTS)).toHaveLength(16);
   });
 
   it('matches the canonical slug list', () => {

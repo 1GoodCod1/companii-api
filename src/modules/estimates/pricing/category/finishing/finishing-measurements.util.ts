@@ -24,9 +24,8 @@ function resolveModuleQuantity(
   computedWhenEnabled?: number,
 ): number {
   const explicit = readNumber(diagnostic, key);
-  if (explicit != null && explicit > 0) return explicit;
-  if (enabledModules.has(moduleKey) && computedWhenEnabled != null) return computedWhenEnabled;
   if (explicit != null) return Math.max(0, explicit);
+  if (enabledModules.has(moduleKey) && computedWhenEnabled != null) return computedWhenEnabled;
   return 0;
 }
 
@@ -100,9 +99,9 @@ export function deriveFinisajMeasurements(
   measurements.finishArea = floorArea;
   measurements.wallHeight = wallHeight;
   measurements.roomPerimeterM = estimatePerimeterM(floorArea);
-  const computedWallArea = round2(floorArea * 2.5 * (wallHeight / 2.7));
+  const computedWallArea = round2(measurements.roomPerimeterM * wallHeight);
   const computedCeilingArea = readNumber(diagnostic, 'ceilingArea') ?? floorArea;
-  const skinArea = round2(computedWallArea + computedCeilingArea);
+  const skinArea = computedWallArea; // Putty, Paint, Prep default strictly to walls
   const enabledModules = readEnabledModuleKeys(diagnostic);
 
   measurements.wallArea = computedWallArea;

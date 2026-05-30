@@ -32,7 +32,40 @@ export function deriveFatadeMeasurements(
   );
 
   measurements.facadeArea = facadeArea;
-  measurements.scaffoldingArea = readNumber(diagnostic, 'scaffoldingArea') ?? facadeArea;
+  const scaffoldingType = String(diagnostic?.scaffoldingType ?? 'inchiriata').toLowerCase();
+
+  let rawScaffoldingArea = readNumber(diagnostic, 'scaffoldingArea') ?? 0;
+  if (rawScaffoldingArea === 0 && scaffoldingType !== 'fara') {
+    rawScaffoldingArea = facadeArea;
+  }
+
+  measurements.scaffoldingArea = rawScaffoldingArea;
+
+  // Assembly & Disassembly quantities
+  measurements.scaffoldingAssemblyArea = scaffoldingType !== 'fara' ? rawScaffoldingArea : 0;
+  measurements.scaffoldingDisassemblyArea = scaffoldingType !== 'fara' ? rawScaffoldingArea : 0;
+
+  // Rental quantity (scaffoldingRentalArea = scaffoldingArea * durationInMonths)
+  let durationInMonths = 0;
+  if (scaffoldingType === 'inchiriata') {
+    const period = String(diagnostic?.scaffoldingRentalPeriod ?? 'months').toLowerCase();
+    const duration = readNumber(diagnostic, 'scaffoldingRentalDuration') ?? 1;
+
+    if (period === 'days') {
+      durationInMonths = duration / 30;
+    } else if (period === 'weeks') {
+      durationInMonths = (duration * 7) / 30;
+    } else if (period === 'months') {
+      durationInMonths = duration;
+    } else {
+      // custom / personalizat
+      durationInMonths = duration;
+    }
+  }
+
+  measurements.scaffoldingRentalArea = round2(
+    scaffoldingType === 'inchiriata' ? rawScaffoldingArea * durationInMonths : 0,
+  );
 
   const insulationThicknessCm = readNumber(diagnostic, 'insulationThicknessCm') ?? 10;
   measurements.insulationThicknessCm = insulationThicknessCm;
@@ -49,8 +82,16 @@ export function deriveFatadeMeasurements(
   const buildingHeightM = readNumber(diagnostic, 'buildingHeightM') ?? 0;
   measurements.buildingHeightM = buildingHeightM;
   measurements.heightMultiplier = resolveFacadeHeightMultiplier(buildingHeightM, overrides);
-  measurements.facadeAreaLabor = round2(facadeArea * measurements.heightMultiplier);
-  measurements.meshAreaLabor = round2(measurements.meshArea * measurements.heightMultiplier);
+
+  const facadeCondition = String(diagnostic?.facadeCondition ?? 'good').toLowerCase();
+  const conditionMultiplier =
+    facadeCondition === 'old' ? 1.15 :
+    facadeCondition === 'damaged' ? 1.30 :
+    1.00;
+  measurements.conditionMultiplier = conditionMultiplier;
+
+  measurements.facadeAreaLabor = round2(facadeArea * measurements.heightMultiplier * conditionMultiplier);
+  measurements.meshAreaLabor = round2(measurements.meshArea * measurements.heightMultiplier * conditionMultiplier);
   measurements.preparationArea = facadeArea;
   measurements.preparationAreaLabor = measurements.facadeAreaLabor;
 
@@ -59,16 +100,16 @@ export function deriveFatadeMeasurements(
     (pointsCount('window_slope') > 0 ? pointsCount('window_slope') * 1.8 : 0);
   measurements.decorativePlasterArea = readNumber(diagnostic, 'decorativePlasterArea') ?? 0;
   measurements.decorativePlasterAreaLabor = round2(
-    measurements.decorativePlasterArea * measurements.heightMultiplier,
+    measurements.decorativePlasterArea * measurements.heightMultiplier * conditionMultiplier,
   );
   measurements.basePlinthArea = readNumber(diagnostic, 'basePlinthArea') ?? 0;
   measurements.basePlinthAreaLabor = round2(
-    measurements.basePlinthArea * measurements.heightMultiplier,
+    measurements.basePlinthArea * measurements.heightMultiplier * conditionMultiplier,
   );
   measurements.paintingArea = measurements.decorativePlasterArea > 0
     ? measurements.decorativePlasterArea
     : facadeArea;
-  measurements.paintingAreaLabor = round2(measurements.paintingArea * measurements.heightMultiplier);
+  measurements.paintingAreaLabor = round2(measurements.paintingArea * measurements.heightMultiplier * conditionMultiplier);
 
   return measurements;
 }

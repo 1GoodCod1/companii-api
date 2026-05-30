@@ -2,7 +2,7 @@ import type { EstimateBlueprintConfig } from '../../estimate-blueprint-config.ty
 import { baseConfig } from '../base';
 
 export const climaBlueprint: EstimateBlueprintConfig = baseConfig({
-    wizardSteps: ['object', 'diagnostic', 'stages', 'review'],
+    wizardSteps: ['object', 'plan', 'diagnostic', 'stages', 'review'],
     accessDifficultyImpact: { easy: 1.0, medium: 1.05, difficult: 1.15 },
     urgencyImpact: { urgent: 1.2, emergency: 1.5 },
     planPointTypes: [
@@ -33,7 +33,7 @@ export const climaBlueprint: EstimateBlueprintConfig = baseConfig({
         key: 'drain',
         label: 'Drenaj condens',
         helpText: 'Tub de evacuare a condensului de la unitatea interioară. Dacă lungimea lipsește, se folosește lungimea traseului.',
-        defaultEnabled: true,
+        defaultEnabled: false,
         stageCodes: ['traseu'],
         fieldKeys: ['drainLengthM'],
         section: 'Traseu & drenaj',
@@ -55,7 +55,6 @@ export const climaBlueprint: EstimateBlueprintConfig = baseConfig({
         defaultEnabled: false,
         stageCodes: ['montaj'],
         fieldKeys: ['heightWork'],
-        requiresQtyKeys: ['heightSurchargeUnits'],
         section: 'Montaj',
       },
       {
@@ -189,17 +188,16 @@ export const climaBlueprint: EstimateBlueprintConfig = baseConfig({
     pricingRules: [
       { stageCode: 'inspectie', description: 'Inspecție & plan montaj', unit: 'ore', qtyKey: 'inspectionHours', unitPrice: 180, kind: 'labor', moduleKey: 'route' },
       { stageCode: 'traseu', description: 'Traseu standard (până la 5 m) — material', unit: 'm', qtyKey: 'routeStandardLengthM', unitPrice: 140, wastePct: 5, kind: 'material', moduleKey: 'route' },
-      { stageCode: 'traseu', description: 'Traseu standard — lucrări', unit: 'm', qtyKey: 'routeStandardLengthMLabor', unitPrice: 80, kind: 'labor', moduleKey: 'route' },
+      { stageCode: 'traseu', description: 'Traseu standard — lucrări', unit: 'm', qtyKey: 'routeStandardLengthM', unitPrice: 80, kind: 'labor', moduleKey: 'route' },
       { stageCode: 'traseu', description: 'Traseu suplimentar (>5 m) — material', unit: 'm', qtyKey: 'routeExtraLengthM', unitPrice: 165, wastePct: 5, kind: 'material', moduleKey: 'route', enabledWhen: { anyQtyKeys: ['routeExtraLengthM'] } },
-      { stageCode: 'traseu', description: 'Traseu suplimentar — lucrări', unit: 'm', qtyKey: 'routeExtraLengthMLabor', unitPrice: 95, kind: 'labor', moduleKey: 'route', enabledWhen: { anyQtyKeys: ['routeExtraLengthM'] } },
+      { stageCode: 'traseu', description: 'Traseu suplimentar — lucrări', unit: 'm', qtyKey: 'routeExtraLengthM', unitPrice: 95, kind: 'labor', moduleKey: 'route', enabledWhen: { anyQtyKeys: ['routeExtraLengthM'] } },
       { stageCode: 'traseu', description: 'Dozare freon traseu lung', unit: 'buc', qtyKey: 'freonRechargeQty', unitPrice: 220, kind: 'material', moduleKey: 'route', enabledWhen: { anyQtyKeys: ['freonRechargeQty'] } },
       { stageCode: 'traseu', description: 'Găurire perete (core drilling)', unit: 'buc', qtyKey: 'coreDrillingQty', unitPrice: 350, kind: 'labor', moduleKey: 'route' },
       { stageCode: 'traseu', description: 'Tub drenaj condens', unit: 'm', qtyKey: 'drainLengthM', unitPrice: 35, kind: 'material', moduleKey: 'drain' },
-      { stageCode: 'traseu', description: 'Lucrări drenaj condens', unit: 'm', qtyKey: 'drainLengthMLabor', unitPrice: 45, kind: 'labor', moduleKey: 'drain' },
+      { stageCode: 'traseu', description: 'Lucrări drenaj condens', unit: 'm', qtyKey: 'drainLengthM', unitPrice: 45, kind: 'labor', moduleKey: 'drain' },
       { stageCode: 'traseu', description: 'Pompă condens', unit: 'buc', qtyKey: 'pumpCount', unitPrice: 420, kind: 'material', moduleKey: 'pump', enabledWhen: { moduleEnabled: 'pump', anyQtyKeys: ['pumpCount'] } },
       { stageCode: 'traseu', description: 'Montaj pompă condens', unit: 'buc', qtyKey: 'pumpCount', unitPrice: 180, kind: 'labor', moduleKey: 'pump', enabledWhen: { moduleEnabled: 'pump', anyQtyKeys: ['pumpCount'] } },
-      { stageCode: 'montaj', description: 'Lucrări instalare split AC', unit: 'buc', qtyKey: 'acUnitsLabor', unitPrice: 1200, kind: 'labor', moduleKey: 'indoor_outdoor_units' },
-      { stageCode: 'montaj', description: 'Supliment lucrări la înălțime', unit: 'buc', qtyKey: 'heightSurchargeUnits', unitPrice: 350, kind: 'labor', moduleKey: 'height_work', enabledWhen: { moduleEnabled: 'height_work', anyQtyKeys: ['heightSurchargeUnits'] } },
+      { stageCode: 'montaj', description: 'Lucrări instalare split AC', unit: 'buc', qtyKey: 'acUnits', unitPrice: 1200, kind: 'labor', moduleKey: 'indoor_outdoor_units', laborUnitPriceMultiplierKey: 'heightMultiplier' },
       { stageCode: 'montaj', description: 'Unitate interior (material)', unit: 'buc', qtyKey: 'indoorEquipmentCount', unitPrice: 3200, kind: 'material', moduleKey: 'indoor_outdoor_units', enabledWhen: { anyQtyKeys: ['indoorEquipmentCount'] } },
       { stageCode: 'montaj', description: 'Unitate exterior (material)', unit: 'buc', qtyKey: 'outdoorEquipmentCount', unitPrice: 4500, kind: 'material', moduleKey: 'indoor_outdoor_units', enabledWhen: { anyQtyKeys: ['outdoorEquipmentCount'] } },
       { stageCode: 'vacuum', description: 'Vacuum & test etanșeitate', unit: 'buc', qtyKey: 'acUnits', unitPrice: 280, kind: 'labor', moduleKey: 'route' },

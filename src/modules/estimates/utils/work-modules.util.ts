@@ -22,10 +22,9 @@ export function readEnabledWorkModules(
   const raw = diagnostic?.[ENABLED_WORK_MODULES_KEY];
 
   if (Array.isArray(raw)) {
-    const selected = raw.filter(
+    return raw.filter(
       (key): key is string => typeof key === 'string' && validKeys.has(key),
     );
-    if (selected.length) return selected;
   }
 
   return getDefaultEnabledWorkModules(config);
@@ -53,19 +52,35 @@ export function isCustomFieldActive(
   field: BlueprintCustomField,
   config: EstimateBlueprintConfig,
   enabledModules: string[],
+  diagnostic?: Record<string, unknown> | null,
 ): boolean {
   const module = findWorkModuleForField(config, field.key);
-  if (!module) return true;
-  return enabledModules.includes(module.key);
+  if (module && !enabledModules.includes(module.key)) {
+    return false;
+  }
+
+  if (field.dependentOnKey && diagnostic) {
+    const val = diagnostic[field.dependentOnKey];
+    if (field.dependentOnValues?.length) {
+      if (!field.dependentOnValues.includes(String(val ?? ''))) {
+        return false;
+      }
+    } else if (!val) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 export function isCustomFieldRequired(
   field: BlueprintCustomField,
   config: EstimateBlueprintConfig,
   enabledModules: string[],
+  diagnostic?: Record<string, unknown> | null,
 ): boolean {
   if (!field.required) return false;
-  return isCustomFieldActive(field, config, enabledModules);
+  return isCustomFieldActive(field, config, enabledModules, diagnostic);
 }
 
 export function isPricingRuleActive(

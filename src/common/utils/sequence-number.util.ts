@@ -38,7 +38,7 @@ export async function nextCompanyNumber(
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(${companySequenceLockKey(opts.namespace, opts.companyId)}::bigint)`;
   const base = await opts.count();
   let number = `${opts.prefix}-${String(base + 1).padStart(5, '0')}`;
-  for (let attempt = 0; attempt < 15; attempt++) {
+  for (let attempt = 0; attempt < 1000; attempt++) {
     if (!(await opts.exists(number))) return number;
     number = `${opts.prefix}-${String(base + 1 + attempt).padStart(5, '0')}`;
   }

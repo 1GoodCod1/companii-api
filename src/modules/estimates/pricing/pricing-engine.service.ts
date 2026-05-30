@@ -155,6 +155,7 @@ export class EstimatePricingEngine {
       laborMultiplier?: number;
       materialMultiplier?: number;
       includeMaterials?: boolean;
+      diagnostic?: Record<string, unknown> | null;
     },
   ): Array<{
     stageCode: string;
@@ -200,12 +201,38 @@ export class EstimatePricingEngine {
       const waste = rule.wastePct ? 1 + rule.wastePct / 100 : 1;
       const qty = round2(rawQty * waste);
       const kind = rule.kind ?? 'material';
-      const mult = kind === 'labor' ? laborMult : materialMult;
+      const ruleLaborMult =
+        kind === 'labor' && rule.laborUnitPriceMultiplierKey
+          ? (measurements[rule.laborUnitPriceMultiplierKey] ?? 1)
+          : 1;
+      const mult = kind === 'labor' ? laborMult * ruleLaborMult : materialMult;
       const unitPrice = round2(rule.unitPrice * mult);
       const lineTotal = round2(qty * unitPrice);
+
+      let description = rule.description;
+      if (rule.qtyKey === 'scaffoldingRentalArea') {
+        const scaffoldingArea = measurements.scaffoldingArea ?? measurements.facadeArea ?? 0;
+        const duration = Number(options?.diagnostic?.scaffoldingRentalDuration ?? 1);
+        const period = String(options?.diagnostic?.scaffoldingRentalPeriod ?? 'months').toLowerCase();
+        
+        let durationInMonths = duration;
+        let label = 'luni';
+        if (period === 'days') {
+          durationInMonths = duration / 30;
+          label = `zile (${round2(durationInMonths)} luni)`;
+        } else if (period === 'weeks') {
+          durationInMonths = (duration * 7) / 30;
+          label = `săpt. (${round2(durationInMonths)} luni)`;
+        } else {
+          label = duration === 1 ? 'lună' : 'luni';
+        }
+        const formattedDuration = duration === 1 && period === 'months' ? '1 lună' : `${duration} ${label}`;
+        description = `Închiriere schelă (${scaffoldingArea} m² × ${formattedDuration})`;
+      }
+
       lines.push({
         stageCode: rule.stageCode,
-        description: rule.description,
+        description,
         qty,
         unit: rule.unit,
         unitPrice,
@@ -228,6 +255,17 @@ export class EstimatePricingEngine {
       services.map((service) => [normalizeRateKey(service.name), Number(service.defaultPrice)]),
     );
 
+    const getMatchCountInBlueprint = (name: string): number => {
+      let count = 0;
+      for (const rule of rules) {
+        const ruleKey = normalizeRateKey(rule.description);
+        if (ruleKey.includes(name) || name.includes(ruleKey)) {
+          count++;
+        }
+      }
+      return count;
+    };
+
     return rules.map((rule) => {
       const ruleKey = normalizeRateKey(rule.description);
       const direct = priceByName.get(ruleKey);
@@ -237,7 +275,9 @@ export class EstimatePricingEngine {
 
       for (const [name, price] of priceByName) {
         if (ruleKey.includes(name) || name.includes(ruleKey)) {
-          return { ...rule, unitPrice: price };
+          if (getMatchCountInBlueprint(name) === 1) {
+            return { ...rule, unitPrice: price };
+          }
         }
       }
 

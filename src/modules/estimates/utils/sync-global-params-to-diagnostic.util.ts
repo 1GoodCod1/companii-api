@@ -62,6 +62,30 @@ export function syncGlobalParamsToDiagnostic(
   const wardrobeCount = pointsCount('wardrobe') + pointsCount('bed');
   if (wardrobeCount > 0) next.wardrobeCount = wardrobeCount;
 
+  // Elektrika
+  const elekSocketCount = pointsCount('socket');
+  if (elekSocketCount > 0) next.socketCount = elekSocketCount;
+  const elekSwitchCount = pointsCount('switch');
+  if (elekSwitchCount > 0) next.switchCount = elekSwitchCount;
+  const elekLightCount = pointsCount('light');
+  if (elekLightCount > 0) next.lightPointCount = elekLightCount;
+  const elekPanelCount = pointsCount('panel');
+  if (elekPanelCount > 0) next.panelCount = elekPanelCount;
+  const junctionBoxCount = pointsCount('junction_box');
+  if (junctionBoxCount > 0) next.junctionBoxCount = junctionBoxCount;
+  const dedicatedLinePoints = pointsCount('dedicated_line');
+  if (dedicatedLinePoints > 0) next.dedicatedLinesCount = dedicatedLinePoints;
+
+  // Santehnika
+  const waterPoints = pointsCount('water');
+  const drainPlanPoints = pointsCount('drain');
+  const mixerPoints = pointsCount('mixer');
+  const toiletPoints = pointsCount('toilet');
+  if (waterPoints > 0) next.bathroomPoints = waterPoints;
+  if (drainPlanPoints > 0) next.drainPlanPoints = drainPlanPoints;
+  if (mixerPoints > 0) next.mixerCount = mixerPoints;
+  if (toiletPoints > 0) next.toiletCount = toiletPoints;
+
   const cleanWindows = pointsCount('window_clean');
   if (cleanWindows > 0) next.windowCount = cleanWindows;
 

@@ -16,6 +16,15 @@ export function readNumber(
   return undefined;
 }
 
+export function readAutoNumber(
+  source: Record<string, unknown> | null | undefined,
+  key: string,
+): number | undefined {
+  const value = readNumber(source, key);
+  if (value === 0) return undefined;
+  return value;
+}
+
 export function readBoolean(
   source: Record<string, unknown> | null | undefined,
   key: string,

@@ -1,10 +1,13 @@
 import { isStageDefaultLaborChargeable } from './estimate-stages.service';
 import { lucrariFinisajBlueprint } from '../../../../../prisma/estimate-blueprints/categories/lucrari-finisaj.blueprint';
+import { climaBlueprint } from '../../../../../prisma/estimate-blueprints/categories/clima.blueprint';
 import type { EstimateBlueprintConfig } from '../../../../../prisma/estimate-blueprint-config.types';
 
 describe('isStageDefaultLaborChargeable (phantom stage-default labor guard)', () => {
   const config = lucrariFinisajBlueprint as EstimateBlueprintConfig;
   const defByCode = new Map(config.defaultStages.map((s) => [s.code, s]));
+  const climaConfig = climaBlueprint as EstimateBlueprintConfig;
+  const climaStageByCode = new Map(climaConfig.defaultStages.map((s) => [s.code, s]));
 
   it('does NOT charge an optional stage whose module is disabled', () => {
     expect(
@@ -24,7 +27,24 @@ describe('isStageDefaultLaborChargeable (phantom stage-default labor guard)', ()
     ).toBe(true);
   });
 
-  it('always charges a required (non-optional) stage', () => {
-    expect(isStageDefaultLaborChargeable(defByCode.get('glet'), [], config, {})).toBe(true);
+  it('does NOT charge a required stage when its module is disabled', () => {
+    expect(
+      isStageDefaultLaborChargeable(climaStageByCode.get('montaj'), [], climaConfig, {}),
+    ).toBe(false);
+  });
+
+  it('charges a required stage when its module is enabled', () => {
+    expect(
+      isStageDefaultLaborChargeable(
+        climaStageByCode.get('montaj'),
+        ['indoor_outdoor_units'],
+        climaConfig,
+        {},
+      ),
+    ).toBe(true);
+  });
+
+  it('always charges a required (non-optional) stage without moduleKey', () => {
+    expect(isStageDefaultLaborChargeable({ optional: false }, [], config, {})).toBe(true);
   });
 });

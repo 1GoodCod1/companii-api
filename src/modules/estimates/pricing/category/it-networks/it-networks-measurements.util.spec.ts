@@ -1,82 +1,81 @@
 import { EstimatePricingEngine } from '../../pricing-engine.service';
-import {
-  deriveItNetworksMeasurements,
-  resolveAnalysisHours,
-  shouldEnablePlanWizardForItNetworks,
-  shouldRequireItManualReview,
-} from './it-networks-measurements.util';
+import { deriveItNetworksMeasurements } from './it-networks-measurements.util';
 import type { EstimateBlueprintConfig } from '../../../../../../prisma/estimate-blueprint-config.types';
 import { itNetworksBlueprint } from '../../../../../../prisma/estimate-blueprints/categories/it-networks.blueprint';
 
 describe('IT networks measurements (it-networks)', () => {
-  it('computes network cable and boolean feature counts', () => {
+  it('computes network cable, support units and conditional audit/test hours', () => {
     const result = deriveItNetworksMeasurements(
       null,
       {
-        networkPoints: 12,
-        pagesCount: 10,
-        hasBackend: true,
-        hasCMS: true,
-        hasEcommerce: false,
+        networkPoints: 10,
+        avgCableLengthPerPort: 25,
+        siteSurveyRequired: true,
+        commissioningRequired: true,
         documentationRequired: true,
         slaRequired: true,
-        projectScope: 'Mediu (6-20 pagini / 1-2 săptămâni)',
       },
       {},
     );
 
-    expect(result.networkCableM).toBe(240);
-    expect(result.hasBackendCount).toBe(1);
-    expect(result.hasCmsCount).toBe(1);
-    expect(result.hasEcommerceCount).toBe(0);
-    expect(result.analysisHours).toBe(16);
+    expect(result.networkCableM).toBe(250);
+    expect(result.networkPoints).toBe(10);
+    expect(result.analysisHours).toBe(8);
     expect(result.testingHours).toBe(8);
-    expect(result.trainingHours).toBe(6);
+    expect(result.trainingHours).toBe(4);
     expect(result.slaUnits).toBe(1);
+    expect(result.planWizardEnabled).toBe(1);
   });
 
-  it('enables plan wizard only for network direction', () => {
-    expect(shouldEnablePlanWizardForItNetworks('network')).toBe(true);
-    expect(shouldEnablePlanWizardForItNetworks('Rețelistică & Cablare')).toBe(true);
-    expect(shouldEnablePlanWizardForItNetworks('web')).toBe(false);
-  });
-
-  it('flags enterprise projects for manual review', () => {
+  it('keeps hours at 0 when survey and commissioning are not selected', () => {
     const result = deriveItNetworksMeasurements(
       null,
-      { projectScope: 'Enterprise (20+ pagini / 1+ lună)' },
+      {
+        networkPoints: 10,
+        siteSurveyRequired: false,
+        commissioningRequired: false,
+        documentationRequired: false,
+      },
       {},
     );
 
-    expect(shouldRequireItManualReview('Enterprise (20+ pagini / 1+ lună)')).toBe(true);
-    expect(result.requiresManualReview).toBe(1);
-    expect(resolveAnalysisHours('Enterprise (20+ pagini / 1+ lună)')).toBe(32);
+    expect(result.analysisHours).toBe(0);
+    expect(result.testingHours).toBe(0);
+    expect(result.trainingHours).toBe(0);
   });
 
-  it('keeps web and network lines separated by work modules', () => {
+  it('correctly maps separate workstation and server configuration and assembly counts', () => {
     const engine = new EstimatePricingEngine();
     const measurements = deriveItNetworksMeasurements(
       null,
       {
-        pagesCount: 5,
-        networkPoints: 8,
-        hasBackend: true,
-        projectScope: 'Mic (1-5 pagini / 1-2 zile)',
+        networkPoints: 5,
+        serversToConfigure: 2,
+        serversToAssemble: 1,
+        workstationsToConfigure: 10,
+        workstationsToAssemble: 4,
       },
       {},
     );
 
-    const webLines = engine.buildLinesFromRules(itNetworksBlueprint.pricingRules, measurements, {
-      enabledWorkModules: ['frontend', 'backend'],
+    expect(measurements.serversToConfigure).toBe(2);
+    expect(measurements.serversToAssemble).toBe(1);
+    expect(measurements.workstationsToConfigure).toBe(10);
+    expect(measurements.workstationsToAssemble).toBe(4);
+
+    const configRules = engine.buildLinesFromRules(itNetworksBlueprint.pricingRules, measurements, {
+      enabledWorkModules: ['servers'],
       config: itNetworksBlueprint as EstimateBlueprintConfig,
     });
-    const networkLines = engine.buildLinesFromRules(itNetworksBlueprint.pricingRules, measurements, {
-      enabledWorkModules: ['network_cabling'],
+    const assemblyRules = engine.buildLinesFromRules(itNetworksBlueprint.pricingRules, measurements, {
+      enabledWorkModules: ['hardware_components'],
       config: itNetworksBlueprint as EstimateBlueprintConfig,
     });
 
-    expect(webLines.some((line) => line.description.toLowerCase().includes('frontend'))).toBe(true);
-    expect(webLines.some((line) => line.description.toLowerCase().includes('cablare'))).toBe(false);
-    expect(networkLines.some((line) => line.description.toLowerCase().includes('cablare'))).toBe(true);
+    expect(configRules.some((line) => line.description.includes('Configurare server'))).toBe(true);
+    expect(configRules.some((line) => line.description.includes('Asamblare'))).toBe(false);
+
+    expect(assemblyRules.some((line) => line.description.includes('Asamblare fizică'))).toBe(true);
+    expect(assemblyRules.some((line) => line.description.includes('Configurare'))).toBe(false);
   });
 });

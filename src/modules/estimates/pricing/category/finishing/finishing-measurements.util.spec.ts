@@ -21,35 +21,44 @@ describe('finishing measurements (lucrari-finisaj)', () => {
       {},
     );
 
-    expect(result.wallArea).toBe(75);
+    const perimeter = round2(4 * Math.sqrt(30));
+    const expectedWall = round2(perimeter * 2.7); 
+
+    expect(result.wallArea).toBe(expectedWall);
     expect(result.ceilingArea).toBe(30);
-    expect(result.paintArea).toBe(105);
+    expect(result.paintArea).toBe(expectedWall); 
     expect(result.complexityMultiplier).toBe(1.3);
-    expect(result.paintAreaLabor).toBe(round2(105 * 1.3));
+    expect(result.paintAreaLabor).toBe(round2(expectedWall * 1.3));
     expect(result.tileArea).toBe(0);
   });
 
-  it('auto-derives putty, preparation & paint from the room skin for default modules', () => {
+  it('auto-derives putty, preparation & paint from the wall area (no ceiling double-billing)', () => {
     const result = deriveFinisajMeasurements(
       null,
       { finishArea: 30, wallHeight: 2.7, enabledWorkModules: ['surface_preparation', 'putty', 'paint'] },
       {},
     );
-    expect(result.wallArea).toBe(75);
-    expect(result.puttyArea).toBe(105);
-    expect(result.preparationArea).toBe(105);
-    expect(result.paintArea).toBe(105);
-    expect(result.puttyAreaLabor).toBe(105);
+    const perimeter = round2(4 * Math.sqrt(30)); // 21.91
+    const expectedWall = round2(perimeter * 2.7); // 59.16
+
+    expect(result.wallArea).toBe(expectedWall);
+    expect(result.puttyArea).toBe(expectedWall);
+    expect(result.preparationArea).toBe(expectedWall);
+    expect(result.paintArea).toBe(expectedWall);
+    expect(result.puttyAreaLabor).toBe(expectedWall);
   });
 
-  it('scales wall area by ceiling height (wallHeight is no longer dead)', () => {
+  it('scales wall area by ceiling height using the perimeter model', () => {
     const tall = deriveFinisajMeasurements(
       null,
       { finishArea: 30, wallHeight: 3.0, enabledWorkModules: ['putty'] },
       {},
     );
-    expect(tall.wallArea).toBe(round2(30 * 2.5 * (3.0 / 2.7)));
-    expect(tall.wallArea).toBeGreaterThan(75);
+    const perimeter = round2(4 * Math.sqrt(30)); // 21.91
+    const expectedWallTall = round2(perimeter * 3.0); // 65.73
+
+    expect(tall.wallArea).toBe(expectedWallTall);
+    expect(tall.wallArea).toBeGreaterThan(59.16);
   });
 
   it('estimates baseboard length from perimeter (4·√area)', () => {
@@ -73,7 +82,9 @@ describe('finishing measurements (lucrari-finisaj)', () => {
       },
       {},
     );
-    expect(result.paintArea).toBe(75);
+    const perimeter = round2(4 * Math.sqrt(30)); // 21.91
+    const expectedWall = round2(perimeter * 2.7); // 59.16
+    expect(result.paintArea).toBe(round2(expectedWall - 20 - 10));
   });
 
   it('derives new module quantities (stretch ceiling auto, partition explicit)', () => {
@@ -85,6 +96,15 @@ describe('finishing measurements (lucrari-finisaj)', () => {
     expect(result.stretchCeilingArea).toBe(40);
     expect(result.partitionArea).toBe(12);
     expect(result.partitionAreaLabor).toBe(12);
+  });
+
+  it('honors explicit 0 quantity over auto-calculated defaults', () => {
+    const result = deriveFinisajMeasurements(
+      null,
+      { finishArea: 30, plasterArea: 0, enabledWorkModules: ['plaster'] },
+      {},
+    );
+    expect(result.plasterArea).toBe(0); // explicitly set to 0 instead of defaulting to wall area!
   });
 
   it('keeps optional module areas at zero unless explicitly set or module enabled', () => {

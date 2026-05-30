@@ -76,6 +76,36 @@ const CHECKS_BY_SLUG: Record<string, Check[]> = {
   ],
   clima: [
     {
+      key: 'coreModulesDisabled',
+      severity: 'warning',
+      test: (_m, d) => {
+        const enabled = Array.isArray(d.enabledWorkModules)
+          ? (d.enabledWorkModules as unknown[]).filter((k): k is string => typeof k === 'string')
+          : null;
+        if (!enabled) return null;
+        const missing: string[] = [];
+        if (!enabled.includes('route')) missing.push('Traseu frigorific');
+        if (!enabled.includes('indoor_outdoor_units')) missing.push('Unități interior/exterior');
+        if (missing.length) {
+          return `Module de bază dezactivate (${missing.join(', ')}). Smeta poate fi incompletă — activați-le pentru montaj AC standard.`;
+        }
+        return null;
+      },
+    },
+    {
+      key: 'acUnitsMissing',
+      severity: 'warning',
+      test: (m, d) => {
+        const ac = m.acUnits ?? 0;
+        if (ac >= 1) return null;
+        const manual = readDiagnosticNumber(d, 'acUnits');
+        if (manual === 0) {
+          return 'Număr unități split = 0 — completați câmpul „Număr unități split" în secțiunea General.';
+        }
+        return 'Număr unități split lipsește — smeta poate fi incompletă.';
+      },
+    },
+    {
       key: 'routeShortForUnits',
       severity: 'warning',
       test: (m) => {
@@ -215,6 +245,80 @@ const CHECKS_BY_SLUG: Record<string, Check[]> = {
           .map(([, , label]) => label);
         if (missing.length) {
           return `Module activate fără cantitate introdusă: ${missing.join(', ')}. Completați suprafața/lungimea în „Detalii avansate" — altfel nu apar în deviz.`;
+        }
+        return null;
+      },
+    },
+  ],
+  'it-web': [
+    {
+      key: 'webPagesMissing',
+      severity: 'warning',
+      test: (m, d) => {
+        const enabled = Array.isArray(d.enabledWorkModules) ? d.enabledWorkModules : [];
+        if ((enabled.includes('web_design') || enabled.includes('frontend')) && (m.pagesCount ?? 0) <= 0) {
+          return 'Ați activat design/frontend dar numărul de pagini este 0. Completați numărul de pagini.';
+        }
+        return null;
+      },
+    },
+  ],
+  'it-networks': [
+    {
+      key: 'networksMissingQuantity',
+      severity: 'warning',
+      test: (m, d) => {
+        const enabled = Array.isArray(d.enabledWorkModules) ? d.enabledWorkModules : [];
+        const missing: string[] = [];
+        if (enabled.includes('network_cabling') && (m.networkPoints ?? 0) <= 0) {
+          missing.push('Porturi rețea');
+        }
+        if (enabled.includes('cameras') && (m.cameraCount ?? 0) <= 0) {
+          missing.push('Camere IP');
+        }
+        if (enabled.includes('servers') && (m.serversToConfigure ?? 0) <= 0 && (m.workstationsToConfigure ?? 0) <= 0) {
+          missing.push('Servere / Stații de configurat');
+        }
+        if (enabled.includes('hardware_components') && (m.serversToAssemble ?? 0) <= 0 && (m.workstationsToAssemble ?? 0) <= 0 && (m.rackUnits ?? 0) <= 0) {
+          missing.push('Elemente hardware de asamblat');
+        }
+        if (missing.length > 0) {
+          return `Module activate fără echipamente/cantități: ${missing.join(', ')}. Introduceți cantitățile corespunzătoare.`;
+        }
+        return null;
+      },
+    },
+  ],
+  'it-hardware': [
+    {
+      key: 'hardwareMissingQuantity',
+      severity: 'warning',
+      test: (m, d) => {
+        const enabled = Array.isArray(d.enabledWorkModules) ? d.enabledWorkModules : [];
+        const missing: string[] = [];
+        if (enabled.includes('repair') && (m.repairCount ?? 0) <= 0) {
+          missing.push('Reparații hardware');
+        }
+        if (enabled.includes('assembly') && (m.assemblyCount ?? 0) <= 0) {
+          missing.push('PC-uri de asamblat');
+        }
+        if (enabled.includes('upgrade') && (m.upgradeCount ?? 0) <= 0) {
+          missing.push('Componente upgrade');
+        }
+        if (enabled.includes('cleaning_hw') && (m.cleaningHwCount ?? 0) <= 0) {
+          missing.push('Dispozitive de curățat');
+        }
+        if (enabled.includes('os_install') && (m.osInstallCount ?? 0) <= 0) {
+          missing.push('Sisteme de operare de instalat');
+        }
+        if (enabled.includes('data_recovery') && (m.dataRecoveryCount ?? 0) <= 0) {
+          missing.push('Dispozitive pentru recuperare date');
+        }
+        if (enabled.includes('peripheral') && (m.peripheralCount ?? 0) <= 0) {
+          missing.push('Periferice de configurat');
+        }
+        if (missing.length > 0) {
+          return `Servicii hardware selectate fără unități specificate: ${missing.join(', ')}. Completați cantitățile în diagnostic.`;
         }
         return null;
       },

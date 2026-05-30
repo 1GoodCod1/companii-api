@@ -132,14 +132,14 @@ export function validateCustomFieldsAnswers(
   }
 
   for (const field of config.customFields) {
-    if (!isCustomFieldActive(field, config, enabledModules)) {
+    if (!isCustomFieldActive(field, config, enabledModules, answers)) {
       continue;
     }
 
     const rawValue = answers[field.key];
     const val = rawValue ?? field.defaultValue;
 
-    if (isCustomFieldRequired(field, config, enabledModules) && isEmptyValue(val)) {
+    if (isCustomFieldRequired(field, config, enabledModules, answers) && isEmptyValue(val)) {
       if (!options?.ignoreRequired) {
         fieldErrors[field.key] = `${field.label} este obligatoriu`;
         continue;
