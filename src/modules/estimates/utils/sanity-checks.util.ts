@@ -216,10 +216,44 @@ const CHECKS_BY_SLUG: Record<string, Check[]> = {
       },
     },
   ],
+  cleaning: [
+    {
+      key: 'enabledModuleWithoutQuantity',
+      severity: 'warning',
+      test: (m, d) => {
+        const enabled = Array.isArray(d.enabledWorkModules)
+          ? (d.enabledWorkModules as unknown[]).filter((k): k is string => typeof k === 'string')
+          : [];
+        const modulesNeedingQty: Array<[module: string, key: string, label: string]> = [
+          ['windows', 'windowCleanCount', 'Geamuri'],
+          ['bathrooms', 'bathroomCleanUnits', 'Grupuri sanitare'],
+          ['kitchen', 'kitchenDeepCleanUnits', 'Bucătărie profundă'],
+          ['trash_removal', 'trashRemovalUnits', 'Evacuare gunoi'],
+        ];
+        const missing = modulesNeedingQty
+          .filter(([mod, key]) => enabled.includes(mod) && (m[key] ?? 0) <= 0)
+          .map(([, , label]) => label);
+        if (missing.length) {
+          return `Module activate fără cantitate introdusă: ${missing.join(', ')}. Completați câmpurile în „Detalii avansate" — altfel nu apar în deviz.`;
+        }
+        return null;
+      },
+    },
+    {
+      key: 'postConstructionWithoutArea',
+      severity: 'warning',
+      test: (m, d) => {
+        const type = String(d.cleaningType ?? 'standard').trim().toLowerCase().replace(/-/g, '_');
+        if (type !== 'post_construction') return null;
+        if ((m.postConstructionAreaLabor ?? 0) <= 0 && (m.cleanArea ?? 0) <= 0) {
+          return 'Tip curățenie post-șantier selectat dar suprafața este 0 — completați suprafața totală.';
+        }
+        return null;
+      },
+    },
+  ],
   'lucrari-finisaj': [
     {
-      // A module that needs an explicit quantity was enabled but left at 0 — its
-      // lines silently never appear in the deviz. Prompt the manager to fill it.
       key: 'enabledModuleWithoutQuantity',
       severity: 'warning',
       test: (m, d) => {

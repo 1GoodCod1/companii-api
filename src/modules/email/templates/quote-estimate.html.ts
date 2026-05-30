@@ -132,13 +132,13 @@ export function buildCompletedInterventionPendingReceiptsEmail(params: {
     `Proiect: ${params.projectName}`,
     `Există ${params.pendingCount} materiale fără chitanțe atașate, în valoare totală estimată de ${total} MDL.`,
     '',
-    `Vă rugăm să solicitați chitanțele de la tehnician sau să le marcați ca NO_RECEIPT / SKIPPED în aplicație.`,
+    `Vă rugăm să solicitați chitanțele de la angajat sau să le marcați ca NO_RECEIPT / SKIPPED în aplicație.`,
   ].join('\n');
   const html = `
       <p>Lucrarea <strong>${params.interventionNumber}</strong> a fost finalizată.</p>
       <p>Proiect: <strong>${params.projectName}</strong></p>
       <p>Există <strong>${params.pendingCount} materiale</strong> fără chitanțe atașate, în valoare totală estimată de <strong>${total} MDL</strong>.</p>
-      <p>Vă rugăm să solicitați chitanțele de la tehnician sau să le marcați ca <strong>NO_RECEIPT / SKIPPED</strong> în aplicație.</p>
+      <p>Vă rugăm să solicitați chitanțele de la angajat sau să le marcați ca <strong>NO_RECEIPT / SKIPPED</strong> în aplicație.</p>
     `;
 
   return {

@@ -56,11 +56,11 @@ export function buildTeamMemberLeftEmail(params: {
   const text = [
     `${params.memberName} a părăsit echipa companiei ${params.companyName}.`,
     '',
-    'Lucrările active ale acestui tehnician au fost dezasignate.',
+    'Lucrările active ale acestui angajat au fost dezasignate.',
   ].join('\n');
   const html = `
       <p><strong>${params.memberName}</strong> a părăsit echipa companiei <strong>${params.companyName}</strong>.</p>
-      <p>Lucrările active ale acestui tehnician au fost dezasignate.</p>
+      <p>Lucrările active ale acestui angajat au fost dezasignate.</p>
     `;
 
   return {

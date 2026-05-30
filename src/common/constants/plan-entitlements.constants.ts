@@ -56,7 +56,7 @@ export const PLAN_LIMITS: Record<
   CompanySubscriptionPlan,
   { maxTechnicians: number | null; maxInterventionsPerMonth: number | null }
 > = {
-  FREE: { maxTechnicians: 1, maxInterventionsPerMonth: 20 },
+  FREE: { maxTechnicians: 3, maxInterventionsPerMonth: 20 },
   PRO: { maxTechnicians: 10, maxInterventionsPerMonth: 150 },
   BUSINESS: { maxTechnicians: null, maxInterventionsPerMonth: null },
 };
@@ -78,7 +78,7 @@ export const PLAN_MARKETING_FEATURES: Record<CompanySubscriptionPlan, string[]> 
     'Profil companie public verificat',
     'Catalog servicii & prețuri public',
     'Cereri online de la clienți',
-    '1 tehnician activ',
+    '3 angajați activi',
     'Până la 20 lucrări / lună',
     'Calendar lucrări',
     'Gestionare recenzii',
@@ -89,7 +89,7 @@ export const PLAN_MARKETING_FEATURES: Record<CompanySubscriptionPlan, string[]> 
     'Portal clienți securizat',
     'Catalog intern servicii pentru ofertare',
     'Fișă de execuție (plan & etape pe teren)',
-    'Până la 10 tehnicieni',
+    'Până la 10 angajați',
     'Până la 150 lucrări / lună',
     'Istoric status intervenții',
   ],
@@ -98,7 +98,7 @@ export const PLAN_MARKETING_FEATURES: Record<CompanySubscriptionPlan, string[]> 
     'Smete inteligente (blueprints)',
     'Oferte comerciale + PDF',
     'Facturi fiscale TVA + export CSV',
-    'Tehnicieni nelimitați',
+    'Angajați nelimitați',
     'Lucrări nelimitate',
     'Suport prioritar',
   ],

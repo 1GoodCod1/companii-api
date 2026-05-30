@@ -1,6 +1,9 @@
 import { isStageDefaultLaborChargeable } from './estimate-stages.service';
 import { lucrariFinisajBlueprint } from '../../../../../prisma/estimate-blueprints/categories/lucrari-finisaj.blueprint';
 import { climaBlueprint } from '../../../../../prisma/estimate-blueprints/categories/clima.blueprint';
+import { elektrikaBlueprint } from '../../../../../prisma/estimate-blueprints/categories/elektrika.blueprint';
+import { constructiiBlueprint } from '../../../../../prisma/estimate-blueprints/categories/constructii.blueprint';
+import { cleaningBlueprint } from '../../../../../prisma/estimate-blueprints/categories/cleaning.blueprint';
 import type { EstimateBlueprintConfig } from '../../../../../prisma/estimate-blueprint-config.types';
 
 describe('isStageDefaultLaborChargeable (phantom stage-default labor guard)', () => {
@@ -33,6 +36,34 @@ describe('isStageDefaultLaborChargeable (phantom stage-default labor guard)', ()
     ).toBe(false);
   });
 
+  it('does NOT charge stage-default when module requiresQtyKeys are all zero (non-optional stage)', () => {
+    const elektrikaConfig = elektrikaBlueprint as EstimateBlueprintConfig;
+    const traseeStage = elektrikaConfig.defaultStages.find((s) => s.code === 'trasee');
+
+    expect(
+      isStageDefaultLaborChargeable(
+        traseeStage,
+        ['chasing'],
+        elektrikaConfig,
+        { wallChasingM: 0 },
+      ),
+    ).toBe(false);
+  });
+
+  it('does NOT charge constructii placa stage-default when slabAreaTotal is zero', () => {
+    const constructiiConfig = constructiiBlueprint as EstimateBlueprintConfig;
+    const placaStage = constructiiConfig.defaultStages.find((s) => s.code === 'placa');
+
+    expect(
+      isStageDefaultLaborChargeable(
+        placaStage,
+        ['slab'],
+        constructiiConfig,
+        { slabAreaTotal: 0 },
+      ),
+    ).toBe(false);
+  });
+
   it('charges a required stage when its module is enabled', () => {
     expect(
       isStageDefaultLaborChargeable(
@@ -42,6 +73,34 @@ describe('isStageDefaultLaborChargeable (phantom stage-default labor guard)', ()
         {},
       ),
     ).toBe(true);
+  });
+
+  it('does NOT charge cleaning geamuri stage-default when window count is zero', () => {
+    const cleaningConfig = cleaningBlueprint as EstimateBlueprintConfig;
+    const geamuriStage = cleaningConfig.defaultStages.find((s) => s.code === 'geamuri');
+
+    expect(
+      isStageDefaultLaborChargeable(
+        geamuriStage,
+        ['windows'],
+        cleaningConfig,
+        { windowCleanCount: 0 },
+      ),
+    ).toBe(false);
+  });
+
+  it('does NOT charge cleaning special stage-default when trash module is off and no trash qty', () => {
+    const cleaningConfig = cleaningBlueprint as EstimateBlueprintConfig;
+    const specialStage = cleaningConfig.defaultStages.find((s) => s.code === 'special');
+
+    expect(
+      isStageDefaultLaborChargeable(
+        specialStage,
+        ['standard_cleaning'],
+        cleaningConfig,
+        { trashRemovalUnits: 0, postConstructionAreaLabor: 0 },
+      ),
+    ).toBe(false);
   });
 
   it('always charges a required (non-optional) stage without moduleKey', () => {

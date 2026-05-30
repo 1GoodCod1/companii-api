@@ -46,6 +46,6 @@ export function buildInterventionAssignedEmail(params: {
     subject,
     text: lines.join('\n'),
     html: htmlParts.join('\n'),
-    devLog: `[INTERVENTION ASSIGNED] ${params.interventionNumber} → ${params.technicianName ?? 'tehnician'}`,
+    devLog: `[INTERVENTION ASSIGNED] ${params.interventionNumber} → ${params.technicianName ?? 'angajat'}`,
   };
 }

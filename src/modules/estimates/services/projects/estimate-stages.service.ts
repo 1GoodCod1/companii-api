@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { EstimateProjectStatus, Prisma } from '@prisma/client';
 import { AppErrorMessages, AppErrors } from '../../../../common/errors';
 import { assertBlueprintUnitsValid } from '../../utils/estimate-unit-validation.util';
-import { readEnabledWorkModules } from '../../utils/work-modules.util';
+import { readEnabledWorkModulesForCategory } from '../../utils/work-modules.util';
 import {
   resolveAccessDifficultyLaborMultiplier,
   resolveAccessDifficultyLevel,
@@ -47,9 +47,7 @@ export function isStageDefaultLaborChargeable(
     return false;
   }
 
-  if (!def?.optional) return true;
-
-  const requiresQtyKeys = def.moduleKey
+  const requiresQtyKeys = def?.moduleKey
     ? config.workModules?.find((m) => m.key === def.moduleKey)?.requiresQtyKeys
     : undefined;
   if (requiresQtyKeys?.length && requiresQtyKeys.every((key) => (measurements[key] ?? 0) <= 0)) {
@@ -115,7 +113,7 @@ export class EstimateStagesService {
     );
     measurements = customPricing.measurements;
     pricingRules = customPricing.rules;
-    const enabledWorkModules = readEnabledWorkModules(diagnostic, config);
+    const enabledWorkModules = readEnabledWorkModulesForCategory(project.category?.slug, diagnostic, config);
     const stageDefByCode = new Map(config.defaultStages.map((s) => [s.code, s]));
     const accessLevel = resolveAccessDifficultyLevel(
       (project as { accessDifficulty?: unknown }).accessDifficulty,

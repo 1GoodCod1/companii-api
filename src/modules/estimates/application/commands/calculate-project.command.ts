@@ -10,7 +10,7 @@ import type { CustomPricingOverrideResult } from '../../pricing/pricing-engine.s
 import { EstimateProjectAccessService } from '../../services/projects/estimate-project-access.service';
 import { isEstimateRecalculable } from '../../utils/estimate-status-transitions.util';
 import { assertBlueprintUnitsValid } from '../../utils/estimate-unit-validation.util';
-import { readEnabledWorkModules } from '../../utils/work-modules.util';
+import { readEnabledWorkModulesForCategory } from '../../utils/work-modules.util';
 import {
   resolveAccessDifficultyLaborMultiplier,
   resolveAccessDifficultyLevel,
@@ -81,7 +81,7 @@ export class CalculateProjectCommandHandler {
     );
     measurements = customPricing.measurements;
     pricingRules = customPricing.rules;
-    const enabledWorkModules = readEnabledWorkModules(diagnostic, config);
+    const enabledWorkModules = readEnabledWorkModulesForCategory(project.category?.slug, diagnostic, config);
     const stageDefByCode = new Map(config.defaultStages.map((s) => [s.code, s]));
     const accessLevel = resolveAccessDifficultyLevel(
       (project as { accessDifficulty?: unknown }).accessDifficulty, diagnostic,

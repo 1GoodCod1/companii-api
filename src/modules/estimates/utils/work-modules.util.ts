@@ -4,6 +4,7 @@ import type {
   BlueprintWorkModule,
   EstimateBlueprintConfig,
 } from '../../../../prisma/estimate-blueprint-config.types';
+import { readCleaningEnabledWorkModules } from './cleaning-work-modules.util';
 
 export const ENABLED_WORK_MODULES_KEY = 'enabledWorkModules';
 
@@ -110,6 +111,17 @@ export function isPricingRuleActive(
   }
 
   return true;
+}
+
+export function readEnabledWorkModulesForCategory(
+  categorySlug: string | null | undefined,
+  diagnostic: Record<string, unknown> | null | undefined,
+  config: EstimateBlueprintConfig,
+): string[] {
+  if (categorySlug === 'cleaning') {
+    return readCleaningEnabledWorkModules(diagnostic, config);
+  }
+  return readEnabledWorkModules(diagnostic, config);
 }
 
 export function validateEnabledWorkModules(

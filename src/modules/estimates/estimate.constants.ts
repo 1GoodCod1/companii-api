@@ -69,6 +69,7 @@ export function guessUnit(key: string): EstimateMeasurementUnit {
   if (key.endsWith('Area') || key.includes('Area')) return 'm²';
   if (key.endsWith('LengthM') || key.includes('Length')) return 'm';
   if (key.endsWith('Hours') || key.includes('Hours')) return 'ore';
+  if (key.endsWith('Kg') || key.endsWith('kg')) return 'kg';
   if (key.endsWith('Count') || key.endsWith('Units')) return 'buc';
   return 'buc';
 }

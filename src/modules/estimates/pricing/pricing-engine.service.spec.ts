@@ -89,6 +89,7 @@ describe('EstimatePricingEngine integration (E-06)', () => {
       dedicatedLinesCount: 2,
       wallMaterial: 'beton',
       wallChasingM: 10,
+      cableSegmentMm2: '6 mm²',
       enabledWorkModules: ['cabling', 'chasing', 'devices', 'testing'],
     };
 
@@ -100,12 +101,51 @@ describe('EstimatePricingEngine integration (E-06)', () => {
 
     expect(measurements.cableLengthM).toBe(85);
     expect(measurements.cableLengthMLabor).toBe(85);
+    expect(measurements.cableMaterialM).toBe(144.5);
 
     const lines = buildLines('elektrika', measurements, diagnostic);
     const descriptions = lines.map((line) => line.description.toLowerCase());
 
     expect(descriptions.some((d) => d.includes('cablu') || d.includes('cabl'))).toBe(true);
     expect(descriptions.some((d) => d.includes('slab') || d.includes('tensiune'))).toBe(false);
+
+    const cableMaterial = lines.find((l) => l.description.includes('Cablu + tub'));
+    expect(cableMaterial?.qty).toBeGreaterThan(measurements.cableLengthM);
+  });
+
+  it('elektrika: no phantom trasee labor on new construction', () => {
+    const diagnostic = {
+      roomCount: 3,
+      isNewConstruction: true,
+      enabledWorkModules: ['project', 'chasing', 'cabling', 'devices', 'testing'],
+    };
+
+    const measurements = engine.deriveMeasurements(null, diagnostic, 'elektrika');
+    expect(measurements.wallChasingM).toBe(0);
+
+    const config = elektrikaBlueprint as EstimateBlueprintConfig;
+    const stageDefaultChargeable = config.defaultStages
+      .filter((s) => s.code === 'trasee')
+      .every((s) =>
+        measurements.wallChasingM > 0,
+      );
+    expect(stageDefaultChargeable).toBe(false);
+  });
+
+  it('elektrika: panel modules require panelCount', () => {
+    const diagnostic = {
+      roomCount: 2,
+      newPanel: false,
+      panelModules: 12,
+      enabledWorkModules: ['panel'],
+    };
+
+    const measurements = engine.deriveMeasurements(null, diagnostic, 'elektrika');
+    expect(measurements.panelCount).toBe(0);
+    expect(measurements.panelModules).toBe(0);
+
+    const lines = buildLines('elektrika', measurements, diagnostic);
+    expect(lines.some((l) => l.description.includes('Module automate'))).toBe(false);
   });
 
   it('acoperis: derives roof area from slope and emits covering lines', () => {

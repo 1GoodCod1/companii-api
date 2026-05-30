@@ -17,8 +17,9 @@ describe('electrical measurements (elektrika)', () => {
       {},
     );
 
-    expect(result.cableLengthM).toBe(85); // max(15, 36) + 25 + 24
+    expect(result.cableLengthM).toBe(85); 
     expect(result.materialMultiplier).toBe(1.45);
+    expect(result.wallChasingM).toBe(10);
     expect(result.wallChasingCostM).toBe(14.5);
     expect(result.cableLengthMLabor).toBe(85);
     expect(result.electricPoints).toBeGreaterThan(0);
@@ -58,7 +59,89 @@ describe('electrical measurements (elektrika)', () => {
     );
 
     expect(withPanel.panelCount).toBe(2);
+    expect(withPanel.panelModules).toBe(12);
     expect(withoutPanel.panelCount).toBe(1);
+    expect(withoutPanel.panelModules).toBe(12);
+  });
+
+  it('zeros panel modules when no panel is present', () => {
+    const result = deriveElektrikaMeasurements(
+      { rooms: [], points: [] },
+      { roomCount: 2, newPanel: false, panelModules: 12 },
+      {},
+    );
+
+    expect(result.panelCount).toBe(0);
+    expect(result.panelModules).toBe(0);
+  });
+
+  it('zeros wall chasing for new construction', () => {
+    const result = deriveElektrikaMeasurements(
+      { rooms: [], points: [] },
+      { roomCount: 3, isNewConstruction: true, wallChasingM: 20 },
+      {},
+    );
+
+    expect(result.wallChasingM).toBe(0);
+    expect(result.wallChasingCostM).toBe(0);
+  });
+
+  it('auto-estimates wall chasing when not entered', () => {
+    const result = deriveElektrikaMeasurements(
+      { rooms: [], points: [] },
+      { roomCount: 3 },
+      {},
+    );
+
+    expect(result.wallChasingM).toBeGreaterThan(0);
+    expect(result.cableMaterialM).toBe(result.cableLengthM);
+  });
+
+  it('applies cable segment multiplier to cableMaterialM', () => {
+    const result = deriveElektrikaMeasurements(
+      { rooms: [], points: [] },
+      { roomCount: 3, cableSegmentMm2: '6 mm²' },
+      {},
+    );
+
+    expect(result.cableSegmentMultiplier).toBe(1.7);
+    expect(result.cableMaterialM).toBe(Math.round(result.cableLengthM * 1.7 * 100) / 100);
+  });
+
+  it('keeps real electric point count in electricPointsMaterial', () => {
+    const result = deriveElektrikaMeasurements(
+      { rooms: [], points: [] },
+      { roomCount: 2, deviceTier: 'standard' },
+      {},
+    );
+
+    expect(result.deviceTierMultiplier).toBe(1.5);
+    expect(result.electricPointsMaterial).toBe(result.electricPoints);
+  });
+
+  it('treats explicit zero point counts as zero, not auto-estimate', () => {
+    const result = deriveElektrikaMeasurements(
+      { rooms: [], points: [] },
+      { roomCount: 3, socketCount: 0, switchCount: 0, lightPointCount: 0 },
+      {},
+    );
+
+    expect(result.socketCount).toBe(0);
+    expect(result.switchCount).toBe(0);
+    expect(result.lightPointCount).toBe(0);
+    expect(result.electricPoints).toBe(0);
+  });
+
+  it('auto-estimates point counts when fields are absent', () => {
+    const result = deriveElektrikaMeasurements(
+      { rooms: [], points: [] },
+      { roomCount: 3 },
+      {},
+    );
+
+    expect(result.socketCount).toBe(6);
+    expect(result.switchCount).toBe(3);
+    expect(result.lightPointCount).toBe(3);
   });
 
   it('maps wall material multipliers', () => {
@@ -68,7 +151,3 @@ describe('electrical measurements (elektrika)', () => {
     expect(resolveWallMaterialMultiplier('beton')).toBe(1.45);
   });
 });
-
-function round2(value: number): number {
-  return Math.round(value * 100) / 100;
-}

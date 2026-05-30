@@ -6,16 +6,19 @@ import {
   resolvePricingModifierFactor,
 } from '../../../../../../prisma/estimate-pricing-modifiers';
 
+export function normalizeCleaningType(cleaningType: unknown): string {
+  return String(cleaningType ?? 'standard')
+    .trim()
+    .toLowerCase()
+    .replace(/-/g, '_');
+}
 
 /** implementation_plan.md §4.9 */
 export function resolveCleaningTypeMultiplier(
   cleaningType: unknown,
   overrides?: CompanyPricingModifiers | null,
 ): number {
-  const normalized = String(cleaningType ?? 'standard')
-    .trim()
-    .toLowerCase()
-    .replace(/-/g, '_');
+  const normalized = normalizeCleaningType(cleaningType);
 
   if (normalized === 'post_construction') return resolvePricingModifierFactor('cleaning.cleaningType.post_construction', overrides);
   if (normalized === 'deep') return resolvePricingModifierFactor('cleaning.cleaningType.deep', overrides);
@@ -72,7 +75,11 @@ export function deriveCleaningMeasurements(
   measurements.kitchenDeepCleanUnits = readBoolean(diagnostic, 'kitchenDeepClean') ? 1 : 0;
 
   const cleaningType = diagnostic?.cleaningType ?? 'standard';
+  const normalizedType = normalizeCleaningType(cleaningType);
+  const isPostConstruction = normalizedType === 'post_construction';
+  const isDeep = normalizedType === 'deep';
   const furniturePresent = readBoolean(diagnostic, 'furniturePresent');
+
   measurements.complexityMultiplier = resolveCleaningTypeMultiplier(cleaningType, overrides);
   measurements.dustMultiplier = resolveDustMultiplier(diagnostic?.afterRepairDustLevel, overrides);
   measurements.totalCleaningMultiplier = resolveCombinedCleaningMultiplier(
@@ -82,15 +89,11 @@ export function deriveCleaningMeasurements(
     overrides,
   );
 
-  measurements.cleanAreaLabor = round2(cleanArea * measurements.totalCleaningMultiplier);
-  measurements.standardCleanAreaLabor =
-    String(cleaningType).toLowerCase().replace(/-/g, '_') !== 'post_construction'
-      ? measurements.cleanAreaLabor
-      : 0;
-  measurements.postConstructionAreaLabor =
-    String(cleaningType).toLowerCase().replace(/-/g, '_') === 'post_construction'
-      ? measurements.cleanAreaLabor
-      : 0;
+  // Real areas in qty; type/dust/furniture multipliers apply via laborUnitPriceMultiplierKey.
+  measurements.standardCleanAreaLabor = !isPostConstruction && !isDeep ? cleanArea : 0;
+  measurements.deepCleanAreaLabor = isDeep ? cleanArea : 0;
+  measurements.postConstructionAreaLabor = isPostConstruction ? cleanArea : 0;
+  measurements.dryCleanAreaLabor = round2(cleanArea * 0.4);
 
   measurements.chemistryUnits = Math.ceil(cleanArea / 40);
   measurements.trashRemovalUnits = readBoolean(diagnostic, 'trashRemoval')
@@ -98,11 +101,7 @@ export function deriveCleaningMeasurements(
     : 0;
 
   measurements.inspectionHours = Math.max(1, Math.ceil(cleanArea / 80));
-  measurements.dryCleanAreaLabor = round2(cleanArea * 0.4 * measurements.totalCleaningMultiplier);
-  measurements.wetCleanAreaLabor = measurements.cleanAreaLabor;
   measurements.bathroomCleanUnits = measurements.bathroomCount;
-  measurements.specialCleanAreaLabor =
-    measurements.postConstructionAreaLabor > 0 ? measurements.postConstructionAreaLabor : 0;
 
   return measurements;
 }

@@ -41,6 +41,10 @@ function resolveDeviceTierMultiplier(tier: string, overrides?: CompanyPricingMod
   return 1.0;
 }
 
+function estimateWallChasingM(cableLengthM: number, electricPoints: number): number {
+  return round2(Math.max(10, cableLengthM * 0.25 + electricPoints * 1.2));
+}
+
 export function deriveElektrikaMeasurements(
   plan2d: Plan2dData | null | undefined,
   diagnostic: Record<string, unknown> | null | undefined,
@@ -61,8 +65,8 @@ export function deriveElektrikaMeasurements(
   const voltageStabilizer = readBoolean(diagnostic, 'voltageStabilizer');
   const isNewConstruction = readBoolean(diagnostic, 'isNewConstruction');
   const dedicatedLinesCount = readNumber(diagnostic, 'dedicatedLinesCount') ?? 0;
-  const wallChasingM = readNumber(diagnostic, 'wallChasingM') ?? 0;
-  const panelModules = readNumber(diagnostic, 'panelModules') ?? 12;
+  const manualWallChasingM = readNumber(diagnostic, 'wallChasingM');
+  const panelModulesInput = readNumber(diagnostic, 'panelModules') ?? 12;
 
   measurements.roomCount = roomCount;
 
@@ -85,7 +89,7 @@ export function deriveElektrikaMeasurements(
 
   const planPanelCount = pointsCount('panel');
   measurements.panelCount = planPanelCount + (newPanel ? 1 : 0);
-  measurements.panelModules = panelModules;
+  measurements.panelModules = measurements.panelCount > 0 ? panelModulesInput : 0;
   measurements.dedicatedLinesCount = dedicatedLinesCount;
 
   measurements.cableLengthM =
@@ -98,10 +102,17 @@ export function deriveElektrikaMeasurements(
   const deviceTierMultiplier = resolveDeviceTierMultiplier(readSelect(diagnostic, 'deviceTier') || 'standard', overrides);
   measurements.deviceTierMultiplier = deviceTierMultiplier;
 
-  measurements.wallChasingM = wallChasingM > 0 ? wallChasingM : 0;
+  if (isNewConstruction) {
+    measurements.wallChasingM = 0;
+  } else if (manualWallChasingM !== undefined) {
+    measurements.wallChasingM = manualWallChasingM > 0 ? manualWallChasingM : 0;
+  } else {
+    measurements.wallChasingM = estimateWallChasingM(measurements.cableLengthM, measurements.electricPoints);
+  }
+
   const materialMultiplier = resolveWallMaterialMultiplier(diagnostic?.wallMaterial, overrides);
   measurements.materialMultiplier = materialMultiplier;
-  measurements.wallChasingCostM = isNewConstruction ? 0 : round2(measurements.wallChasingM * materialMultiplier);
+  measurements.wallChasingCostM = round2(measurements.wallChasingM * materialMultiplier);
   measurements.cableLengthMLabor = round2(measurements.cableLengthM);
   measurements.electricPointsLabor = round2(measurements.electricPoints);
 
@@ -112,7 +123,7 @@ export function deriveElektrikaMeasurements(
   measurements.demolitionHours = cableReplace ? Math.max(2, roomCount) : 0;
   measurements.projectHours = Math.max(2, Math.ceil(roomCount / 2));
   measurements.testingPointCount = measurements.electricPoints;
-  measurements.electricPointsMaterial = round2(measurements.electricPoints * deviceTierMultiplier);
+  measurements.electricPointsMaterial = round2(measurements.electricPoints);
   measurements.cableMaterialM = round2(measurements.cableLengthM * cableSegmentMultiplier);
 
   return measurements;

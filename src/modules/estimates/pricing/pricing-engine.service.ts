@@ -205,7 +205,11 @@ export class EstimatePricingEngine {
         kind === 'labor' && rule.laborUnitPriceMultiplierKey
           ? (measurements[rule.laborUnitPriceMultiplierKey] ?? 1)
           : 1;
-      const mult = kind === 'labor' ? laborMult * ruleLaborMult : materialMult;
+      const ruleMaterialMult =
+        kind === 'material' && rule.materialUnitPriceMultiplierKey
+          ? (measurements[rule.materialUnitPriceMultiplierKey] ?? 1)
+          : 1;
+      const mult = kind === 'labor' ? laborMult * ruleLaborMult : materialMult * ruleMaterialMult;
       const unitPrice = round2(rule.unitPrice * mult);
       const lineTotal = round2(qty * unitPrice);
 

@@ -126,4 +126,26 @@ describe('EstimatePricingEngine.buildLinesFromRules (E-02, E-04)', () => {
     expect(lines[0]?.unitPrice).toBe(1500);
     expect(lines[0]?.lineTotal).toBe(3000);
   });
+
+  it('applies materialUnitPriceMultiplierKey to material unitPrice only', () => {
+    const lines = engine.buildLinesFromRules(
+      [
+        {
+          stageCode: 'aparataj',
+          description: 'Material puncte',
+          unit: 'buc',
+          qtyKey: 'electricPoints',
+          unitPrice: 85,
+          kind: 'material',
+          materialUnitPriceMultiplierKey: 'deviceTierMultiplier',
+        },
+      ],
+      { electricPoints: 4, deviceTierMultiplier: 1.5 },
+    );
+
+    expect(lines).toHaveLength(1);
+    expect(lines[0]?.qty).toBe(4);
+    expect(lines[0]?.unitPrice).toBe(127.5);
+    expect(lines[0]?.lineTotal).toBe(510);
+  });
 });

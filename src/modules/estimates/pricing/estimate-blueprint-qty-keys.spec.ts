@@ -4,8 +4,10 @@ import { EstimatePricingEngine } from './pricing-engine.service';
 import {
   buildSampleDiagnosticAnswers,
   findOrphanPricingQtyKeys,
+  findUnusedDerivedMultipliers,
   formatOrphanQtyKeyReport,
 } from '../utils/estimate-blueprint-qty-keys.util';
+import { elektrikaBlueprint } from '../../../../prisma/estimate-blueprints/categories/elektrika.blueprint';
 
 describe('Estimate blueprint qtyKey consistency (C-15)', () => {
   const engine = new EstimatePricingEngine();
@@ -37,5 +39,16 @@ describe('Estimate blueprint qtyKey consistency (C-15)', () => {
     }
 
     expect(allOrphans).toEqual([]);
+  });
+
+  it('elektrika: every derived pricing multiplier is consumed by at least one rule', () => {
+    const config = elektrikaBlueprint;
+    const unused = findUnusedDerivedMultipliers(
+      config,
+      ['cableSegmentMultiplier', 'deviceTierMultiplier', 'materialMultiplier'],
+      [{ multiplierKey: 'cableSegmentMultiplier', viaQtyKey: 'cableMaterialM' }],
+    );
+
+    expect(unused).toEqual([]);
   });
 });

@@ -101,3 +101,30 @@ export function formatOrphanQtyKeyReport(
 ): string {
   return `Blueprint "${slug}" has orphan qtyKeys: ${orphans.join(', ')}`;
 }
+
+export type DerivedMultiplierBridge = {
+  multiplierKey: string;
+  viaQtyKey: string;
+};
+
+export function collectPricingMeasurementKeys(config: EstimateBlueprintConfig): Set<string> {
+  const keys = new Set<string>();
+  for (const rule of config.pricingRules ?? []) {
+    keys.add(rule.qtyKey);
+    if (rule.laborUnitPriceMultiplierKey) keys.add(rule.laborUnitPriceMultiplierKey);
+    if (rule.materialUnitPriceMultiplierKey) keys.add(rule.materialUnitPriceMultiplierKey);
+  }
+  return keys;
+}
+
+export function findUnusedDerivedMultipliers(
+  config: EstimateBlueprintConfig,
+  multiplierKeys: string[],
+  bridges: DerivedMultiplierBridge[] = [],
+): string[] {
+  const used = collectPricingMeasurementKeys(config);
+  for (const bridge of bridges) {
+    if (used.has(bridge.viaQtyKey)) used.add(bridge.multiplierKey);
+  }
+  return multiplierKeys.filter((key) => !used.has(key));
+}

@@ -89,27 +89,20 @@ export type BlueprintPricingRule = {
   kind?: 'labor' | 'material';
   moduleKey?: string;
   enabledWhen?: BlueprintPricingRuleEnabledWhen;
-  /** When set, labor unitPrice is multiplied by measurements[this key] (e.g. heightMultiplier). */
   laborUnitPriceMultiplierKey?: string;
+  materialUnitPriceMultiplierKey?: string;
 };
 
 export type BlueprintAccessDifficultyImpact = {
-  /** Multiplier for `project.accessDifficulty === 'easy'` (or unset). Default 1.0. */
   easy: number;
-  /** Multiplier for `project.accessDifficulty === 'medium'`. */
   medium: number;
-  /** Multiplier for `project.accessDifficulty === 'difficult'`. */
   difficult: number;
-  /** If true, multiplier also applies to material lines (e.g. mobila/okna-dveri risk on transport). Default false. */
   appliesToMaterial?: boolean;
 };
 
 export type BlueprintUrgencyImpact = {
-  /** Multiplier for `project.urgency === 'urgent'` (rush job). */
   urgent: number;
-  /** Multiplier for `project.urgency === 'emergency'` (24h response). */
   emergency: number;
-  /** If true, also applies to material (rare — for emergency material delivery surcharges). Default false. */
   appliesToMaterial?: boolean;
 };
 
@@ -124,8 +117,6 @@ export type EstimateBlueprintConfig = {
   pricingRules: BlueprintPricingRule[];
   defaultLaborRate: number;
   defaultMarginPct: number;
-  /** Per-category sensitivity to project-level accessDifficulty (Slice 2). */
   accessDifficultyImpact?: BlueprintAccessDifficultyImpact;
-  /** Per-category sensitivity to project-level urgency (Slice 3). */
   urgencyImpact?: BlueprintUrgencyImpact;
 };

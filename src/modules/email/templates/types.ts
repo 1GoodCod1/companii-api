@@ -7,7 +7,7 @@ export interface EmailTemplateResult {
 
 export const ROLE_LABELS: Record<string, string> = {
   MANAGER: 'Manager',
-  MEMBER: 'Tehnician',
+  MEMBER: 'Angajat',
 };
 
 export function formatRoMoney(amount: number): string {

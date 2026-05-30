@@ -20,7 +20,7 @@ function resolveWallMaterialMultiplier(wallMaterial: unknown): number {
   if (normalized === 'brick' || normalized === 'caramida') return 1.6;
   if (normalized === 'concrete' || normalized === 'beton') return 1.35;
   if (normalized === 'wood_frame') return 0.7;
-  return 1.0; 
+  return 1.0;
 }
 
 function resolveSlabTypeMultiplier(slabType: unknown): number {
@@ -41,7 +41,7 @@ function resolveFoundationMultiplier(foundationType: unknown): number {
   if (normalized === 'slab') return 1.3;
   if (normalized === 'pile') return 1.8;
   if (normalized === 'isolated') return 1.15;
-  return 1.0; 
+  return 1.0;
 }
 
 export function resolveFoundationConcreteM3(
@@ -58,16 +58,21 @@ export function resolveFoundationConcreteM3(
   return round2(builtArea * 0.14);
 }
 
+export function resolveStructuralConcreteM3(
+  builtAreaTotal: number,
+  foundationConcreteM3: number,
+  manual?: number,
+): number {
+  if (manual != null && manual > 0) return round2(manual);
+  return round2(Math.max(0, builtAreaTotal * 0.18 - foundationConcreteM3));
+}
+
 export function shouldRequireConstructiiManualReview(
-  builtArea: number,
-  storyCount: number,
-  foundationType: unknown,
+  _builtArea: number,
+  _storyCount: number,
+  _foundationType: unknown,
 ): boolean {
-  return (
-    builtArea > 150 ||
-    storyCount > 2 ||
-    normalizeFoundationType(foundationType) === 'pile'
-  );
+  return true;
 }
 
 export function deriveConstructiiMeasurements(
@@ -99,27 +104,30 @@ export function deriveConstructiiMeasurements(
       ? manualExcavation
       : round2(builtArea * 0.45);
 
-  const manualConcrete = readNumber(diagnostic, 'concreteVolumeM3');
-  measurements.concreteVolumeM3 =
-    manualConcrete != null && manualConcrete > 0
-      ? manualConcrete
-      : round2(builtArea * 0.18);
-
   measurements.foundationConcreteM3 = resolveFoundationConcreteM3(
     diagnostic?.foundationType,
     builtArea,
     readNumber(diagnostic, 'foundationConcreteM3'),
   );
 
-  const foundationMultiplier = resolveFoundationMultiplier(diagnostic?.foundationType);
-  measurements.foundationMultiplier = foundationMultiplier;
-  measurements.foundationConcreteCostM3 = round2(measurements.foundationConcreteM3 * foundationMultiplier);
+  measurements.foundationMultiplier = resolveFoundationMultiplier(diagnostic?.foundationType);
+
+  const manualStructural = readNumber(diagnostic, 'concreteVolumeM3');
+  measurements.structuralConcreteM3 = resolveStructuralConcreteM3(
+    measurements.builtAreaTotal,
+    measurements.foundationConcreteM3,
+    manualStructural,
+  );
+  measurements.concreteVolumeM3 = measurements.structuralConcreteM3;
+
+  measurements.foundationRebarKg = round2(measurements.foundationConcreteM3 * 90);
+  measurements.structuralRebarKg = round2(measurements.structuralConcreteM3 * 90);
 
   const manualRebar = readNumber(diagnostic, 'rebarKg');
   measurements.rebarKg =
     manualRebar != null && manualRebar > 0
       ? manualRebar
-      : round2(measurements.concreteVolumeM3 * 90);
+      : round2(measurements.foundationRebarKg + measurements.structuralRebarKg);
 
   const manualMasonry = readNumber(diagnostic, 'masonryVolumeM3');
   measurements.masonryVolumeM3 =
@@ -127,16 +135,12 @@ export function deriveConstructiiMeasurements(
       ? manualMasonry
       : round2(measurements.builtAreaTotal * 0.22);
 
-  const wallMaterialMultiplier = resolveWallMaterialMultiplier(diagnostic?.wallMaterial);
-  measurements.wallMaterialMultiplier = wallMaterialMultiplier;
-  measurements.masonryMaterialM3 = round2(measurements.masonryVolumeM3 * wallMaterialMultiplier);
+  measurements.wallMaterialMultiplier = resolveWallMaterialMultiplier(diagnostic?.wallMaterial);
 
-  const slabTypeMultiplier = resolveSlabTypeMultiplier(diagnostic?.slabType);
-  measurements.slabTypeMultiplier = slabTypeMultiplier;
-  measurements.slabAreaCost = round2(measurements.slabAreaTotal * slabTypeMultiplier);
+  measurements.slabTypeMultiplier = resolveSlabTypeMultiplier(diagnostic?.slabType);
+  measurements.slabAreaTotal = measurements.builtAreaTotal;
 
   measurements.waterproofingArea = round2(builtArea * 1.1);
-  measurements.slabAreaTotal = measurements.builtAreaTotal;
   measurements.stairFlightCount = storyCount > 1 ? storyCount - 1 : 0;
 
   const roofIncluded = readBoolean(diagnostic, 'roofIncluded');
