@@ -822,7 +822,6 @@ model EstimateProject {
   status            EstimateProjectStatus @default(DRAFT)
   siteType          String?               @map("site_type")
   address           String?
-  buildingYear      Int?                  @map("building_year")
   siteFloor         Int?                  @map("site_floor")
   accessDifficulty  String?               @map("access_difficulty")
   urgency           String?               @map("urgency")

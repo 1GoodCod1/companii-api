@@ -13,6 +13,8 @@ export type CalculationTraceEntry = {
 
 export const INTERNAL_MEASUREMENT_KEYS = new Set<string>([
   'requiresManualReview',
+  'requiresInteractiveDrawing',
+  'roofGeometryComplexityScore',
   'preliminaryEstimate',
 ]);
 

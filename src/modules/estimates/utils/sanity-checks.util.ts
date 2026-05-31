@@ -25,11 +25,6 @@ function readDiagnosticNumber(d: Record<string, unknown>, key: string): number |
   return undefined;
 }
 
-/**
- * Per-category sanity checks. Each rule is conservative: it only fires when the
- * disparity is large enough that a human probably wants to double-check.
- * Returning `null` = no warning.
- */
 const CHECKS_BY_SLUG: Record<string, Check[]> = {
   elektrika: [
     {
@@ -39,7 +34,7 @@ const CHECKS_BY_SLUG: Record<string, Check[]> = {
         const room = m.roomCount ?? 0;
         const cable = m.cableLengthM ?? 0;
         if (room < 2 || cable === 0) return null;
-        const expectedMin = room * 8; // ~8m per room is the floor estimate
+        const expectedMin = room * 8;
         if (cable < expectedMin) {
           return `Cablu electric ${cable}m pare scurt pentru ${room} camere (estimat min. ${expectedMin}m). Verificați.`;
         }
@@ -193,12 +188,44 @@ const CHECKS_BY_SLUG: Record<string, Check[]> = {
   ],
   acoperis: [
     {
+      key: 'interactiveRoofDrawingRequired',
+      severity: 'warning',
+      test: (m) => {
+        if ((m.requiresInteractiveDrawing ?? 0) > 0) {
+          return 'Acoperișul are geometrie cu risc (pantă, formă, dolii, coșuri sau ferestre) — completați/verificați desenul înainte de ofertă finală.';
+        }
+        return null;
+      },
+    },
+    {
       key: 'steepSlopeNoteworthy',
       severity: 'info',
       test: (m) => {
         const slope = m.roofSlope ?? 0;
         if (slope > 60) {
           return `Pantă ${slope}° este foarte abruptă — verificare manuală recomandată.`;
+        }
+        return null;
+      },
+    },
+    {
+      key: 'snowGuardMissingLength',
+      severity: 'warning',
+      test: (m, d) => {
+        const enabled = Array.isArray(d.enabledWorkModules) ? d.enabledWorkModules : [];
+        if (enabled.includes('snow_guards') && (m.snowGuardTotalM ?? 0) <= 0) {
+          return 'Parazăpadă este activată, dar lungimea calculată este 0. Completați lungimea sau dezactivați modulul.';
+        }
+        return null;
+      },
+    },
+    {
+      key: 'valleysMissingLength',
+      severity: 'warning',
+      test: (m, d) => {
+        const enabled = Array.isArray(d.enabledWorkModules) ? d.enabledWorkModules : [];
+        if (enabled.includes('valleys') && (m.valleyLengthM ?? 0) <= 0) {
+          return 'Dolii (endova) este activată, dar lungimea este 0. Introduceți lungimea doliilor sau dezactivați modulul.';
         }
         return null;
       },

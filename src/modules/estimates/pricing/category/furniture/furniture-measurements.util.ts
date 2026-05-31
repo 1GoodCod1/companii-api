@@ -37,6 +37,40 @@ function resolveMaterialMultiplier(
   return 1.0;
 }
 
+function resolveMaterialThicknessMultiplier(thickness: unknown): number {
+  const normalized = String(thickness ?? '16 mm').trim().toLowerCase();
+  if (normalized.includes('25')) return 1.25;
+  if (normalized.includes('22')) return 1.15;
+  if (normalized.includes('18')) return 1.05;
+  return 1.0;
+}
+
+function resolveFinishMultiplier(finishType: unknown): number {
+  const normalized = String(finishType ?? 'Mat')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '');
+
+  if (normalized.includes('vopsit')) return 1.3;
+  if (normalized.includes('hpl')) return 1.25;
+  if (normalized.includes('lucios')) return 1.1;
+  if (normalized.includes('texturat')) return 1.08;
+  return 1.0;
+}
+
+function resolveAssemblyComplexityMultiplier(complexity: unknown): number {
+  const normalized = String(complexity ?? 'Simplu')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '');
+
+  if (normalized.includes('complex')) return 1.4;
+  if (normalized.includes('mediu')) return 1.2;
+  return 1.0;
+}
+
 export function deriveMobilaMeasurements(
   plan2d: Plan2dData | null | undefined,
   diagnostic: Record<string, unknown> | null | undefined,
@@ -64,7 +98,15 @@ export function deriveMobilaMeasurements(
     round2(measurements.cabinetCount * 0.8 + measurements.wardrobeCount * 1.5);
   measurements.cuttingLinearM = measurements.linearMeters;
 
-  const materialMultiplier = resolveMaterialMultiplier(diagnostic?.materialType, overrides);
+  const carcassMaterialMultiplier = resolveMaterialMultiplier(diagnostic?.materialType, overrides);
+  const frontMaterialMultiplier = resolveMaterialMultiplier(diagnostic?.frontMaterialType, overrides);
+  const materialThicknessMultiplier = resolveMaterialThicknessMultiplier(diagnostic?.materialThickness);
+  const finishMultiplier = resolveFinishMultiplier(diagnostic?.finishType);
+  const materialMultiplier = round2(
+    Math.max(carcassMaterialMultiplier, frontMaterialMultiplier) *
+    materialThicknessMultiplier *
+    finishMultiplier,
+  );
   measurements.materialMultiplier = materialMultiplier;
   measurements.cuttingMaterialPremiumM =
     materialMultiplier > 1 ? round2(measurements.cuttingLinearM * (materialMultiplier - 1)) : 0;
@@ -73,12 +115,16 @@ export function deriveMobilaMeasurements(
   measurements.hingeCount =
     readNumber(diagnostic, 'hingeCount') ?? measurements.cabinetCount * 4 + measurements.wardrobeCount * 6;
 
-  const hardwareCostMultiplier = resolveHardwareCostMultiplier(diagnostic?.hardwareTier, overrides);
+  const softCloseMultiplier = readBoolean(diagnostic, 'softClose') ? 1.1 : 1.0;
+  const hardwareCostMultiplier = round2(
+    resolveHardwareCostMultiplier(diagnostic?.hardwareTier, overrides) * softCloseMultiplier,
+  );
   measurements.hardwareCostMultiplier = hardwareCostMultiplier;
   measurements.hardwareUnits = measurements.hingeCount + measurements.drawerCount;
   measurements.hardwareCostQty = round2(measurements.hardwareUnits * hardwareCostMultiplier);
 
   measurements.countertopLengthM = readNumber(diagnostic, 'countertopLengthM') ?? 0;
+  measurements.applianceCutoutUnits = readBoolean(diagnostic, 'hasApplianceCutouts') ? 2 : 0;
 
   const deliveryRequired = readBoolean(diagnostic, 'deliveryRequired');
   const installationRequired = readBoolean(diagnostic, 'installationRequired');
@@ -88,8 +134,9 @@ export function deriveMobilaMeasurements(
     : 0;
 
   measurements.designHours = measurements.cabinetCount + measurements.wardrobeCount > 0 ? 4 : 0;
-  measurements.assemblyCabinetQty = measurements.cabinetCount;
-  measurements.assemblyWardrobeQty = measurements.wardrobeCount;
+  measurements.assemblyComplexityMultiplier = resolveAssemblyComplexityMultiplier(diagnostic?.assemblyComplexity);
+  measurements.assemblyCabinetQty = round2(measurements.cabinetCount * measurements.assemblyComplexityMultiplier);
+  measurements.assemblyWardrobeQty = round2(measurements.wardrobeCount * measurements.assemblyComplexityMultiplier);
   measurements.handoverUnits =
     measurements.cabinetCount + measurements.wardrobeCount > 0 ? 1 : 0;
 

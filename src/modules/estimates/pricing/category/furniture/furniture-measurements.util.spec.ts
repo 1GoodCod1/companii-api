@@ -41,6 +41,32 @@ describe('furniture measurements (mobila)', () => {
     expect(resolveHardwareCostMultiplier('premium')).toBe(1.7);
   });
 
+  it('prices material, soft-close, cutouts and assembly complexity inputs', () => {
+    const result = deriveMobilaMeasurements(
+      null,
+      {
+        cabinetCount: 4,
+        wardrobeCount: 1,
+        materialType: 'pal',
+        frontMaterialType: 'mdf',
+        materialThickness: '18 mm',
+        finishType: 'Lucios',
+        hardwareTier: 'standard',
+        softClose: true,
+        hasApplianceCutouts: true,
+        assemblyComplexity: 'Mediu (sertare multiple)',
+      },
+      {},
+    );
+
+    expect(result.materialMultiplier).toBe(round2(1.3 * 1.05 * 1.1));
+    expect(result.cuttingMaterialPremiumM).toBeGreaterThan(0);
+    expect(result.hardwareCostMultiplier).toBe(round2(1.25 * 1.1));
+    expect(result.applianceCutoutUnits).toBe(2);
+    expect(result.assemblyCabinetQty).toBe(round2(4 * 1.2));
+    expect(result.assemblyWardrobeQty).toBe(round2(1 * 1.2));
+  });
+
   it('creates delivery and installation as separate qty lines', () => {
     const engine = new EstimatePricingEngine();
     const measurements = deriveMobilaMeasurements(

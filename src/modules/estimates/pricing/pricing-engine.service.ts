@@ -14,6 +14,7 @@ import {
 } from './pricing-engine-utils';
 import { getCategoryStrategy } from './category/category-measurement.registry';
 import type { CompanyPricingModifiers } from '../../../../prisma/estimate-pricing-modifiers';
+import { isEstimateServiceCategorySlug } from '../../../common/constants/estimate-category-slugs.constants';
 
 export type { Plan2dData } from './plan2d.types';
 
@@ -322,7 +323,7 @@ export class EstimatePricingEngine {
     }
 
     if (customUnitPriceSqm) {
-      const isServiceCategory = categorySlug === 'it-networks' || categorySlug === 'it-hardware';
+      const isServiceCategory = isEstimateServiceCategorySlug(categorySlug);
 
       if (isServiceCategory) {
         const hourlyLaborRules = nextRules.filter((rule) => rule.unit === 'ore' && rule.kind === 'labor');

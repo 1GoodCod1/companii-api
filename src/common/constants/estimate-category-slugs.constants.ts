@@ -43,3 +43,12 @@ export function isEstimateBlueprintCategorySlug(slug: string): slug is EstimateB
 export function isEstimateExcludedCategorySlug(slug: string): slug is EstimateExcludedCategorySlug {
   return (ESTIMATE_EXCLUDED_CATEGORY_SLUGS as readonly string[]).includes(slug);
 }
+
+/** IT / service categories: hourly pricing, no physical-site object fields on step 1. */
+export const ESTIMATE_SERVICE_CATEGORY_SLUGS = ['it-networks', 'it-hardware', 'it-web'] as const;
+
+export type EstimateServiceCategorySlug = (typeof ESTIMATE_SERVICE_CATEGORY_SLUGS)[number];
+
+export function isEstimateServiceCategorySlug(slug: string): slug is EstimateServiceCategorySlug {
+  return (ESTIMATE_SERVICE_CATEGORY_SLUGS as readonly string[]).includes(slug);
+}

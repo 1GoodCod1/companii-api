@@ -157,7 +157,6 @@ export class EstimatesService {
       validUntil?: string | null;
       marginPct?: number;
       riskReservePct?: number;
-      buildingYear?: number | null;
       siteFloor?: number | null;
       accessDifficulty?: string | null;
       urgency?: string | null;

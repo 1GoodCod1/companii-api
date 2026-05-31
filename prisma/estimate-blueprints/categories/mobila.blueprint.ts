@@ -1,5 +1,17 @@
-import type { EstimateBlueprintConfig } from '../../estimate-blueprint-config.types';
+import type { BlueprintPricingRule, EstimateBlueprintConfig } from '../../estimate-blueprint-config.types';
 import { baseConfig } from '../base';
+
+function withQtyExplanations(rules: BlueprintPricingRule[]): BlueprintPricingRule[] {
+  return rules.map((rule) => ({
+    ...rule,
+    explanation: {
+      template: rule.wastePct
+        ? `${rule.qtyKey}: {${rule.qtyKey}} ${rule.unit} + ${rule.wastePct}% pierderi × {unitPrice} MDL/${rule.unit}`
+        : `${rule.qtyKey}: {${rule.qtyKey}} ${rule.unit} × {unitPrice} MDL/${rule.unit}`,
+      variables: [rule.qtyKey],
+    },
+  }));
+}
 
 export const mobilaBlueprint: EstimateBlueprintConfig = baseConfig({
   wizardSteps: ['object', 'diagnostic', 'stages', 'review'],
@@ -138,7 +150,7 @@ fieldKeys: ['cabinetCount', 'wardrobeCount', 'assemblyComplexity'],
       label: 'Sisteme soft-close',
       type: 'boolean',
       required: false,
-      defaultValue: false,
+      defaultValue: true,
       section: 'Feronerie',
     },
     {
@@ -222,7 +234,7 @@ fieldKeys: ['cabinetCount', 'wardrobeCount', 'assemblyComplexity'],
     { code: 'instalare', name: 'Montaj & reglaj', kind: 'LABOR', defaultLaborHours: 6, durationDays: 1, checklist: ['Fixare perete', 'Reglaj uși & sertare'], optional: true, moduleKey: 'installation' },
     { code: 'predare', name: 'Predare & garanție', kind: 'LABOR', defaultLaborHours: 1, durationDays: 1, checklist: ['Checklist predare', 'Garanție explicată'], moduleKey: 'design' },
   ],
-  pricingRules: [
+  pricingRules: withQtyExplanations([
     { stageCode: 'masurare_design', description: 'Proiectare mobilier', unit: 'ore', qtyKey: 'designHours', unitPrice: 180, kind: 'labor', moduleKey: 'design', enabledWhen: { anyQtyKeys: ['designHours'] } },
     { stageCode: 'debitare', description: 'Plăci PAL/MDF (debitare)', unit: 'm', qtyKey: 'cuttingLinearM', unitPrice: 420, wastePct: 12, kind: 'material', moduleKey: 'cutting', enabledWhen: { anyQtyKeys: ['cuttingLinearM'] } },
     { stageCode: 'debitare', description: 'Supliment material premium (MDF/Lemn/HPL)', unit: 'm', qtyKey: 'cuttingMaterialPremiumM', unitPrice: 420, kind: 'material', moduleKey: 'cutting', enabledWhen: { anyQtyKeys: ['cuttingMaterialPremiumM'] } },
@@ -231,9 +243,10 @@ fieldKeys: ['cabinetCount', 'wardrobeCount', 'assemblyComplexity'],
     { stageCode: 'asamblare', description: 'Lucrări asamblare corpuri', unit: 'buc', qtyKey: 'assemblyCabinetQty', unitPrice: 350, kind: 'labor', moduleKey: 'assembly', enabledWhen: { anyQtyKeys: ['assemblyCabinetQty'] } },
     { stageCode: 'asamblare', description: 'Lucrări asamblare dulap', unit: 'buc', qtyKey: 'assemblyWardrobeQty', unitPrice: 950, kind: 'labor', moduleKey: 'assembly', enabledWhen: { anyQtyKeys: ['assemblyWardrobeQty'] } },
     { stageCode: 'asamblare', description: 'Blat bucătărie (material)', unit: 'm', qtyKey: 'countertopLengthM', unitPrice: 380, kind: 'material', moduleKey: 'countertop', enabledWhen: { anyQtyKeys: ['countertopLengthM'] } },
-    { stageCode: 'asamblare', description: 'Lucrări montaj blat & decupaje', unit: 'm', qtyKey: 'countertopLengthM', unitPrice: 120, kind: 'labor', moduleKey: 'countertop', enabledWhen: { anyQtyKeys: ['countertopLengthM'] } },
+    { stageCode: 'asamblare', description: 'Lucrări montaj blat', unit: 'm', qtyKey: 'countertopLengthM', unitPrice: 120, kind: 'labor', moduleKey: 'countertop', enabledWhen: { anyQtyKeys: ['countertopLengthM'] } },
+    { stageCode: 'asamblare', description: 'Decupaje electrocasnice', unit: 'buc', qtyKey: 'applianceCutoutUnits', unitPrice: 180, kind: 'labor', moduleKey: 'countertop', enabledWhen: { anyQtyKeys: ['applianceCutoutUnits'] } },
     { stageCode: 'livrare', description: 'Livrare & transport mobilier', unit: 'buc', qtyKey: 'deliveryQty', unitPrice: 450, kind: 'labor', moduleKey: 'delivery', enabledWhen: { moduleEnabled: 'delivery', anyQtyKeys: ['deliveryQty'] } },
     { stageCode: 'instalare', description: 'Montaj la client', unit: 'buc', qtyKey: 'installationQty', unitPrice: 280, kind: 'labor', moduleKey: 'installation', enabledWhen: { moduleEnabled: 'installation', anyQtyKeys: ['installationQty'] } },
     { stageCode: 'predare', description: 'Predare & documentație garanție', unit: 'buc', qtyKey: 'handoverUnits', unitPrice: 150, kind: 'labor', moduleKey: 'design', enabledWhen: { anyQtyKeys: ['handoverUnits'] } },
-  ],
+  ]),
 });

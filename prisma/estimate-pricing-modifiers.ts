@@ -47,6 +47,15 @@ export const PRICING_MODIFIERS: readonly PricingModifierDef[] = [
   { key: 'acoperis.roofShape.t-shape', categorySlug: 'acoperis', group: 'Formă acoperiș', label: { ro: 'Acoperiș în T', ru: 'Крыша Т-образная' }, defaultPct: 35 },
   { key: 'acoperis.roofShape.u-shape', categorySlug: 'acoperis', group: 'Formă acoperiș', label: { ro: 'Acoperiș în U', ru: 'Крыша П-образная' }, defaultPct: 35 },
   { key: 'acoperis.roofShape.complex', categorySlug: 'acoperis', group: 'Formă acoperiș', label: { ro: 'Formă complexă', ru: 'Сложная форма' }, defaultPct: 50 },
+  { key: 'acoperis.covering.ceramic_tile', categorySlug: 'acoperis', group: 'Tip învelitoare', label: { ro: 'Țiglă ceramică', ru: 'Керамическая черепица' }, defaultPct: 45 },
+  { key: 'acoperis.covering.bituminous_shingle', categorySlug: 'acoperis', group: 'Tip învelitoare', label: { ro: 'Șindrilă bituminoasă', ru: 'Битумная черепица' }, defaultPct: 15 },
+  { key: 'acoperis.covering.standing_seam', categorySlug: 'acoperis', group: 'Tip învelitoare', label: { ro: 'Tablă fălțuită', ru: 'Фальцевая кровля' }, defaultPct: 35 },
+  { key: 'acoperis.covering.ondulin', categorySlug: 'acoperis', group: 'Tip învelitoare', label: { ro: 'Ondulin', ru: 'Ондулин' }, defaultPct: -20 },
+  { key: 'acoperis.covering.other', categorySlug: 'acoperis', group: 'Tip învelitoare', label: { ro: 'Alt tip', ru: 'Другой тип' }, defaultPct: 10 },
+  { key: 'acoperis.membrane.anticondens', categorySlug: 'acoperis', group: 'Tip membrană', label: { ro: 'Anticondens', ru: 'Антиконденсат' }, defaultPct: 20 },
+  { key: 'acoperis.membrane.diffusion', categorySlug: 'acoperis', group: 'Tip membrană', label: { ro: 'Difuzie', ru: 'Диффузионная' }, defaultPct: 35 },
+  { key: 'acoperis.membrane.superdiffusion', categorySlug: 'acoperis', group: 'Tip membrană', label: { ro: 'Superdifuzie', ru: 'Супердиффузионная' }, defaultPct: 55 },
+  { key: 'acoperis.membrane.premium', categorySlug: 'acoperis', group: 'Tip membrană', label: { ro: 'Premium', ru: 'Премиум' }, defaultPct: 80 },
 
   // ---- cleaning ----
   { key: 'cleaning.cleaningType.move_out', categorySlug: 'cleaning', group: 'Tip curățenie', label: { ro: 'Curățenie la mutare', ru: 'Уборка при переезде' }, defaultPct: 25 },

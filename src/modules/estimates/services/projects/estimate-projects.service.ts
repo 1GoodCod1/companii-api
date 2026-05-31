@@ -145,7 +145,6 @@ export class EstimateProjectsService {
       validUntil?: string | null;
       marginPct?: number;
       riskReservePct?: number;
-      buildingYear?: number | null;
       siteFloor?: number | null;
       accessDifficulty?: string | null;
       urgency?: string | null;
@@ -207,7 +206,6 @@ export class EstimateProjectsService {
               : undefined,
         marginPct: data.marginPct,
         riskReservePct: data.riskReservePct,
-        buildingYear: data.buildingYear,
         siteFloor: data.siteFloor,
         accessDifficulty:
           data.accessDifficulty === null ? null : data.accessDifficulty?.trim() || undefined,

@@ -10,6 +10,15 @@ export type Plan2dGlobalParameters = {
   wallHeight?: number;
   floorsCount?: number;
   roofSlope?: number;
+  roofOverhangM?: number;
+  roofGutterLengthM?: number;
+  coveringType?: string;
+  membraneType?: string;
+  insulationThicknessMm?: number;
+  buildingHeightM?: number;
+  scaffoldingRequired?: boolean;
+  snowGuardLengthM?: number;
+  snowGuardRows?: number;
   facadeArea?: number;
 };
 

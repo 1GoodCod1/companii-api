@@ -1,17 +1,6 @@
 import type { Plan2dData, Plan2dGlobalParameters, Plan2dWorkContext } from '../pricing/plan2d.types';
 import { ENABLED_WORK_MODULES_KEY } from './work-modules.util';
 
-/**
- * Копирует plan2d.globalParameters и производные из комнат/точек в diagnosticAnswers.
- * Используется при saveSitePlan (backend) и на фронте перед calculate.
- *
- * **I-01/I-02 (context-aware mapping):**
- * `baseArea` теперь маппится только по `workContext`, а не во все 5 area-ключей сразу.
- *
- * **I-03 (plan не auto-enables modules):**
- * Sync **никогда** не трогает `enabledWorkModules` — модули включаются только
- * явным toggle в DiagnosticStep.
- */
 export function syncGlobalParamsToDiagnostic(
   plan: Plan2dData,
   currentDiag: Record<string, unknown>,
@@ -32,6 +21,21 @@ export function syncGlobalParamsToDiagnostic(
   }
   if (params.roofSlope != null && ctx === 'roof') {
     next.roofSlope = params.roofSlope;
+  }
+  if (ctx === 'roof') {
+    for (const key of [
+      'coveringType',
+      'membraneType',
+      'insulationThicknessMm',
+      'buildingHeightM',
+      'scaffoldingRequired',
+      'snowGuardLengthM',
+      'snowGuardRows',
+      'roofOverhangM',
+    ] as const) {
+      const value = params[key];
+      if (value !== undefined) next[key] = value;
+    }
   }
   if (params.facadeArea != null && ctx === 'facade') {
     next.facadeArea = params.facadeArea;
@@ -99,14 +103,31 @@ export function syncGlobalParamsToDiagnostic(
   const panelPoints = pointsCount('solar_panel');
   if (panelPoints > 0) next.panelCount = panelPoints;
 
-  const gutterPoints = pointsCount('gutter');
-  if (gutterPoints > 0) next.gutterLengthM = gutterPoints * 6;
-
   if (ctx === 'roof') {
-    const chimneyPoints = pointsCount('chimney');
-    if (chimneyPoints > 0 && (next.chimneyCount == null || next.chimneyCount === 0)) {
-      next.chimneyCount = chimneyPoints;
+    const effectiveBaseArea = Number(params.baseArea ?? next.baseArea ?? next.totalFloorArea ?? 0);
+    const roofShape = inferRoofShapeFromRooms(plan);
+    next.roofShape = roofShape;
+    next.roofOverhangM = Number(params.roofOverhangM ?? next.roofOverhangM ?? 0.4);
+    if (effectiveBaseArea > 0) {
+      const primaryRoom = plan.rooms[0];
+      const ridgeLengthM = primaryRoom
+        ? computeRidgeLength(primaryRoom.width, primaryRoom.height, primaryRoom.roofType, Number(next.roofOverhangM))
+        : round2(Math.sqrt(effectiveBaseArea) * 2);
+      const gutterLengthM = Number(params.roofGutterLengthM ?? next.gutterLengthM ?? 0) > 0
+        ? Number(params.roofGutterLengthM ?? next.gutterLengthM)
+        : primaryRoom
+          ? computeRoofPerimeter(primaryRoom.width, primaryRoom.height, Number(next.roofOverhangM))
+          : round2(Math.sqrt(effectiveBaseArea) * 4);
+      next.ridgeLengthM = ridgeLengthM;
+      next.gutterLengthM = gutterLengthM;
+      next.roofDripEdgeLengthM = gutterLengthM;
+      next.valleyLengthM = deriveValleyLengthFromShape(roofShape);
+      next.wallIntersectionLengthM = plan.rooms.length > 1 ? 8 : 0;
     }
+    const chimneyPoints = pointsCount('chimney');
+    next.chimneyCount = chimneyPoints;
+    const skylightPoints = pointsCount('skylight');
+    next.skylightCount = skylightPoints;
   }
 
   const borderPoints = pointsCount('border');
@@ -127,6 +148,43 @@ export function syncGlobalParamsToDiagnostic(
   }
 
   return next;
+}
+
+function normalizeRoofShape(shape: unknown): string {
+  return String(shape ?? 'rectangle').trim().toLowerCase().replace(/_/g, '-');
+}
+
+function inferRoofShapeFromRooms(plan: Plan2dData): string {
+  if (!plan.rooms?.length) return 'rectangle';
+  if (plan.rooms.length > 1) return 'complex';
+
+  const shape = normalizeRoofShape(plan.rooms[0]?.shapeType);
+  if (shape === 'l-shape' || shape === 't-shape' || shape === 'u-shape') return shape;
+  return 'rectangle';
+}
+
+function deriveValleyLengthFromShape(shape: string): number {
+  if (shape === 'l-shape') return 12;
+  if (shape === 't-shape' || shape === 'u-shape') return 18;
+  if (shape === 'complex') return 24;
+  return 0;
+}
+
+function computeRoofPerimeter(width: number, length: number, overhangM: number): number {
+  return round2(2 * Math.max(0, width + overhangM * 2) + 2 * Math.max(0, length + overhangM * 2));
+}
+
+function computeRidgeLength(width: number, length: number, roofType: unknown, overhangM: number): number {
+  const normalizedRoofType = String(roofType ?? 'gable').trim().toLowerCase();
+  if (normalizedRoofType === 'flat') return 0;
+  const effectiveWidth = Math.max(0, width + overhangM * 2);
+  const effectiveLength = Math.max(0, length + overhangM * 2);
+  if (normalizedRoofType === 'hip') return round2(Math.max(0, effectiveLength - effectiveWidth));
+  return round2(Math.max(effectiveWidth, effectiveLength));
+}
+
+function round2(value: number): number {
+  return Math.round(value * 100) / 100;
 }
 
 function applyBaseAreaForContext(

@@ -54,6 +54,7 @@ export const portalEstimateInclude = {
   category: { select: { id: true, name: true, slug: true } },
   company: { select: { id: true, name: true, slug: true } },
   blueprint: { select: { id: true, config: true } },
+  measurements: { orderBy: { key: 'asc' as const } },
   stages: {
     orderBy: { sortOrder: 'asc' as const },
     include: { lines: { orderBy: { sortOrder: 'asc' as const } } },

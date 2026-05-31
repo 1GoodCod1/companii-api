@@ -5,16 +5,26 @@ import {
   type CompanyPricingModifiers,
   resolvePricingModifierFactor,
 } from '../../../../../../prisma/estimate-pricing-modifiers';
+import {
+  computeRectangularRoofBaseArea,
+  computeRectangularRoofPerimeter,
+  computeRidgeLength,
+  computeRoofAreaFromSlope,
+  computeRoofSlopeCoefficient,
+  deriveValleyLengthFromShape,
+  getPrimaryRoofDimensions,
+  getRoofInteractiveDrawingReasons,
+  inferRoofShapeFromPlan,
+  normalizeRoofShape,
+  shouldRequireRoofManualReview,
+} from './roof-geometry.util';
 
-export const ROOF_COS_GUARD = 0.1;
-
-
-function normalizeRoofShape(shape: unknown): string {
-  return String(shape ?? 'rectangle')
-    .trim()
-    .toLowerCase()
-    .replace(/_/g, '-');
-}
+export {
+  computeRoofAreaFromSlope,
+  computeRoofSlopeCoefficient,
+  deriveValleyLengthFromShape,
+  shouldRequireRoofManualReview,
+} from './roof-geometry.util';
 
 export function resolveRoofShapeMultiplier(
   roofShape: unknown,
@@ -28,49 +38,31 @@ export function resolveRoofShapeMultiplier(
   return 1.0;
 }
 
-export function computeRoofAreaFromSlope(baseArea: number, roofSlopeDegrees: number): number {
-  const slope = Math.min(75, Math.max(0, roofSlopeDegrees));
-  const cosVal = Math.cos((slope * Math.PI) / 180);
-  if (slope >= 70 || cosVal <= ROOF_COS_GUARD) {
-    return round2(baseArea * 1.15);
-  }
-  return round2((baseArea / cosVal) * 1.12);
+function resolveCoveringMultiplier(coveringType: unknown, overrides?: CompanyPricingModifiers | null): number {
+  const normalized = String(coveringType ?? 'metal_tile').trim().toLowerCase();
+  if (normalized === 'ceramic_tile') return resolvePricingModifierFactor('acoperis.covering.ceramic_tile', overrides);
+  if (normalized === 'bituminous_shingle') return resolvePricingModifierFactor('acoperis.covering.bituminous_shingle', overrides);
+  if (normalized === 'standing_seam') return resolvePricingModifierFactor('acoperis.covering.standing_seam', overrides);
+  if (normalized === 'ondulin') return resolvePricingModifierFactor('acoperis.covering.ondulin', overrides);
+  if (normalized === 'other') return resolvePricingModifierFactor('acoperis.covering.other', overrides);
+  return 1.0;
 }
 
-export function deriveValleyLengthFromShape(
-  roofShape: unknown,
-  manualValley?: number,
-): number {
-  if (manualValley != null && manualValley > 0) return manualValley;
-
-  const normalized = normalizeRoofShape(roofShape);
-  if (normalized === 'l-shape' || normalized === 'l') return 12;
-  if (normalized === 't-shape' || normalized === 'u-shape' || normalized === 't' || normalized === 'u') {
-    return 18;
-  }
-  if (normalized === 'complex') return 24;
-  return 0;
+function resolveMembraneMultiplier(membraneType: unknown, overrides?: CompanyPricingModifiers | null): number {
+  const normalized = String(membraneType ?? 'anticondens').trim().toLowerCase();
+  if (normalized === 'anticondens') return resolvePricingModifierFactor('acoperis.membrane.anticondens', overrides);
+  if (normalized === 'diffusion') return resolvePricingModifierFactor('acoperis.membrane.diffusion', overrides);
+  if (normalized === 'superdiffusion') return resolvePricingModifierFactor('acoperis.membrane.superdiffusion', overrides);
+  if (normalized === 'premium') return resolvePricingModifierFactor('acoperis.membrane.premium', overrides);
+  return 1.0;
 }
 
-export function shouldRequireRoofManualReview(
-  roofSlopeDegrees: number,
-  roofShape: unknown,
-): boolean {
-  return roofSlopeDegrees > 60 || normalizeRoofShape(roofShape) === 'complex';
-}
-
-function inferShapeFromPlan(plan2d: Plan2dData | null | undefined): string | undefined {
-  if (!plan2d?.rooms?.length) return undefined;
-
-  let shape = 'rectangle';
-  if (plan2d.rooms.length > 1) shape = 'complex';
-
-  for (const room of plan2d.rooms) {
-    const roomShape = normalizeRoofShape(room.shapeType);
-    if (roomShape === 'l-shape') shape = 'l-shape';
-    if (roomShape === 't-shape' || roomShape === 'u-shape') shape = roomShape;
-  }
-  return shape;
+function resolveInsulationMultiplier(thickness: unknown): number {
+  const mm = Number(thickness ?? 150);
+  if (mm >= 250) return 2.5;
+  if (mm >= 200) return 2.0;
+  if (mm >= 150) return 1.5;
+  return 1.0;
 }
 
 export function deriveAcoperisMeasurements(
@@ -91,17 +83,29 @@ export function deriveAcoperisMeasurements(
   );
   const roofSlope = Math.min(75, Math.max(0, readNumber(diagnostic, 'roofSlope') ?? 30));
   const roofShape =
-    diagnostic?.roofShape ?? inferShapeFromPlan(plan2d) ?? 'rectangle';
+    diagnostic?.roofShape ?? inferRoofShapeFromPlan(plan2d) ?? 'rectangle';
+  const roofOverhangM = Math.max(0, readNumber(diagnostic, 'roofOverhangM') ?? plan2d?.globalParameters?.roofOverhangM ?? 0.4);
+  const primaryRoof = getPrimaryRoofDimensions(plan2d, baseArea);
+  const geometricBaseArea = plan2d?.rooms?.length
+    ? computeRectangularRoofBaseArea(primaryRoof.width, primaryRoof.length, roofOverhangM)
+    : baseArea;
 
   measurements.baseArea = baseArea;
   measurements.roofSlope = roofSlope;
+  measurements.roofOverhangM = roofOverhangM;
+  measurements.roofSlopeCoefficient = computeRoofSlopeCoefficient(roofSlope);
 
-  measurements.roofArea = computeRoofAreaFromSlope(baseArea, roofSlope);
+  measurements.roofArea = computeRoofAreaFromSlope(geometricBaseArea, roofSlope);
+  measurements.coveringAreaQty = measurements.roofArea;
+  measurements.membraneAreaQty = measurements.roofArea;
   measurements.timberVolumeM3 = round2(measurements.roofArea * 0.07);
 
   const complexityMultiplier = resolveRoofShapeMultiplier(roofShape, overrides);
   measurements.complexityMultiplier = complexityMultiplier;
   measurements.roofAreaLabor = round2(measurements.roofArea * complexityMultiplier);
+  measurements.coveringMaterialMultiplier = resolveCoveringMultiplier(diagnostic?.coveringType, overrides);
+  measurements.coveringLaborMultiplier = measurements.coveringMaterialMultiplier > 1 ? round2(1 + (measurements.coveringMaterialMultiplier - 1) * 0.5) : 1;
+  measurements.membraneMaterialMultiplier = resolveMembraneMultiplier(diagnostic?.membraneType, overrides);
 
   const manualValley = readNumber(diagnostic, 'valleyLengthM');
   measurements.valleyLengthM = deriveValleyLengthFromShape(roofShape, manualValley);
@@ -111,13 +115,21 @@ export function deriveAcoperisMeasurements(
     manualWallIntersection ??
     (plan2d?.rooms && plan2d.rooms.length > 1 ? 8 : 0);
 
-  const perimeterEstimate = round2(Math.sqrt(baseArea) * 4);
-  const planGutterLength = pointsCount('gutter') * 6;
+  const perimeterEstimate = plan2d?.rooms?.length
+    ? computeRectangularRoofPerimeter(primaryRoof.width, primaryRoof.length, roofOverhangM)
+    : round2(Math.sqrt(baseArea) * 4);
+  const manualGutterLength = readNumber(diagnostic, 'gutterLengthM') ?? plan2d?.globalParameters?.roofGutterLengthM;
   measurements.gutterLengthM =
-    readNumber(diagnostic, 'gutterLengthM') ?? (planGutterLength > 0 ? planGutterLength : Math.max(10, perimeterEstimate));
+    manualGutterLength ?? Math.max(10, perimeterEstimate);
 
   measurements.ridgeLengthM =
-    readNumber(diagnostic, 'ridgeLengthM') ?? round2(Math.sqrt(baseArea) * 2);
+    readNumber(diagnostic, 'ridgeLengthM') ??
+    computeRidgeLength({
+      width: primaryRoof.width,
+      length: primaryRoof.length,
+      roofType: primaryRoof.roofType,
+      overhangM: roofOverhangM,
+    });
   measurements.soffitLengthM =
     readNumber(diagnostic, 'soffitLengthM') ?? Math.max(10, perimeterEstimate);
   measurements.roofDripEdgeLengthM =
@@ -125,16 +137,44 @@ export function deriveAcoperisMeasurements(
 
   measurements.chimneyCount =
     readNumber(diagnostic, 'chimneyCount') ?? Math.max(0, pointsCount('chimney'));
+  measurements.skylightCount = Math.max(
+    0,
+    readNumber(diagnostic, 'skylightCount') ?? pointsCount('skylight'),
+  );
 
   const oldRoofRemoval = readBoolean(diagnostic, 'oldRoofRemoval');
   measurements.oldRoofRemovalArea = oldRoofRemoval ? measurements.roofArea : 0;
   measurements.demolitionArea = measurements.oldRoofRemovalArea;
+  measurements.wasteRemovalArea = measurements.oldRoofRemovalArea;
 
   const insulationRequired = readBoolean(diagnostic, 'insulationRequired');
   measurements.insulationArea = insulationRequired ? measurements.roofArea : 0;
+  measurements.insulationThicknessMm = readNumber(diagnostic, 'insulationThicknessMm') ?? 150;
+  measurements.insulationMaterialMultiplier = resolveInsulationMultiplier(measurements.insulationThicknessMm);
 
-  measurements.snowGuardLengthM = measurements.ridgeLengthM;
+  const snowGuardLengthM = readNumber(diagnostic, 'snowGuardLengthM') ?? measurements.ridgeLengthM;
+  const snowGuardRows = Math.max(1, readNumber(diagnostic, 'snowGuardRows') ?? 1);
+  measurements.snowGuardLengthM = snowGuardLengthM;
+  measurements.snowGuardRows = snowGuardRows;
+  measurements.snowGuardTotalM = round2(snowGuardLengthM * snowGuardRows);
+  const buildingHeightM = readNumber(diagnostic, 'buildingHeightM') ?? 0;
+  const storyCount = readNumber(diagnostic, 'storyCount') ?? 1;
+  const scaffoldingRequired = readBoolean(diagnostic, 'scaffoldingRequired') || buildingHeightM >= 6 || storyCount >= 2;
+  measurements.buildingHeightM = buildingHeightM;
+  measurements.storyCount = storyCount;
+  measurements.scaffoldingLengthM = scaffoldingRequired ? measurements.gutterLengthM : 0;
   measurements.requiresManualReview = shouldRequireRoofManualReview(roofSlope, roofShape) ? 1 : 0;
+  const interactiveDrawingReasons = getRoofInteractiveDrawingReasons({
+    plan2d,
+    roofSlopeDegrees: roofSlope,
+    roofShape,
+    valleyLengthM: measurements.valleyLengthM,
+    wallIntersectionLengthM: measurements.wallIntersectionLengthM,
+    chimneyCount: measurements.chimneyCount,
+    skylightCount: measurements.skylightCount,
+  });
+  measurements.requiresInteractiveDrawing = interactiveDrawingReasons.length > 0 ? 1 : 0;
+  measurements.roofGeometryComplexityScore = interactiveDrawingReasons.length;
 
   return measurements;
 }

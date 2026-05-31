@@ -1,10 +1,18 @@
-import type { EstimateBlueprintConfig } from '../../estimate-blueprint-config.types';
+import type { BlueprintPricingRule, EstimateBlueprintConfig } from '../../estimate-blueprint-config.types';
 import { baseConfig } from '../base';
 
-/**
- * Flat / low-slope roof (acoperiș plat). Different pipeline from pitched
- * acoperis: no slope geometry, membrane-based waterproofing, parapets, drains.
- */
+function withQtyExplanations(rules: BlueprintPricingRule[]): BlueprintPricingRule[] {
+  return rules.map((rule) => ({
+    ...rule,
+    explanation: {
+      template: rule.wastePct
+        ? `${rule.qtyKey}: {${rule.qtyKey}} ${rule.unit} + ${rule.wastePct}% pierderi × {unitPrice} MDL/${rule.unit}`
+        : `${rule.qtyKey}: {${rule.qtyKey}} ${rule.unit} × {unitPrice} MDL/${rule.unit}`,
+      variables: [rule.qtyKey],
+    },
+  }));
+}
+
 export const acoperisPlatBlueprint: EstimateBlueprintConfig = baseConfig({
   accessDifficultyImpact: { easy: 1.0, medium: 1.15, difficult: 1.3 },
   urgencyImpact: { urgent: 1.2, emergency: 1.5 },
@@ -217,7 +225,7 @@ export const acoperisPlatBlueprint: EstimateBlueprintConfig = baseConfig({
     { code: 'balast', name: 'Strat balast', kind: 'MIXED', defaultLaborHours: 4, durationDays: 1, checklist: ['Transport pietriș', 'Aplicare uniform', 'Nivelare'], optional: true, moduleKey: 'ballast' },
     { code: 'verificare', name: 'Test de etanșeitate & predare', kind: 'LABOR', defaultLaborHours: 4, durationDays: 1, checklist: ['Test cu apă', 'Predare client'], moduleKey: 'waterproofing' },
   ],
-  pricingRules: [
+  pricingRules: withQtyExplanations([
     // Demolition
     { stageCode: 'demontare', description: 'Demontare hidroizolație & izolație veche', unit: 'm²', qtyKey: 'oldRoofRemovalArea', unitPrice: 38, kind: 'labor', moduleKey: 'demolition', enabledWhen: { anyQtyKeys: ['oldRoofRemovalArea'] } },
     { stageCode: 'demontare', description: 'Evacuare moloz', unit: 'm²', qtyKey: 'oldRoofRemovalArea', unitPrice: 14, kind: 'material', moduleKey: 'demolition', enabledWhen: { anyQtyKeys: ['oldRoofRemovalArea'] } },
@@ -264,5 +272,5 @@ export const acoperisPlatBlueprint: EstimateBlueprintConfig = baseConfig({
 
     // Acceptance
     { stageCode: 'verificare', description: 'Test de etanșeitate cu apă', unit: 'm²', qtyKey: 'roofArea', unitPrice: 10, kind: 'labor', moduleKey: 'waterproofing' },
-  ],
+  ]),
 });
