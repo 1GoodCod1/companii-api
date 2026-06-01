@@ -49,14 +49,21 @@ export function findWorkModuleForField(
   return config.workModules?.find((module) => module.fieldKeys.includes(fieldKey));
 }
 
+export function findWorkModulesForField(
+  config: EstimateBlueprintConfig,
+  fieldKey: string,
+): BlueprintWorkModule[] {
+  return config.workModules?.filter((module) => module.fieldKeys.includes(fieldKey)) ?? [];
+}
+
 export function isCustomFieldActive(
   field: BlueprintCustomField,
   config: EstimateBlueprintConfig,
   enabledModules: string[],
   diagnostic?: Record<string, unknown> | null,
 ): boolean {
-  const module = findWorkModuleForField(config, field.key);
-  if (module && !enabledModules.includes(module.key)) {
+  const modules = findWorkModulesForField(config, field.key);
+  if (modules.length > 0 && !modules.some((module) => enabledModules.includes(module.key))) {
     return false;
   }
 

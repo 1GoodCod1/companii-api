@@ -9,6 +9,9 @@ import { CompanyAuthorizationService } from '../../../companies/authorization/co
 import { AuditService } from '../../../audit/audit.service';
 import { AuditAction } from '../../../audit/audit-action.enum';
 import { AuditEntityType } from '../../../audit/audit-entity-type.enum';
+import type { EstimateBlueprintConfig } from '../../../../../prisma/estimate-blueprint-config.types';
+import { buildSingleInterventionDescription } from '../../utils/intervention-description.util';
+import { filterWorksheetStages } from '../../utils/worksheet-stage-filter.util';
 
 @Injectable()
 export class ConvertToInterventionsUseCase {
@@ -32,6 +35,15 @@ export class ConvertToInterventionsUseCase {
     const additional = mode === 'by-stage' ? project.stages.length : 1;
     await this.companyAuth.assertInterventionMonthlyLimit(cid, additional);
 
+    const blueprintConfig = project.blueprint?.config
+      ? (project.blueprint.config as EstimateBlueprintConfig)
+      : null;
+    const diagnostic =
+      project.diagnosticAnswers && typeof project.diagnosticAnswers === 'object'
+        ? (project.diagnosticAnswers as Record<string, unknown>)
+        : null;
+    const activeStages = filterWorksheetStages(project.stages, blueprintConfig, diagnostic);
+
     if (mode === 'by-stage') {
       const result = await this.prisma.$transaction(async (tx) => {
         const lockedProjects = await tx.$queryRaw<Array<{ status: EstimateProjectStatus }>>`
@@ -44,7 +56,7 @@ export class ConvertToInterventionsUseCase {
         }
 
         const interventions: Awaited<ReturnType<typeof tx.intervention.create>>[] = [];
-        for (const stage of project.stages) {
+        for (const stage of activeStages) {
           const intNumber = await this.access.nextInterventionNumber(tx, cid);
           const intervention = await tx.intervention.create({
             data: {
@@ -104,9 +116,7 @@ export class ConvertToInterventionsUseCase {
       }
 
       const intNumber = await this.access.nextInterventionNumber(tx, cid);
-      const description = project.stages
-        .map((s) => `• ${s.name} (${Number(s.stageTotal)} MDL)`)
-        .join('\n');
+      const description = buildSingleInterventionDescription(project.number, project);
 
       const intervention = await tx.intervention.create({
         data: {
@@ -114,7 +124,7 @@ export class ConvertToInterventionsUseCase {
           customerId: project.customerId,
           number: intNumber,
           type: project.category.name,
-          description: `Din smetă ${project.number}:\n${description}`,
+          description,
           address: project.address ?? project.customer.address,
           estimatedPrice: project.grandTotal,
           estimateProjectId: project.id,

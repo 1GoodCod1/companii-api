@@ -14,6 +14,8 @@ export function paymentStatusRoLabel(status: InvoicePaymentStatus): string {
       return 'Plătită';
     case 'OVERDUE':
       return 'Restantă';
+    case 'PENDING_CONFIRMATION':
+      return 'În așteptare confirmare';
     case 'UNPAID':
     default:
       return 'Neplătită';

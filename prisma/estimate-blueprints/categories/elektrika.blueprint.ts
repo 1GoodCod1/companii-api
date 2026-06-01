@@ -3,6 +3,8 @@ import { baseConfig } from '../base';
 
 export const elektrikaBlueprint: EstimateBlueprintConfig = baseConfig({
     wizardSteps: ['object', 'diagnostic', 'stages', 'review'],
+    /** Per-point (buc), linear meter (m), turnkey per m², or hourly (ore). */
+    laborUnits: ['buc', 'm', 'm²', 'ore'],
     accessDifficultyImpact: { easy: 1.0, medium: 1.05, difficult: 1.15 },
     urgencyImpact: { urgent: 1.25, emergency: 1.8 },
     planPointTypes: [
@@ -70,8 +72,11 @@ export const elektrikaBlueprint: EstimateBlueprintConfig = baseConfig({
         key: 'testing',
         label: 'Testare & predare',
         defaultEnabled: true,
+        section: 'Finalizare',
         stageCodes: ['testare'],
-        fieldKeys: [],
+        fieldKeys: ['socketCount', 'switchCount', 'lightPointCount'],
+        helpText:
+          'Test RCD, verificare circuite și predare client. Preț per punct (45 MDL/buc) sau tarif fix proiect (2 ore) dacă nu sunt puncte.',
       },
     ],
     customFields: [
@@ -252,9 +257,16 @@ export const elektrikaBlueprint: EstimateBlueprintConfig = baseConfig({
       { stageCode: 'tablou', description: 'Lucrări montaj tablou', unit: 'buc', qtyKey: 'panelCount', unitPrice: 650, kind: 'labor', moduleKey: 'panel', enabledWhen: { anyQtyKeys: ['panelCount'] } },
       { stageCode: 'tablou', description: 'Module automate / RCD', unit: 'buc', qtyKey: 'panelModules', unitPrice: 85, kind: 'material', moduleKey: 'panel', enabledWhen: { anyQtyKeys: ['panelCount'] } },
       { stageCode: 'tablou', description: 'Stabilizator de tensiune', unit: 'buc', qtyKey: 'stabilizerCount', unitPrice: 2500, kind: 'material', moduleKey: 'panel', enabledWhen: { anyQtyKeys: ['stabilizerCount'] } },
-      { stageCode: 'aparataj', description: 'Punct electric — lucrări (priză/întrerupător/lumină)', unit: 'buc', qtyKey: 'electricPointsLabor', unitPrice: 220, kind: 'labor', moduleKey: 'devices' },
-      { stageCode: 'aparataj', description: 'Punct electric — material (prize/întrerupătoare/lumini)', unit: 'buc', qtyKey: 'electricPoints', unitPrice: 85, kind: 'material', moduleKey: 'devices', materialUnitPriceMultiplierKey: 'deviceTierMultiplier' },
+      { stageCode: 'aparataj', description: 'Priză — lucrări montaj', unit: 'buc', qtyKey: 'socketCount', unitPrice: 220, kind: 'labor', moduleKey: 'devices' },
+      { stageCode: 'aparataj', description: 'Priză — material', unit: 'buc', qtyKey: 'socketCount', unitPrice: 85, kind: 'material', moduleKey: 'devices', materialUnitPriceMultiplierKey: 'deviceTierMultiplier' },
+      { stageCode: 'aparataj', description: 'Întrerupător — lucrări montaj', unit: 'buc', qtyKey: 'switchCount', unitPrice: 220, kind: 'labor', moduleKey: 'devices' },
+      { stageCode: 'aparataj', description: 'Întrerupător — material', unit: 'buc', qtyKey: 'switchCount', unitPrice: 85, kind: 'material', moduleKey: 'devices', materialUnitPriceMultiplierKey: 'deviceTierMultiplier' },
+      { stageCode: 'aparataj', description: 'Punct lumină — lucrări montaj', unit: 'buc', qtyKey: 'lightPointCount', unitPrice: 220, kind: 'labor', moduleKey: 'devices' },
+      { stageCode: 'aparataj', description: 'Punct lumină — material', unit: 'buc', qtyKey: 'lightPointCount', unitPrice: 85, kind: 'material', moduleKey: 'devices', materialUnitPriceMultiplierKey: 'deviceTierMultiplier' },
       { stageCode: 'aparataj', description: 'Integrare smart home', unit: 'buc', qtyKey: 'smartHomeCount', unitPrice: 1200, kind: 'labor', moduleKey: 'smart_home', enabledWhen: { moduleEnabled: 'smart_home', anyQtyKeys: ['smartHomeCount'] } },
-      { stageCode: 'testare', description: 'Test RCD & predare', unit: 'buc', qtyKey: 'testingPointCount', unitPrice: 45, kind: 'labor', moduleKey: 'testing' },
+      { stageCode: 'testare', description: 'Test RCD & predare — prize', unit: 'buc', qtyKey: 'socketCount', unitPrice: 45, kind: 'labor', moduleKey: 'testing' },
+      { stageCode: 'testare', description: 'Test RCD & predare — întrerupătoare', unit: 'buc', qtyKey: 'switchCount', unitPrice: 45, kind: 'labor', moduleKey: 'testing' },
+      { stageCode: 'testare', description: 'Test RCD & predare — puncte lumină', unit: 'buc', qtyKey: 'lightPointCount', unitPrice: 45, kind: 'labor', moduleKey: 'testing' },
+      { stageCode: 'testare', description: 'Test RCD & predare proiect (fără puncte montate)', unit: 'ore', qtyKey: 'testingHours', unitPrice: 200, kind: 'labor', moduleKey: 'testing', enabledWhen: { anyQtyKeys: ['testingHours'] } },
     ],
 });

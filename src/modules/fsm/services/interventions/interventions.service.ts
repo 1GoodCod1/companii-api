@@ -7,6 +7,8 @@ import { PrismaService } from '../../../shared/database/prisma.service';
 import type { JwtPayload } from '../../../auth/types/jwt-payload';
 import { FsmContextService } from '../../context/fsm-context.service';
 import { technicianWithUser } from '../../fsm.constants';
+import { redactInterventionForTechnician } from '../../utils/intervention-field-access.util';
+import { resolveInterventionDescriptions } from '../../utils/resolve-intervention-descriptions.util';
 import { nextCompanyNumber } from '../../../../common/utils/sequence-number.util';
 import { CrewsService } from './crews.service';
 import { EmailService } from '../../../email/email.service';
@@ -125,7 +127,7 @@ export class InterventionsService {
     return null;
   }
 
-  list(
+  async list(
     user: JwtPayload,
     filters?: { status?: InterventionStatus; customerId?: string; technicianId?: string },
     cursor?: string,
@@ -139,7 +141,7 @@ export class InterventionsService {
       ...(filters?.technicianId ? { technicianId: filters.technicianId } : {}),
     };
     const take = Math.min(Math.max(limit, 1), 100);
-    return this.prisma.intervention.findMany({
+    const items = await this.prisma.intervention.findMany({
       where,
       select: {
         id: true,
@@ -151,6 +153,8 @@ export class InterventionsService {
         scheduledAt: true,
         estimatedPrice: true,
         finalPrice: true,
+        estimateProjectId: true,
+        estimateStageId: true,
         createdAt: true,
         updatedAt: true,
         customer: { select: { id: true, fullName: true, phone: true, email: true } },
@@ -169,15 +173,18 @@ export class InterventionsService {
       cursor: cursor ? { id: cursor } : undefined,
       skip: cursor ? 1 : 0,
       take,
-    }).then((items) => {
-      if (!cursor) {
-        return items as any;
-      }
-      return {
-        items,
-        nextCursor: items.length === take ? items[items.length - 1]?.id : null,
-      };
     });
+    const enriched = await resolveInterventionDescriptions(this.prisma, items, 'staff');
+    const mapped = this.ctx.isTechnician(user)
+      ? enriched.map((item) => redactInterventionForTechnician(item))
+      : enriched;
+    if (!cursor) {
+      return mapped as any;
+    }
+    return {
+      items: mapped,
+      nextCursor: items.length === take ? items[items.length - 1]?.id : null,
+    };
   }
 
   async get(user: JwtPayload, id: string) {
@@ -213,7 +220,10 @@ export class InterventionsService {
       },
     });
     if (!intervention) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
-    return intervention;
+    const [enriched] = await resolveInterventionDescriptions(this.prisma, [intervention], 'staff');
+    return this.ctx.isTechnician(user)
+      ? redactInterventionForTechnician(enriched)
+      : enriched;
   }
 
   async create(
@@ -321,9 +331,7 @@ export class InterventionsService {
 
     if (this.ctx.isTechnician(user)) {
       const updateData: Prisma.InterventionUpdateInput = {
-        description: data.description,
         address: data.address,
-        finalPrice: data.finalPrice === null ? null : data.finalPrice,
       };
       return this.prisma.intervention.update({
         where: { id },
@@ -350,6 +358,11 @@ export class InterventionsService {
           )
         : new Set<string>();
 
+    const shouldAutoSchedule =
+      existing.status === 'NEW' &&
+      data.scheduledAt !== undefined &&
+      data.scheduledAt !== null;
+
     const updated = await this.prisma.$transaction(async (tx) => {
       if (assignment !== null) {
         await tx.interventionAssignment.deleteMany({ where: { interventionId: id } });
@@ -374,6 +387,10 @@ export class InterventionsService {
         internalNotes: data.internalNotes === null ? null : data.internalNotes,
       };
 
+      if (shouldAutoSchedule) {
+        updateData.status = 'SCHEDULED';
+      }
+
       if (assignment !== null) {
         updateData.technician = assignment.leadId
           ? { connect: { id: assignment.leadId } }
@@ -383,10 +400,24 @@ export class InterventionsService {
           : { disconnect: true };
       }
 
-      return tx.intervention.update({
+      const intervention = await tx.intervention.update({
         where: { id },
         data: updateData,
       });
+
+      if (shouldAutoSchedule && user.memberId) {
+        await tx.interventionStatusHistory.create({
+          data: {
+            interventionId: id,
+            fromStatus: existing.status,
+            toStatus: 'SCHEDULED',
+            changedByMemberId: user.memberId,
+            note: 'Programată din calendar',
+          },
+        });
+      }
+
+      return intervention;
     });
     if (assignment !== null) {
       const newlyAdded = assignment.memberIds.filter((m) => !previousMemberIds.has(m));

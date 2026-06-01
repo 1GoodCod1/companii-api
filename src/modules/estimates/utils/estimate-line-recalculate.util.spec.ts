@@ -3,6 +3,8 @@ import {
   accumulateEstimateLineTotals,
   isRecalculatedEstimateLineSource,
   nextRuleLineSortOrder,
+  shouldPromoteRecalculatedLineToManual,
+  stageHasManualCustomLaborTotalOverride,
 } from './estimate-line-recalculate.util';
 
 describe('estimate-line-recalculate.util (E-03)', () => {
@@ -37,5 +39,25 @@ describe('estimate-line-recalculate.util (E-03)', () => {
   it('places new rule lines after manual sortOrder', () => {
     expect(nextRuleLineSortOrder([])).toBe(0);
     expect(nextRuleLineSortOrder([{ sortOrder: 0 }, { sortOrder: 5 }])).toBe(6);
+  });
+
+  it('detects manual custom labor override lines for recalculate skip', () => {
+    expect(
+      stageHasManualCustomLaborTotalOverride([
+        { description: 'Cost Lucrări (Volum / Contract) — Montaj aparataj' },
+      ]),
+    ).toBe(true);
+    expect(stageHasManualCustomLaborTotalOverride([{ description: 'Extra manual' }])).toBe(false);
+  });
+
+  it('promotes recalculated lines to manual when pricing fields are edited', () => {
+    expect(
+      shouldPromoteRecalculatedLineToManual('custom-total-override', { qty: 6 }),
+    ).toBe(true);
+    expect(
+      shouldPromoteRecalculatedLineToManual('custom-total-override', { unit: 'ore' }),
+    ).toBe(true);
+    expect(shouldPromoteRecalculatedLineToManual('manual', { qty: 6 })).toBe(false);
+    expect(shouldPromoteRecalculatedLineToManual('custom-total-override', {})).toBe(false);
   });
 });

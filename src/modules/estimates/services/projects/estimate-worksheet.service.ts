@@ -1,9 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { AppErrorMessages, AppErrors } from '../../../../common/errors';
+import type { EstimateBlueprintConfig } from '../../../../../prisma/estimate-blueprint-config.types';
 import { PrismaService } from '../../../shared/database/prisma.service';
 import type { JwtPayload } from '../../../auth/types/jwt-payload';
 import { EstimatesContextService } from '../../context/estimates-context.service';
 import { EstimateProjectAccessService } from './estimate-project-access.service';
+import { filterWorksheetStages, formatWorksheetMaterialDescription, isWorksheetMaterialLine } from '../../utils/worksheet-stage-filter.util';
 
 @Injectable()
 export class EstimateWorksheetService {
@@ -77,6 +79,7 @@ export class EstimateWorksheetService {
         estimateProject: {
           include: {
             category: true,
+            blueprint: true,
             sitePlan: true,
             stages: {
               orderBy: { sortOrder: 'asc' },
@@ -103,6 +106,83 @@ export class EstimateWorksheetService {
     return this.toWorksheetFromProject(project, false);
   }
 
+  private resolveWorksheetStages(
+    project: {
+      stages: Array<{
+        id: string;
+        code: string;
+        name: string;
+        description: string | null;
+        laborHours: unknown;
+        durationDays: number | null;
+        checklist: unknown;
+        stageTotal: unknown;
+        lines: Array<{
+          id: string;
+          description: string;
+          qty: unknown;
+          unit: string;
+          unitPrice?: unknown;
+          lineTotal?: unknown;
+          materialStore: string | null;
+          receiptFileKey: string | null;
+          source: string | null;
+        }>;
+      }>;
+      blueprint?: { config: unknown } | null;
+      diagnosticAnswers?: unknown;
+    },
+    onlyStageId?: string | null,
+    options?: { hidePrices?: boolean; includeStageTotals?: boolean },
+  ) {
+    const config = project.blueprint?.config
+      ? (project.blueprint.config as EstimateBlueprintConfig)
+      : null;
+    const diagnostic =
+      project.diagnosticAnswers && typeof project.diagnosticAnswers === 'object'
+        ? (project.diagnosticAnswers as Record<string, unknown>)
+        : null;
+
+    let stages = onlyStageId
+      ? project.stages.filter((stage) => stage.id === onlyStageId)
+      : project.stages;
+
+    stages = filterWorksheetStages(stages, config, diagnostic);
+
+    return stages.map((stage) => ({
+      id: stage.id,
+      code: stage.code,
+      name: stage.name,
+      description: stage.description,
+      laborHours: stage.laborHours ? Number(stage.laborHours) : null,
+      durationDays: stage.durationDays,
+      checklist: stage.checklist,
+      materials: stage.lines
+        .filter(isWorksheetMaterialLine)
+        .map((line) => ({
+          id: line.id,
+          description: formatWorksheetMaterialDescription(line.description),
+          qty: Number(line.qty),
+          unit: line.unit,
+          materialStore: line.materialStore,
+          receiptFileKey: line.receiptFileKey,
+          ...(options?.hidePrices === false && line.unitPrice != null
+            ? {
+                unitPrice: Number(line.unitPrice),
+                lineTotal: Number(line.lineTotal),
+              }
+            : {}),
+        })),
+      ...(options?.includeStageTotals && options.hidePrices === false
+        ? {
+            laborCost: Number((stage as { laborCost?: unknown }).laborCost),
+            materialCost: Number((stage as { materialCost?: unknown }).materialCost),
+            stageTotal: Number(stage.stageTotal),
+          }
+        : {}),
+    }));
+  }
+
   private toWorksheet(intervention: {
     id: string;
     number: string;
@@ -117,9 +197,6 @@ export class EstimateWorksheetService {
     estimateProject: NonNullable<Awaited<ReturnType<typeof this.access.findProjectOrThrow>>>;
   }) {
     const project = intervention.estimateProject;
-    const stages = intervention.estimateStage
-      ? project.stages.filter((s) => s.id === intervention.estimateStage!.id)
-      : project.stages;
 
     return {
       intervention: {
@@ -146,36 +223,7 @@ export class EstimateWorksheetService {
       sitePlan: project.sitePlan
         ? { plan2d: project.sitePlan.plan2d, plan3d: project.sitePlan.plan3d }
         : null,
-      stages: stages.map((stage) => ({
-        id: stage.id,
-        code: stage.code,
-        name: stage.name,
-        description: stage.description,
-        laborHours: stage.laborHours ? Number(stage.laborHours) : null,
-        durationDays: stage.durationDays,
-        checklist: stage.checklist,
-        materials: stage.lines
-          .filter((line) => {
-            if (line.source === 'stage-default') return false;
-            const isLabor =
-              line.unit === 'ore' ||
-              line.unit === 'h' ||
-              line.description.toLowerCase().includes('manoperă') ||
-              line.description.toLowerCase().includes('manopera') ||
-              line.description.toLowerCase().includes('lucrări') ||
-              line.description.toLowerCase().includes('lucrari') ||
-              line.description.toLowerCase().includes('labor');
-            return !isLabor;
-          })
-          .map((line) => ({
-            id: line.id,
-            description: line.description,
-            qty: Number(line.qty),
-            unit: line.unit,
-            materialStore: line.materialStore,
-            receiptFileKey: line.receiptFileKey,
-          })),
-      })),
+      stages: this.resolveWorksheetStages(project, intervention.estimateStage?.id ?? null),
     };
   }
 
@@ -203,45 +251,10 @@ export class EstimateWorksheetService {
       sitePlan: project.sitePlan
         ? { plan2d: project.sitePlan.plan2d, plan3d: project.sitePlan.plan3d }
         : null,
-      stages: project.stages.map((stage) => ({
-        id: stage.id,
-        code: stage.code,
-        name: stage.name,
-        description: stage.description,
-        laborHours: stage.laborHours ? Number(stage.laborHours) : null,
-        durationDays: stage.durationDays,
-        checklist: stage.checklist,
-        materials: stage.lines
-          .filter((line) => {
-            const isLabor =
-              line.unit === 'ore' ||
-              line.unit === 'h' ||
-              line.description.toLowerCase().includes('manoperă') ||
-              line.description.toLowerCase().includes('manopera') ||
-              line.description.toLowerCase().includes('lucrări') ||
-              line.description.toLowerCase().includes('lucrari') ||
-              line.description.toLowerCase().includes('labor');
-            return !isLabor;
-          })
-          .map((line) => ({
-            id: line.id,
-            description: line.description,
-            qty: Number(line.qty),
-            unit: line.unit,
-            materialStore: line.materialStore,
-            receiptFileKey: line.receiptFileKey,
-            ...(hidePrices
-              ? {}
-              : { unitPrice: Number(line.unitPrice), lineTotal: Number(line.lineTotal) }),
-          })),
-        ...(hidePrices
-          ? {}
-          : {
-              laborCost: Number(stage.laborCost),
-              materialCost: Number(stage.materialCost),
-              stageTotal: Number(stage.stageTotal),
-            }),
-      })),
+      stages: this.resolveWorksheetStages(project, undefined, {
+        hidePrices,
+        includeStageTotals: true,
+      }),
     };
   }
 }

@@ -13,6 +13,29 @@ export function isRecalculatedEstimateLineSource(source: string): source is Reca
   return (RECALCULATED_ESTIMATE_LINE_SOURCES as readonly string[]).includes(source);
 }
 
+export const CUSTOM_LABOR_TOTAL_OVERRIDE_DESCRIPTION_PREFIX = 'Cost Lucrări (Volum / Contract)';
+
+export function stageHasManualCustomLaborTotalOverride(
+  manualLines: Array<{ description: string }>,
+): boolean {
+  return manualLines.some((line) =>
+    line.description.includes(CUSTOM_LABOR_TOTAL_OVERRIDE_DESCRIPTION_PREFIX),
+  );
+}
+
+export function shouldPromoteRecalculatedLineToManual(
+  source: string,
+  data: { qty?: number; unit?: string; unitPrice?: number; description?: string },
+): boolean {
+  if (!isRecalculatedEstimateLineSource(source)) return false;
+  return (
+    data.qty !== undefined ||
+    data.unit !== undefined ||
+    data.unitPrice !== undefined ||
+    data.description !== undefined
+  );
+}
+
 type LineCostInput = {
   unit: string;
   description: string;

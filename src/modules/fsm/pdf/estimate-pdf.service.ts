@@ -38,17 +38,27 @@ interface EstimatePdfOptions {
   watermarkText?: string;
 }
 
-const STATUS_WATERMARK: Record<string, string> = {
+const STATUS_WATERMARK: Record<string, string | undefined> = {
   DRAFT: 'DRAFT',
   MEASURED: 'DRAFT',
   CALCULATED: 'DRAFT',
-  APPROVED: 'DRAFT',
-  SENT: 'DRAFT',
+  APPROVED: undefined,
+  SENT: undefined,
   ACCEPTED: 'FINAL',
   IN_EXECUTION: 'FINAL',
   DONE: 'FINAL',
   CANCELLED: 'EXPIRED',
 };
+
+type PdfStage = EstimateStage & { lines: EstimateLine[] };
+
+export function filterStagesForPdf(stages: PdfStage[]): PdfStage[] {
+  return stages.filter((stage) => {
+    const lines = stage.lines ?? [];
+    if (lines.length > 0) return true;
+    return Number(stage.stageTotal ?? 0) > 0;
+  });
+}
 
 const STATUS_LABELS: Record<string, { ro: string; ru: string }> = {
   DRAFT: { ro: 'Ciornă', ru: 'Черновик' },
@@ -103,7 +113,7 @@ export class EstimatePdfService {
   async build(data: EstimatePdfData, options?: EstimatePdfOptions): Promise<Buffer> {
     const locale: PdfLocale = options?.locale ?? 'ro';
     const isClientView = options?.isClientView ?? false;
-    const watermarkText = options?.watermarkText ?? STATUS_WATERMARK[data.status] ?? undefined;
+    const watermarkText = options?.watermarkText ?? STATUS_WATERMARK[data.status];
 
     const doc = new PDFDocument({ size: 'A4', margin: 48 });
 
@@ -166,8 +176,10 @@ export class EstimatePdfService {
 
     let rowY = doc.y + 24;
 
+    const pdfStages = filterStagesForPdf(data.stages);
+
     // --- Stages ---
-    for (const stage of data.stages) {
+    for (const stage of pdfStages) {
       doc.fillColor('#065F46').font('Arial-Bold').fontSize(10).text(stage.name, 48, rowY);
       rowY += 16;
 
@@ -241,7 +253,7 @@ export class EstimatePdfService {
       const marginFactor = 1 + Number(data.marginPct) / 100;
       const vatGrouped = new Map<number, number>();
       const lines: EstimateLine[] = [];
-      for (const stage of data.stages) {
+      for (const stage of pdfStages) {
         if (stage.lines) lines.push(...stage.lines);
       }
       for (const line of lines) {

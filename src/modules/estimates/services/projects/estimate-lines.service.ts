@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { AppErrorMessages, AppErrors } from '../../../../common/errors';
-import { formatEstimateUnitsList, normalizeEstimateUnit } from '../../../../../prisma/estimate-measurement-units';
+import { formatEstimateUnitsList, normalizeEstimateUnit, resolveLaborUnits } from '../../../../../prisma/estimate-measurement-units';
 import { PrismaService } from '../../../shared/database/prisma.service';
 import type { JwtPayload } from '../../../auth/types/jwt-payload';
 import { projectInclude, round2 } from '../../estimate.constants';
@@ -9,6 +9,8 @@ import { EstimateProjectAccessService } from './estimate-project-access.service'
 import {
   accumulateEstimateLineTotals,
   calculateTva,
+  isEstimateLaborLine,
+  shouldPromoteRecalculatedLineToManual,
 } from '../../utils/estimate-line-recalculate.util';
 
 @Injectable()
@@ -34,7 +36,7 @@ export class EstimateLinesService {
     },
   ) {
     this.ctx.assertManagement(user);
-    await this.access.findProjectOrThrow(user, projectId);
+    const project = await this.access.findProjectOrThrow(user, projectId);
     const stage = await this.prisma.estimateStage.findFirst({
       where: { id: stageId, projectId },
     });
@@ -47,8 +49,13 @@ export class EstimateLinesService {
 
     const qty = data.qty !== undefined ? data.qty : Number(line.qty);
     const unitPrice = data.unitPrice !== undefined ? data.unitPrice : Number(line.unitPrice);
-    const unit = data.unit !== undefined ? this.requireValidUnit(data.unit, 'estimate line') : line.unit;
+    const nextDescription = data.description?.trim() ?? line.description;
+    const unit =
+      data.unit !== undefined
+        ? this.requireValidUnit(data.unit, 'estimate line', project, line, nextDescription)
+        : line.unit;
     const lineTotal = round2(qty * unitPrice);
+    const source = shouldPromoteRecalculatedLineToManual(line.source, data) ? 'manual' : line.source;
 
     return this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT id FROM estimate_projects WHERE id = ${projectId} FOR UPDATE`;
@@ -62,6 +69,7 @@ export class EstimateLinesService {
           unit,
           unitPrice,
           lineTotal,
+          source,
           materialStore: data.materialStore === null ? null : data.materialStore?.trim(),
           receiptFileKey: data.receiptFileKey === null ? null : data.receiptFileKey,
         },
@@ -207,13 +215,37 @@ export class EstimateLinesService {
     });
   }
 
-  private requireValidUnit(raw: string, context: string): string {
+  private requireValidUnit(
+    raw: string,
+    context: string,
+    project?: { blueprint?: { config: unknown } | null },
+    line?: { unit: string; description: string },
+    description?: string,
+  ): string {
     const normalized = normalizeEstimateUnit(raw);
     if (!normalized) {
       throw AppErrors.badRequest(
         `Unitate invalidă "${raw}" (${context}). Permise: ${formatEstimateUnitsList()}.`,
       );
     }
+
+    const laborLine = line
+      ? isEstimateLaborLine({
+          unit: normalized,
+          description: description ?? line.description,
+        })
+      : false;
+
+    if (laborLine && project?.blueprint?.config) {
+      const config = this.ctx.parseBlueprintConfig(project.blueprint.config);
+      const allowed = resolveLaborUnits(config);
+      if (!allowed.includes(normalized)) {
+        throw AppErrors.badRequest(
+          `Unitatea "${raw}" nu este permisă pentru lucrări. Permise: ${allowed.join(', ')}.`,
+        );
+      }
+    }
+
     return normalized;
   }
 }

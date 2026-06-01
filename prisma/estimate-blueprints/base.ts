@@ -37,6 +37,11 @@ export function validateBlueprintUnits(
       throw new Error(`Invalid pricingRule unit "${rule.unit}" in blueprint "${slug}"`);
     }
   }
+  for (const unit of config.laborUnits ?? []) {
+    if (!isEstimateMeasurementUnit(unit)) {
+      throw new Error(`Invalid laborUnits entry "${unit}" in blueprint "${slug}"`);
+    }
+  }
   validateBlueprintStructure(slug, config);
 }
 

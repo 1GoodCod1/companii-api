@@ -108,15 +108,30 @@ describe('electrical measurements (elektrika)', () => {
     expect(result.cableMaterialM).toBe(Math.round(result.cableLengthM * 1.7 * 100) / 100);
   });
 
-  it('keeps real electric point count in electricPointsMaterial', () => {
+  it('derives per-type point counts for separate pricing lines', () => {
     const result = deriveElektrikaMeasurements(
       { rooms: [], points: [] },
-      { roomCount: 2, deviceTier: 'standard' },
+      { roomCount: 2, deviceTier: 'standard', socketCount: 7, switchCount: 6, lightPointCount: 6 },
       {},
     );
 
     expect(result.deviceTierMultiplier).toBe(1.5);
-    expect(result.electricPointsMaterial).toBe(result.electricPoints);
+    expect(result.socketCount).toBe(7);
+    expect(result.switchCount).toBe(6);
+    expect(result.lightPointCount).toBe(6);
+    expect(result.electricPoints).toBe(19);
+    expect(result.testingHours).toBe(0);
+  });
+
+  it('uses flat testing hours when no electric points are configured', () => {
+    const result = deriveElektrikaMeasurements(
+      { rooms: [], points: [] },
+      { roomCount: 3, socketCount: 0, switchCount: 0, lightPointCount: 0 },
+      {},
+    );
+
+    expect(result.electricPoints).toBe(0);
+    expect(result.testingHours).toBe(2);
   });
 
   it('treats explicit zero point counts as zero, not auto-estimate', () => {

@@ -66,11 +66,14 @@ export class InvoiceLifecycleService {
       }
     }
 
+    const resolvedTvaRate: number = tvaRate;
     const price = intervention.finalPrice || intervention.estimatedPrice || new Prisma.Decimal(0);
     if (Number(price) <= 0) {
       throw AppErrors.badRequest('Suma facturii este 0 — completați prețul final al lucrării înainte de facturare.');
     }
-    const tvaAmount = new Prisma.Decimal(tvaRate > 0 ? Number(price) * (tvaRate / 100) : 0);
+    const tvaAmount = new Prisma.Decimal(
+      resolvedTvaRate > 0 ? Number(price) * (resolvedTvaRate / 100) : 0,
+    );
 
     return this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(${this.pdfCache.companyInvoiceLockKey(cid)}::bigint)`;
@@ -95,7 +98,7 @@ export class InvoiceLifecycleService {
           interventionId: data.interventionId,
           number,
           amount: price,
-          tvaRate,
+          tvaRate: resolvedTvaRate,
           tvaAmount,
           dueDate: data.dueDate ? new Date(data.dueDate) : undefined,
         },
@@ -322,6 +325,11 @@ export class InvoiceLifecycleService {
         `Cannot register a payment on a ${existing.paymentStatus.toLowerCase()} invoice.`,
       );
     }
+    if (existing.paymentStatus === 'PENDING_CONFIRMATION') {
+      throw AppErrors.badRequest(
+        'Clientul a trimis dovada plății — confirmați sau respingeți înainte de a înregistra o plată manuală.',
+      );
+    }
 
     const total = Number(existing.amount) + Number(existing.tvaAmount);
     const previousPaid = Number(existing.paidAmount);
@@ -430,5 +438,171 @@ export class InvoiceLifecycleService {
       }
     });
     return { success: true };
+  }
+
+  async submitPaymentProof(params: {
+    invoiceId: string;
+    customerId: string;
+    fileId: string;
+    uploadedByUserId: string;
+  }) {
+    const file = await this.prisma.file.findUnique({ where: { id: params.fileId } });
+    if (!file) throw AppErrors.notFound('Fișierul nu a fost găsit.');
+    if (file.uploadedById && file.uploadedById !== params.uploadedByUserId) {
+      throw AppErrors.forbidden('Nu puteți folosi acest fișier.');
+    }
+
+    const existing = await this.prisma.companyInvoice.findFirst({
+      where: {
+        id: params.invoiceId,
+        intervention: { customerId: params.customerId },
+      },
+    });
+    if (!existing) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
+
+    if (existing.paymentStatus !== 'UNPAID' && existing.paymentStatus !== 'OVERDUE') {
+      throw AppErrors.badRequest('Factura nu acceptă încărcarea dovezii în acest moment.');
+    }
+
+    try {
+      assertPaymentTransition(existing.paymentStatus, 'PENDING_CONFIRMATION');
+    } catch {
+      throw AppErrors.badRequest(AppErrorMessages.STATUS_TRANSITION_INVALID);
+    }
+
+    return this.prisma.companyInvoice.update({
+      where: { id: existing.id },
+      data: {
+        paymentStatus: 'PENDING_CONFIRMATION',
+        paymentProofFileKey: params.fileId,
+        paymentProofSubmittedAt: new Date(),
+        paymentProofRejectedReason: null,
+        paymentProofRejectedAt: null,
+        pdfFileKey: null,
+      },
+    });
+  }
+
+  async confirmPaymentProof(user: JwtPayload, id: string) {
+    const existing = await this.prisma.companyInvoice.findFirst({
+      where: { id, companyId: this.ctx.companyId(user) },
+    });
+    if (!existing) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
+    if (existing.paymentStatus !== 'PENDING_CONFIRMATION') {
+      throw AppErrors.badRequest('Factura nu așteaptă confirmarea plății.');
+    }
+    if (!existing.paymentProofFileKey) {
+      throw AppErrors.badRequest('Lipsește dovada plății.');
+    }
+
+    const total = Number(existing.amount) + Number(existing.tvaAmount);
+    const now = new Date();
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const invoice = await tx.companyInvoice.update({
+        where: { id },
+        data: {
+          paymentStatus: 'PAID',
+          paidAmount: new Prisma.Decimal(total),
+          paymentProofConfirmedByMemberId: user.memberId ?? null,
+          paymentProofConfirmedAt: now,
+          pdfFileKey: null,
+        },
+      });
+
+      if (existing.interventionId) {
+        await this.promoteInterventionToPaid(
+          tx,
+          user,
+          existing.interventionId,
+          existing.number,
+          `Plată confirmată (dovadă client) pentru Factura ${existing.number}`,
+        );
+      }
+
+      return invoice;
+    });
+
+    if (existing.pdfFileKey) {
+      void this.storage
+        .deleteByStoredPath(existing.pdfFileKey)
+        .catch((err) =>
+          this.logger.warn(
+            `Failed to delete stale PDF cache ${existing.pdfFileKey}: ${err instanceof Error ? err.message : String(err)}`,
+          ),
+        );
+    }
+
+    return updated;
+  }
+
+  async rejectPaymentProof(user: JwtPayload, id: string, reason: string) {
+    const trimmedReason = reason?.trim();
+    if (!trimmedReason) {
+      throw AppErrors.badRequest('Respingerea necesită un motiv.');
+    }
+
+    const existing = await this.prisma.companyInvoice.findFirst({
+      where: { id, companyId: this.ctx.companyId(user) },
+    });
+    if (!existing) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
+    if (existing.paymentStatus !== 'PENDING_CONFIRMATION') {
+      throw AppErrors.badRequest('Factura nu așteaptă confirmarea plății.');
+    }
+
+    const nextStatus = this.resolveStatusAfterRejection(existing);
+
+    return this.prisma.companyInvoice.update({
+      where: { id },
+      data: {
+        paymentStatus: nextStatus,
+        paymentProofFileKey: null,
+        paymentProofSubmittedAt: null,
+        paymentProofRejectedReason: trimmedReason,
+        paymentProofRejectedAt: new Date(),
+        pdfFileKey: null,
+      },
+    });
+  }
+
+  private resolveStatusAfterRejection(invoice: {
+    dueDate: Date | null;
+  }): 'UNPAID' | 'OVERDUE' {
+    if (invoice.dueDate && invoice.dueDate.getTime() < Date.now()) {
+      return 'OVERDUE';
+    }
+    return 'UNPAID';
+  }
+
+  private async promoteInterventionToPaid(
+    tx: Prisma.TransactionClient,
+    user: JwtPayload,
+    interventionId: string,
+    invoiceNumber: string,
+    note: string,
+  ): Promise<void> {
+    const intervention = await tx.intervention.findUnique({
+      where: { id: interventionId },
+    });
+    if (!intervention || intervention.status === 'PAID') return;
+
+    await tx.intervention.update({
+      where: { id: interventionId },
+      data: { status: 'PAID' },
+    });
+    if (user.memberId) {
+      await tx.interventionStatusHistory.create({
+        data: {
+          interventionId,
+          fromStatus: intervention.status,
+          toStatus: 'PAID',
+          changedByMemberId: user.memberId,
+          note,
+        },
+      });
+    }
+    if (intervention.estimateProjectId) {
+      await reconcileEstimateProjectLifecycle(tx, intervention.estimateProjectId);
+    }
   }
 }

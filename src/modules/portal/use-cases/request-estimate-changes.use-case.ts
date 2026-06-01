@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { EstimateProjectStatus } from '@prisma/client';
+import { EstimateProjectStatus, QuoteStatus } from '@prisma/client';
 import { AppErrorMessages, AppErrors } from '../../../common/errors';
 import { findPortalCustomerForUser } from '../../../common/utils/portal-customer.util';
 import { PrismaService } from '../../shared/database/prisma.service';
@@ -63,12 +63,19 @@ export class RequestEstimateChangesUseCase {
       const updated = await tx.estimateProject.update({
         where: { id: projectId },
         data: {
+          status: EstimateProjectStatus.CALCULATED,
           clientFeedback: appendClientFeedback(project.clientFeedback, {
             kind: 'REQUEST_CHANGES',
             comment: trimmed,
           }),
         },
       });
+      if (fullProject.quoteId) {
+        await tx.quote.update({
+          where: { id: fullProject.quoteId },
+          data: { status: QuoteStatus.DRAFT },
+        });
+      }
 
       const notifyEmail = fullProject.company.contactEmail ?? fullProject.company.owner.email;
       if (notifyEmail) {

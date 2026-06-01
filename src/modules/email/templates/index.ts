@@ -5,3 +5,4 @@ export * from './invoice.html';
 export * from './lead.html';
 export * from './intervention.html';
 export * from './auth.html';
+export * from './payment-proof-submitted.html';

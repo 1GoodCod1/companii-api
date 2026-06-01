@@ -27,12 +27,13 @@ import {
   accumulateEstimateLineTotals,
   nextRuleLineSortOrder,
   calculateTva,
+  stageHasManualCustomLaborTotalOverride,
 } from '../../utils/estimate-line-recalculate.util';
 import { parseCompanyPricingModifiers } from '../../../../../prisma/estimate-pricing-modifiers';
 import { guessUnit } from '../../estimate.constants';
 import { runSanityChecks } from '../../utils/sanity-checks.util';
 import { distributeDurationDays } from '../../pricing/pricing-engine-utils';
-import { isStageDefaultLaborChargeable } from '../../services/projects/estimate-stages.service';
+import { filterChargeableStages, isStageDefaultLaborChargeable } from '../../services/projects/estimate-stages.service';
 import type { EstimateBlueprintConfig } from '../../../../../prisma/estimate-blueprints';
 
 @Injectable()
@@ -101,6 +102,15 @@ export class CalculateProjectCommandHandler {
     const sanityWarnings = runSanityChecks(project.category?.slug, measurements, diagnostic);
     const requiresManualReview = resolveRequiresManualReview(measurements);
     const persistableMeasurements = filterPersistableMeasurements(measurements);
+    const chargeableStages = filterChargeableStages(
+      project.stages,
+      stageDefByCode,
+      enabledWorkModules,
+      config,
+      measurements,
+    );
+    const chargeableStageIds = new Set(chargeableStages.map((stage) => stage.id));
+    const chargeableStageCount = chargeableStages.length;
 
     return this.prisma.$transaction(async (tx) => {
       await tx.estimateMeasurement.deleteMany({ where: { projectId: id } });
@@ -124,17 +134,21 @@ export class CalculateProjectCommandHandler {
         let { laborCost, materialCost } = accumulateEstimateLineTotals(manualLines);
         let sortOrder = nextRuleLineSortOrder(manualLines);
 
-        if (customPricing.customLaborTotal && project.stages.length) {
-          const overrideLabor = round2(customPricing.customLaborTotal / project.stages.length);
-          laborCost = round2(laborCost + overrideLabor);
-          await tx.estimateLine.create({
-            data: {
-              stageId: stage.id,
-              description: `Cost Lucrări (Volum / Contract) — ${stage.name}`,
-              qty: 1, unit: 'buc', unitPrice: overrideLabor, lineTotal: overrideLabor,
-              source: 'custom-total-override', sortOrder: sortOrder++,
-            },
-          });
+        if (customPricing.customLaborTotal && chargeableStageCount > 0) {
+          const overrideLabor = round2(customPricing.customLaborTotal / chargeableStageCount);
+          const hasManualCustomLabor = stageHasManualCustomLaborTotalOverride(manualLines);
+
+          if (chargeableStageIds.has(stage.id) && !hasManualCustomLabor) {
+            laborCost = round2(laborCost + overrideLabor);
+            await tx.estimateLine.create({
+              data: {
+                stageId: stage.id,
+                description: `Cost Lucrări (Volum / Contract) — ${stage.name}`,
+                qty: 1, unit: 'buc', unitPrice: overrideLabor, lineTotal: overrideLabor,
+                source: 'custom-total-override', sortOrder: sortOrder++,
+              },
+            });
+          }
 
           const materialLines = stageLines.filter((l) => l.kind === 'material');
           if (materialLines.length) {
@@ -185,16 +199,17 @@ export class CalculateProjectCommandHandler {
       }
 
       if (customPricing.customDurationDays) {
-        for (const item of distributeDurationDays(customPricing.customDurationDays, project.stages)) {
+        const durationStages = chargeableStageCount > 0 ? chargeableStages : project.stages;
+        for (const item of distributeDurationDays(customPricing.customDurationDays, durationStages)) {
           await tx.estimateStage.update({
             where: { id: item.id }, data: { durationDays: item.durationDays },
           });
         }
       }
 
-      if (customPricing.customLaborHours && project.stages.length) {
-        const hoursPerStage = round2(customPricing.customLaborHours / project.stages.length);
-        for (const stage of project.stages) {
+      if (customPricing.customLaborHours && chargeableStageCount > 0) {
+        const hoursPerStage = round2(customPricing.customLaborHours / chargeableStageCount);
+        for (const stage of chargeableStages) {
           await tx.estimateStage.update({
             where: { id: stage.id },
             data: { laborHours: hoursPerStage, laborRate: stage.laborRate ?? config.defaultLaborRate },

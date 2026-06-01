@@ -31,6 +31,10 @@ export class FsmService {
     return this.customers.list(user, cursor, limit);
   }
 
+  countCustomers(user: JwtPayload) {
+    return this.customers.count(user);
+  }
+
   getCustomer(user: JwtPayload, id: string) {
     return this.customers.get(user, id);
   }
@@ -243,6 +247,14 @@ export class FsmService {
     data: { amount: number; note?: string },
   ) {
     return this.invoices.recordPayment(user, id, data);
+  }
+
+  confirmInvoicePaymentProof(user: JwtPayload, id: string) {
+    return this.invoices.confirmPaymentProof(user, id);
+  }
+
+  rejectInvoicePaymentProof(user: JwtPayload, id: string, reason: string) {
+    return this.invoices.rejectPaymentProof(user, id, reason);
   }
 
   sendInvoiceEmail(user: JwtPayload, id: string, customMessage?: string) {

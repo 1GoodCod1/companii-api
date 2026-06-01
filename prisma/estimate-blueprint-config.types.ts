@@ -119,6 +119,7 @@ export type EstimateBlueprintConfig = {
   diagnosticQuestions: BlueprintDiagnosticQuestion[];
   defaultStages: BlueprintStageDef[];
   pricingRules: BlueprintPricingRule[];
+  laborUnits?: EstimateMeasurementUnit[];
   defaultLaborRate: number;
   defaultMarginPct: number;
   accessDifficultyImpact?: BlueprintAccessDifficultyImpact;

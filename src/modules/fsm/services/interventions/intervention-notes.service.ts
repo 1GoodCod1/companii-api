@@ -33,7 +33,7 @@ export class InterventionNotesService {
         interventionId,
         authorMemberId: user.memberId,
         body: body.body,
-        isInternal: body.isInternal ?? true,
+        isInternal: this.ctx.isTechnician(user) ? false : (body.isInternal ?? true),
       },
     });
   }

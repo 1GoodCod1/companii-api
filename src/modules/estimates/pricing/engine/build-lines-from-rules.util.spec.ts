@@ -1,11 +1,9 @@
-import type { EstimateBlueprintConfig } from '../../../../prisma/estimate-blueprint-config.types';
-import { lucrariFinisajBlueprint } from '../../../../prisma/estimate-blueprints/categories/lucrari-finisaj.blueprint';
-import { deriveFinisajMeasurements } from './category/finishing/finishing-measurements.util';
-import { EstimatePricingEngine } from './pricing-engine.service';
+import type { EstimateBlueprintConfig } from '../../../../../prisma/estimate-blueprint-config.types';
+import { lucrariFinisajBlueprint } from '../../../../../prisma/estimate-blueprints/categories/lucrari-finisaj.blueprint';
+import { deriveFinisajMeasurements } from '../category/finishing/finishing-measurements.util';
+import { buildLinesFromRules } from './build-lines-from-rules.util';
 
-describe('EstimatePricingEngine.buildLinesFromRules (E-02, E-04)', () => {
-  const engine = new EstimatePricingEngine();
-
+describe('buildLinesFromRules (E-02, E-04)', () => {
   it('E-02: paint-only finishing produces zero tile lines', () => {
     const measurements = deriveFinisajMeasurements(
       null,
@@ -13,7 +11,7 @@ describe('EstimatePricingEngine.buildLinesFromRules (E-02, E-04)', () => {
       {},
     );
 
-    const lines = engine.buildLinesFromRules(lucrariFinisajBlueprint.pricingRules, measurements, {
+    const lines = buildLinesFromRules(lucrariFinisajBlueprint.pricingRules, measurements, {
       enabledWorkModules: ['paint'],
       config: lucrariFinisajBlueprint as EstimateBlueprintConfig,
     });
@@ -25,7 +23,7 @@ describe('EstimatePricingEngine.buildLinesFromRules (E-02, E-04)', () => {
   });
 
   it('E-04: applies wastePct to generated line quantity', () => {
-    const lines = engine.buildLinesFromRules(
+    const lines = buildLinesFromRules(
       [
         {
           stageCode: 'material',
@@ -66,20 +64,20 @@ describe('EstimatePricingEngine.buildLinesFromRules (E-02, E-04)', () => {
     ];
 
     it('applies labor multiplier only by default (materialMultiplier=1)', () => {
-      const lines = engine.buildLinesFromRules(rules, { q: 5 }, {
+      const lines = buildLinesFromRules(rules, { q: 5 }, {
         laborMultiplier: 1.25,
         materialMultiplier: 1,
       });
       const labor = lines.find((l) => l.kind === 'labor')!;
       const material = lines.find((l) => l.kind === 'material')!;
-      expect(labor.unitPrice).toBe(125); // 100 * 1.25
+      expect(labor.unitPrice).toBe(125);
       expect(labor.lineTotal).toBe(625);
-      expect(material.unitPrice).toBe(200); // unchanged
+      expect(material.unitPrice).toBe(200);
       expect(material.lineTotal).toBe(1000);
     });
 
     it('applies material multiplier when materialMultiplier > 1', () => {
-      const lines = engine.buildLinesFromRules(rules, { q: 5 }, {
+      const lines = buildLinesFromRules(rules, { q: 5 }, {
         laborMultiplier: 1.4,
         materialMultiplier: 1.4,
       });
@@ -90,23 +88,22 @@ describe('EstimatePricingEngine.buildLinesFromRules (E-02, E-04)', () => {
     });
 
     it('multiplier of 1.0 keeps unitPrice identical', () => {
-      const lines = engine.buildLinesFromRules(rules, { q: 5 });
+      const lines = buildLinesFromRules(rules, { q: 5 });
       expect(lines[0].unitPrice).toBe(100);
       expect(lines[1].unitPrice).toBe(200);
     });
 
     it('Slice 3: composed access × urgency (santehnika emergency in difficult access)', () => {
-      // Caller composes: access 1.25 (santehnika difficult) × urgency 1.8 (santehnika emergency) = 2.25
-      const lines = engine.buildLinesFromRules(rules, { q: 5 }, {
+      const lines = buildLinesFromRules(rules, { q: 5 }, {
         laborMultiplier: 2.25,
       });
       const labor = lines.find((l) => l.kind === 'labor')!;
-      expect(labor.unitPrice).toBe(225); // 100 * 2.25
+      expect(labor.unitPrice).toBe(225);
     });
   });
 
   it('applies laborUnitPriceMultiplierKey to labor unitPrice only', () => {
-    const lines = engine.buildLinesFromRules(
+    const lines = buildLinesFromRules(
       [
         {
           stageCode: 'montaj',
@@ -128,7 +125,7 @@ describe('EstimatePricingEngine.buildLinesFromRules (E-02, E-04)', () => {
   });
 
   it('applies materialUnitPriceMultiplierKey to material unitPrice only', () => {
-    const lines = engine.buildLinesFromRules(
+    const lines = buildLinesFromRules(
       [
         {
           stageCode: 'aparataj',

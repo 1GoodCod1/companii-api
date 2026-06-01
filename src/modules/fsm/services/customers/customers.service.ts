@@ -33,6 +33,13 @@ export class CustomersService {
     });
   }
 
+  count(user: JwtPayload) {
+    this.ctx.assertNotTechnician(user);
+    return this.prisma.companyCustomer.count({
+      where: { companyId: this.ctx.companyId(user) },
+    });
+  }
+
   async get(user: JwtPayload, id: string) {
     this.ctx.assertNotTechnician(user);
     const customer = await this.prisma.companyCustomer.findFirst({

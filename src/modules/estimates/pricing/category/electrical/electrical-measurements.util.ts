@@ -114,7 +114,6 @@ export function deriveElektrikaMeasurements(
   measurements.materialMultiplier = materialMultiplier;
   measurements.wallChasingCostM = round2(measurements.wallChasingM * materialMultiplier);
   measurements.cableLengthMLabor = round2(measurements.cableLengthM);
-  measurements.electricPointsLabor = round2(measurements.electricPoints);
 
   measurements.smartHomeCount = smartHomeRequired ? 1 : 0;
   measurements.lowVoltageLineCount = dedicatedLinesCount;
@@ -122,8 +121,7 @@ export function deriveElektrikaMeasurements(
   measurements.stabilizerCount = voltageStabilizer ? 1 : 0;
   measurements.demolitionHours = cableReplace ? Math.max(2, roomCount) : 0;
   measurements.projectHours = Math.max(2, Math.ceil(roomCount / 2));
-  measurements.testingPointCount = measurements.electricPoints;
-  measurements.electricPointsMaterial = round2(measurements.electricPoints);
+  measurements.testingHours = measurements.electricPoints > 0 ? 0 : 2;
   measurements.cableMaterialM = round2(measurements.cableLengthM * cableSegmentMultiplier);
 
   return measurements;

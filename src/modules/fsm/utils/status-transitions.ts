@@ -23,8 +23,9 @@ const TECHNICIAN_TRANSITIONS: Record<InterventionStatus, InterventionStatus[]> =
 };
 
 const PAYMENT_TRANSITIONS: Record<InvoicePaymentStatus, InvoicePaymentStatus[]> = {
-  UNPAID: ['PAID', 'OVERDUE', 'CANCELLED'],
-  OVERDUE: ['PAID', 'CANCELLED'],
+  UNPAID: ['PAID', 'OVERDUE', 'CANCELLED', 'PENDING_CONFIRMATION'],
+  OVERDUE: ['PAID', 'CANCELLED', 'PENDING_CONFIRMATION'],
+  PENDING_CONFIRMATION: ['PAID', 'UNPAID', 'OVERDUE', 'CANCELLED'],
   PAID: ['UNPAID'],
   CANCELLED: [],
 };

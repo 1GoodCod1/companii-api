@@ -37,7 +37,8 @@ export class FsmInvoicesController {
   ) {
     const parsedLimit = limit ? Math.min(parseInt(limit, 10), 100) : undefined;
     const validStatus =
-      status && ['UNPAID', 'PAID', 'OVERDUE'].includes(status)
+      status &&
+      ['UNPAID', 'PAID', 'OVERDUE', 'PENDING_CONFIRMATION'].includes(status)
         ? status
         : undefined;
     return this.fsm.listInvoices(user, cursor, parsedLimit, validStatus);
@@ -130,6 +131,26 @@ export class FsmInvoicesController {
     @Body() body: { amount: number; note?: string },
   ) {
     return this.fsm.recordInvoicePayment(user, id, body);
+  }
+
+  @Post(':id/confirm-payment')
+  @UseGuards(CompanyGuard, SubscriptionGuard)
+  @RequiresFeature('invoices')
+  @CompanyRoles('OWNER', 'MANAGER')
+  confirmPayment(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    return this.fsm.confirmInvoicePaymentProof(user, id);
+  }
+
+  @Post(':id/reject-payment')
+  @UseGuards(CompanyGuard, SubscriptionGuard)
+  @RequiresFeature('invoices')
+  @CompanyRoles('OWNER', 'MANAGER')
+  rejectPayment(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() body: { reason: string },
+  ) {
+    return this.fsm.rejectInvoicePaymentProof(user, id, body.reason);
   }
 
   @Post(':id/send-email')

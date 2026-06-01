@@ -3,6 +3,7 @@ import { PrismaService } from '../../shared/database/prisma.service';
 import type { JwtPayload } from '../../auth/types/jwt-payload';
 import { findPortalCustomerForUser } from '../../../common/utils/portal-customer.util';
 import { REVIEWABLE_INTERVENTION_STATUSES } from '../../reviews/reviews.types';
+import { resolveInterventionDescriptions } from '../../fsm/utils/resolve-intervention-descriptions.util';
 
 @Injectable()
 export class GetPortalDashboardUseCase {
@@ -71,7 +72,11 @@ export class GetPortalDashboardUseCase {
         }),
     ]);
 
-    const interventionsWithReviewMeta = interventions.map((item) => ({
+    const interventionsWithReviewMeta = (await resolveInterventionDescriptions(
+      this.prisma,
+      interventions,
+      'client',
+    )).map((item) => ({
       ...item,
       canReview:
         !item.review &&

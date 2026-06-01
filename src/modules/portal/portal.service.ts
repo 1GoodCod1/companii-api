@@ -12,6 +12,7 @@ import { CreatePortalInvitationUseCase } from './use-cases/create-portal-invitat
 import { GetPortalEstimateUseCase } from './use-cases/get-portal-estimate.use-case';
 import { GetPortalEstimatePdfUseCase } from './use-cases/get-portal-estimate-pdf.use-case';
 import { GetPortalInvoicePdfUseCase } from './use-cases/get-portal-invoice-pdf.use-case';
+import { SubmitInvoicePaymentProofUseCase } from './use-cases/submit-invoice-payment-proof.use-case';
 
 @Injectable()
 export class PortalService {
@@ -25,6 +26,7 @@ export class PortalService {
     private readonly getPortalEstimate: GetPortalEstimateUseCase,
     private readonly getPortalEstimatePdf: GetPortalEstimatePdfUseCase,
     private readonly getPortalInvoicePdf: GetPortalInvoicePdfUseCase,
+    private readonly submitInvoicePaymentProofUseCase: SubmitInvoicePaymentProofUseCase,
   ) {}
 
   async dashboard(user: JwtPayload) {
@@ -87,6 +89,10 @@ export class PortalService {
 
   async getInvoicePdf(user: JwtPayload, invoiceId: string) {
     return this.getPortalInvoicePdf.execute(user, invoiceId);
+  }
+
+  async submitInvoicePaymentProof(user: JwtPayload, invoiceId: string, fileId: string) {
+    return this.submitInvoicePaymentProofUseCase.execute(user, invoiceId, fileId);
   }
 
   async createInvite(customerId: string) {

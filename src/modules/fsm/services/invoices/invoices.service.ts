@@ -63,6 +63,14 @@ export class InvoicesService {
     return this.lifecycle.recordPayment(user, id, data);
   }
 
+  async confirmPaymentProof(user: JwtPayload, id: string) {
+    return this.lifecycle.confirmPaymentProof(user, id);
+  }
+
+  async rejectPaymentProof(user: JwtPayload, id: string, reason: string) {
+    return this.lifecycle.rejectPaymentProof(user, id, reason);
+  }
+
   async delete(user: JwtPayload, id: string) {
     return this.lifecycle.delete(user, id);
   }

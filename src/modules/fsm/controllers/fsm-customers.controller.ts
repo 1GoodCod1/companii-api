@@ -45,6 +45,14 @@ export class FsmCustomersController {
     return this.fsm.listCustomers(user, cursor, parsedLimit);
   }
 
+  @Get('count')
+  @UseGuards(CompanyGuard, SubscriptionGuard)
+  @RequiresFeature('customers')
+  async customersCount(@CurrentUser() user: JwtPayload) {
+    const total = await this.fsm.countCustomers(user);
+    return { total };
+  }
+
   @Get('import/template')
   @UseGuards(CompanyGuard, SubscriptionGuard)
   @RequiresFeature('customers')

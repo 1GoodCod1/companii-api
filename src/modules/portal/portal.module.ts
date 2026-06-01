@@ -3,6 +3,7 @@ import { PortalService } from './portal.service';
 import { PortalController } from './portal.controller';
 import { EndClientLinkService } from './end-client-link.service';
 import { InvoicePdfModule } from '../fsm/pdf/invoice-pdf.module';
+import { FsmModule } from '../fsm/fsm.module';
 import { EmailModule } from '../email/email.module';
 import { AuditModule } from '../audit/audit.module';
 import { EstimateCommentService } from '../estimates/services/history/estimate-comment.service';
@@ -13,9 +14,10 @@ import { CreatePortalInvitationUseCase } from './use-cases/create-portal-invitat
 import { GetPortalEstimateUseCase } from './use-cases/get-portal-estimate.use-case';
 import { GetPortalEstimatePdfUseCase } from './use-cases/get-portal-estimate-pdf.use-case';
 import { GetPortalInvoicePdfUseCase } from './use-cases/get-portal-invoice-pdf.use-case';
+import { SubmitInvoicePaymentProofUseCase } from './use-cases/submit-invoice-payment-proof.use-case';
 
 @Module({
-  imports: [InvoicePdfModule, EmailModule, AuditModule],
+  imports: [InvoicePdfModule, FsmModule, EmailModule, AuditModule],
   controllers: [PortalController],
   providers: [
     PortalService,
@@ -28,6 +30,7 @@ import { GetPortalInvoicePdfUseCase } from './use-cases/get-portal-invoice-pdf.u
     GetPortalEstimateUseCase,
     GetPortalEstimatePdfUseCase,
     GetPortalInvoicePdfUseCase,
+    SubmitInvoicePaymentProofUseCase,
   ],
   exports: [PortalService, EndClientLinkService],
 })

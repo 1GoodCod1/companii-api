@@ -72,6 +72,7 @@ enum QuoteStatus {
 
 enum InvoicePaymentStatus {
   UNPAID
+  PENDING_CONFIRMATION
   PAID
   OVERDUE
   CANCELLED
@@ -256,7 +257,6 @@ model Company {
   isPublished  Boolean  @default(false) @map("is_published")
   isVerified   Boolean  @default(false) @map("is_verified")
   logoUrl      String?  @map("logo_url")
-  /** Sparse per-company overrides of pricing-modifier percentages, keyed by registry key ({ "finishing.finishLevel.premium": 20 }). Null/absent = registry default. */
   pricingModifiers Json? @map("pricing_modifiers")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
@@ -713,13 +713,18 @@ model CompanyInvoice {
   tvaAmount           Decimal              @map("tva_amount") @db.Decimal(12, 2)
   tvaRate             Decimal              @map("tva_rate") @db.Decimal(5, 2)
   paymentStatus       InvoicePaymentStatus @default(UNPAID) @map("payment_status")
-  /** Accumulator for partial payments — auto-promotes to PAID when >= total. */
   paidAmount          Decimal              @default(0) @map("paid_amount") @db.Decimal(12, 2)
   dueDate             DateTime?            @map("due_date")
   pdfFileKey          String?              @map("pdf_file_key")
   cancellationReason  String?              @map("cancellation_reason")
   cancelledAt         DateTime?            @map("cancelled_at")
   issuedAt            DateTime             @default(now()) @map("issued_at")
+  paymentProofFileKey           String?   @map("payment_proof_file_key")
+  paymentProofSubmittedAt       DateTime? @map("payment_proof_submitted_at")
+  paymentProofConfirmedByMemberId String? @map("payment_proof_confirmed_by_member_id")
+  paymentProofConfirmedAt       DateTime? @map("payment_proof_confirmed_at")
+  paymentProofRejectedReason    String?   @map("payment_proof_rejection_reason")
+  paymentProofRejectedAt        DateTime? @map("payment_proof_rejected_at")
 
   company      Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   intervention Intervention?     @relation(fields: [interventionId], references: [id])
@@ -784,7 +789,7 @@ model EstimateTemplate {
   companyId   String   @map("company_id")
   name        String
   description String?
-  stages      Json     // list of stages and their lines
+  stages      Json    
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
@@ -1021,10 +1026,10 @@ model EstimateVersion {
   id          String   @id @default(uuid())
   projectId   String   @map("project_id")
   version     Int
-  label       String?                                     // e.g. "v1 — Calcul inițial", "v3 — După modificări client"
-  snapshot    Json                                        // full frozen copy of {stages, lines, totals}
-  lineCount   Int                                         // total line count for quick diff
-  grandTotal  Decimal  @db.Decimal(12, 2)                 // frozen grandTotal
+  label       String?                                     
+  snapshot    Json                                      
+  lineCount   Int                                         
+  grandTotal  Decimal  @db.Decimal(12, 2)                
   createdAt   DateTime @default(now()) @map("created_at")
 
   project     EstimateProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -1034,12 +1039,11 @@ model EstimateVersion {
   @@map("estimate_versions")
 }
 
-// V-06: Comment thread between client and contractor on an estimate.
 model EstimateComment {
   id          String   @id @default(uuid())
   projectId   String   @map("project_id")
   authorId    String   @map("author_id")
-  authorKind  String   @map("author_kind")                // 'CLIENT' | 'CONTRACTOR'
+  authorKind  String   @map("author_kind")                
   body        String
   createdAt   DateTime @default(now()) @map("created_at")
 

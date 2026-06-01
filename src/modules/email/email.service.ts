@@ -17,6 +17,7 @@ import {
   buildCompletedInterventionPendingReceiptsEmail,
   buildEstimateVarianceAlertEmail,
   buildInterventionAssignedEmail,
+  buildPaymentProofSubmittedEmail,
 } from './templates';
 
 @Injectable()
@@ -207,7 +208,7 @@ export class EmailService implements OnModuleInit {
     invoiceNumber: string;
     total: number;
     dueDate?: string | null;
-    paymentStatus: 'UNPAID' | 'PAID' | 'OVERDUE' | 'CANCELLED';
+    paymentStatus: 'UNPAID' | 'PAID' | 'OVERDUE' | 'CANCELLED' | 'PENDING_CONFIRMATION';
     customMessage?: string | null;
     pdfBuffer?: Buffer;
   }): Promise<boolean> {
@@ -229,6 +230,17 @@ export class EmailService implements OnModuleInit {
         ? [{ filename: `${params.invoiceNumber}.pdf`, content: params.pdfBuffer, contentType: 'application/pdf' }]
         : undefined,
     );
+  }
+
+  async sendPaymentProofSubmittedEmail(params: {
+    to: string;
+    companyName: string;
+    invoiceNumber: string;
+    clientName: string;
+    total: number;
+  }): Promise<boolean> {
+    const tpl = buildPaymentProofSubmittedEmail(params);
+    return this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
   }
 
   async sendEstimateVarianceAlertEmail(params: {

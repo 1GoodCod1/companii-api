@@ -102,6 +102,17 @@ export class PortalController {
 
   @UseGuards(RolesGuard)
   @Roles('END_CLIENT')
+  @Post('invoices/:id/payment-proof')
+  submitInvoicePaymentProof(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() body: { fileId: string },
+  ) {
+    return this.portal.submitInvoicePaymentProof(user, id, body.fileId);
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles('END_CLIENT')
   @Get('invoices/:id/pdf')
   async invoicePdf(
     @CurrentUser() user: JwtPayload,

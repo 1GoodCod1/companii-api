@@ -1,4 +1,4 @@
-import { isStageDefaultLaborChargeable } from './estimate-stages.service';
+import { filterChargeableStages, isStageDefaultLaborChargeable } from './estimate-stages.service';
 import { lucrariFinisajBlueprint } from '../../../../../prisma/estimate-blueprints/categories/lucrari-finisaj.blueprint';
 import { climaBlueprint } from '../../../../../prisma/estimate-blueprints/categories/clima.blueprint';
 import { elektrikaBlueprint } from '../../../../../prisma/estimate-blueprints/categories/elektrika.blueprint';
@@ -105,5 +105,25 @@ describe('isStageDefaultLaborChargeable (phantom stage-default labor guard)', ()
 
   it('always charges a required (non-optional) stage without moduleKey', () => {
     expect(isStageDefaultLaborChargeable({ optional: false }, [], config, {})).toBe(true);
+  });
+
+  it('filterChargeableStages respects enabledWorkModules for elektrika custom labor split', () => {
+    const elektrikaConfig = elektrikaBlueprint as EstimateBlueprintConfig;
+    const defByCode = new Map(elektrikaConfig.defaultStages.map((s) => [s.code, s]));
+    const stages = elektrikaConfig.defaultStages.map((stage, index) => ({
+      id: `stage-${index}`,
+      code: stage.code,
+    }));
+    const measurements = { roomCount: 4, electricPoints: 16, wallChasingM: 0 };
+
+    const chargeable = filterChargeableStages(
+      stages,
+      defByCode,
+      ['project', 'devices'],
+      elektrikaConfig,
+      measurements,
+    );
+
+    expect(chargeable.map((stage) => stage.code)).toEqual(['proiect', 'aparataj']);
   });
 });

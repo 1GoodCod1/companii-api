@@ -60,6 +60,16 @@ export function collectBlueprintUnitIssues(config: EstimateBlueprintConfig): Est
     }
   }
 
+  for (const unit of config.laborUnits ?? []) {
+    if (!isEstimateMeasurementUnit(unit)) {
+      issues.push({
+        path: 'laborUnits',
+        unit,
+        message: 'Unitate invalidă pentru laborUnits',
+      });
+    }
+  }
+
   return issues;
 }
 
