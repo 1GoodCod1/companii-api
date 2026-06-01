@@ -1,4 +1,4 @@
-import { EmailTemplateResult, formatRoMoney } from './types';
+import { EmailTemplateResult, formatRoMoney, escapeHtml, escapeHtmlMultiline, sanitizeUrl } from './types';
 
 export function buildQuoteEmail(params: {
   companyName: string;
@@ -15,9 +15,9 @@ export function buildQuoteEmail(params: {
     `Vizualizați și răspundeți în portal: ${params.portalUrl}`,
   ].join('\n');
   const html = `
-      <p><strong>${params.companyName}</strong> v-a trimis devizul <strong>${params.quoteNumber}</strong>.</p>
+      <p><strong>${escapeHtml(params.companyName)}</strong> v-a trimis devizul <strong>${escapeHtml(params.quoteNumber)}</strong>.</p>
       <p>Total: <strong>${total} MDL</strong></p>
-      <p><a href="${params.portalUrl}">Deschide portalul client</a></p>
+      <p><a href="${sanitizeUrl(params.portalUrl)}">Deschide portalul client</a></p>
     `;
 
   return {
@@ -44,10 +44,10 @@ export function buildEstimateEmail(params: {
     `Aprobați sau respingeți în portal: ${params.portalUrl}`,
   ].join('\n');
   const html = `
-      <p><strong>${params.companyName}</strong> v-a trimis smeta <strong>${params.estimateNumber}</strong>.</p>
-      <p>${params.title}</p>
+      <p><strong>${escapeHtml(params.companyName)}</strong> v-a trimis smeta <strong>${escapeHtml(params.estimateNumber)}</strong>.</p>
+      <p>${escapeHtml(params.title)}</p>
       <p>Total: <strong>${total} MDL</strong></p>
-      <p><a href="${params.portalUrl}">Deschide portalul client</a></p>
+      <p><a href="${sanitizeUrl(params.portalUrl)}">Deschide portalul client</a></p>
     `;
 
   return {
@@ -74,8 +74,8 @@ export function buildEstimateStatusEmail(params: {
     `Total: ${total} MDL`,
   ].join('\n');
   const html = `
-      <p>Clientul <strong>${params.clientName}</strong> a <strong>${action}</strong> smeta <strong>${params.estimateNumber}</strong>.</p>
-      <p>${params.title}</p>
+      <p>Clientul <strong>${escapeHtml(params.clientName)}</strong> a <strong>${action}</strong> smeta <strong>${escapeHtml(params.estimateNumber)}</strong>.</p>
+      <p>${escapeHtml(params.title)}</p>
       <p>Total: <strong>${total} MDL</strong></p>
     `;
 
@@ -100,15 +100,10 @@ export function buildEstimateFeedbackEmail(params: {
     'Comentariu client:',
     params.comment,
   ].join('\n');
-  const safeComment = params.comment
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/\n/g, '<br />');
   const html = `
-      <p>Clientul <strong>${params.clientName}</strong> a solicitat modificări pentru smeta <strong>${params.estimateNumber}</strong>.</p>
-      <p>${params.title}</p>
-      <blockquote style="border-left:3px solid #ccc;padding-left:12px;color:#444;">${safeComment}</blockquote>
+      <p>Clientul <strong>${escapeHtml(params.clientName)}</strong> a solicitat modificări pentru smeta <strong>${escapeHtml(params.estimateNumber)}</strong>.</p>
+      <p>${escapeHtml(params.title)}</p>
+      <blockquote style="border-left:3px solid #ccc;padding-left:12px;color:#444;">${escapeHtmlMultiline(params.comment)}</blockquote>
     `;
 
   return {
@@ -135,8 +130,8 @@ export function buildCompletedInterventionPendingReceiptsEmail(params: {
     `Vă rugăm să solicitați chitanțele de la angajat sau să le marcați ca NO_RECEIPT / SKIPPED în aplicație.`,
   ].join('\n');
   const html = `
-      <p>Lucrarea <strong>${params.interventionNumber}</strong> a fost finalizată.</p>
-      <p>Proiect: <strong>${params.projectName}</strong></p>
+      <p>Lucrarea <strong>${escapeHtml(params.interventionNumber)}</strong> a fost finalizată.</p>
+      <p>Proiect: <strong>${escapeHtml(params.projectName)}</strong></p>
       <p>Există <strong>${params.pendingCount} materiale</strong> fără chitanțe atașate, în valoare totală estimată de <strong>${total} MDL</strong>.</p>
       <p>Vă rugăm să solicitați chitanțele de la angajat sau să le marcați ca <strong>NO_RECEIPT / SKIPPED</strong> în aplicație.</p>
     `;
@@ -164,7 +159,7 @@ export function buildEstimateVarianceAlertEmail(params: {
     `Vă rugăm să analizați raportul de deviații în sistem pentru mai multe detalii.`,
   ].join('\n');
   const html = `
-      <p>Smeta <strong>${params.estimateNumber}</strong> („${params.projectName}”) a înregistrat o depășire a bugetului de materiale după blocarea prețurilor reale.</p>
+      <p>Smeta <strong>${escapeHtml(params.estimateNumber)}</strong> („${escapeHtml(params.projectName)}”) a înregistrat o depășire a bugetului de materiale după blocarea prețurilor reale.</p>
       <p>Deviație totală materiale: <strong style="color: #ef4444;">+${params.variancePct}%</strong> (<strong>+${variance} MDL</strong>)</p>
       <p>Vă rugăm să analizați raportul de deviații în sistem pentru mai multe detalii.</p>
     `;

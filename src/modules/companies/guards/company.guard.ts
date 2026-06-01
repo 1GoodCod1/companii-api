@@ -37,8 +37,7 @@ export class CompanyGuard implements CanActivate {
     const user = req.user;
     if (user.accountKind === 'PLATFORM_ADMIN') return true;
 
-    const companyId =
-      (req.headers['x-company-id'] as string) || user.activeCompanyId;
+    const companyId = user.activeCompanyId;
     if (!companyId) throw AppErrors.forbidden(AppErrorMessages.COMPANY_CONTEXT_REQUIRED);
 
     const member = await this.prisma.withRlsContext(

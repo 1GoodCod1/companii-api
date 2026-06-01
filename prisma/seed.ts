@@ -23,8 +23,8 @@ import {
 
 const SEED_TERMS_VERSION = '2026-05-25';
 
-const url = process.env.DATABASE_URL;
-if (!url) throw new Error('DATABASE_URL required');
+const url = process.env.MIGRATION_DATABASE_URL ?? process.env.DATABASE_URL;
+if (!url) throw new Error('DATABASE_URL or MIGRATION_DATABASE_URL required');
 
 const pool = new Pool({ connectionString: url });
 const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });

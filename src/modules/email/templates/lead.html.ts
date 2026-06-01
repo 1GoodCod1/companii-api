@@ -1,4 +1,4 @@
-import { EmailTemplateResult } from './types';
+import { EmailTemplateResult, escapeHtml, escapeHtmlMultiline, sanitizeUrl } from './types';
 
 export function buildNewLeadEmail(params: {
   companyName: string;
@@ -38,19 +38,19 @@ export function buildNewLeadEmail(params: {
   ].filter((line): line is string => Boolean(line));
 
   const htmlParts = [
-    `<p>Ați primit o cerere nouă pe pagina publică a companiei <strong>${params.companyName}</strong>.</p>`,
+    `<p>Ați primit o cerere nouă pe pagina publică a companiei <strong>${escapeHtml(params.companyName)}</strong>.</p>`,
     '<ul>',
-    `<li><strong>Tip:</strong> ${params.sourceLabel}</li>`,
-    title !== params.sourceLabel ? `<li><strong>Titlu:</strong> ${title}</li>` : '',
-    `<li><strong>Client:</strong> ${params.contactName}</li>`,
-    `<li><strong>Telefon:</strong> ${params.contactPhone}</li>`,
-    params.contactEmail ? `<li><strong>Email:</strong> ${params.contactEmail}</li>` : '',
-    params.address ? `<li><strong>Adresă:</strong> ${params.address}</li>` : '',
-    budgetLabel ? `<li><strong>Buget estimativ:</strong> ${budgetLabel}</li>` : '',
-    params.message ? `<li><strong>Mesaj:</strong> ${params.message}</li>` : '',
+    `<li><strong>Tip:</strong> ${escapeHtml(params.sourceLabel)}</li>`,
+    title !== params.sourceLabel ? `<li><strong>Titlu:</strong> ${escapeHtml(title)}</li>` : '',
+    `<li><strong>Client:</strong> ${escapeHtml(params.contactName)}</li>`,
+    `<li><strong>Telefon:</strong> ${escapeHtml(params.contactPhone)}</li>`,
+    params.contactEmail ? `<li><strong>Email:</strong> ${escapeHtml(params.contactEmail)}</li>` : '',
+    params.address ? `<li><strong>Adresă:</strong> ${escapeHtml(params.address)}</li>` : '',
+    budgetLabel ? `<li><strong>Buget estimativ:</strong> ${escapeHtml(budgetLabel)}</li>` : '',
+    params.message ? `<li><strong>Mesaj:</strong> ${escapeHtmlMultiline(params.message)}</li>` : '',
     `<li>${params.customerCreated ? 'Client nou creat automat în CRM.' : 'Client existent asociat cererii.'}</li>`,
     '</ul>',
-    `<p><a href="${params.leadsUrl}">Deschide inbox cereri</a></p>`,
+    `<p><a href="${sanitizeUrl(params.leadsUrl)}">Deschide inbox cereri</a></p>`,
   ].filter(Boolean);
 
   return {

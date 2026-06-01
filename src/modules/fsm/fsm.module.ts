@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { CompaniesModule } from '../companies/companies.module';
 import { FilesModule } from '../files/files.module';
@@ -34,7 +34,7 @@ import { InvoicePdfCacheService } from './services/invoices/invoice-pdf-cache.se
 import { InvoiceLifecycleService } from './services/invoices/invoice-lifecycle.service';
 
 @Module({
-  imports: [AuthModule, CompaniesModule, InvoicePdfModule, FilesModule],
+  imports: [forwardRef(() => AuthModule), CompaniesModule, InvoicePdfModule, FilesModule],
   controllers: [
     FsmCustomersController,
     FsmInterventionsController,

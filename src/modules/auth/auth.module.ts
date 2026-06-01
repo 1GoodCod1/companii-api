@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -21,7 +21,7 @@ import { AUTH_USE_CASE_PROVIDERS } from './use-cases/auth-use-cases.providers';
 @Module({
   imports: [
     AuditModule,
-    PortalModule,
+    forwardRef(() => PortalModule),
     TeamInviteModule,
     EmailModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),

@@ -2,6 +2,8 @@ import {
   EmailTemplateResult,
   ROLE_LABELS,
   formatRoDateTime,
+  escapeHtml,
+  sanitizeUrl,
 } from './types';
 
 export function buildTeamInviteEmail(params: {
@@ -21,8 +23,8 @@ export function buildTeamInviteEmail(params: {
     `Linkul expiră la ${expires}.`,
   ].join('\n');
   const html = `
-      <p>Ai fost invitat(ă) în echipa <strong>${params.companyName}</strong> ca <strong>${roleLabel}</strong>.</p>
-      <p><a href="${params.inviteUrl}">Acceptă invitația</a></p>
+      <p>Ai fost invitat(ă) în echipa <strong>${escapeHtml(params.companyName)}</strong> ca <strong>${escapeHtml(roleLabel)}</strong>.</p>
+      <p><a href="${sanitizeUrl(params.inviteUrl)}">Acceptă invitația</a></p>
       <p style="color:#666;font-size:12px;">Linkul expiră la ${expires}.</p>
     `;
 
@@ -35,13 +37,15 @@ export function buildTeamMemberDeactivatedEmail(params: {
 }): EmailTemplateResult {
   const subject = `Acces retras — ${params.companyName}`;
   const actor = params.actorName ? ` de ${params.actorName}` : '';
+  const escapedActorName = params.actorName ? escapeHtml(params.actorName) : '';
+  const htmlActor = escapedActorName ? ` de ${escapedActorName}` : '';
   const text = [
     `Accesul dvs. la compania ${params.companyName} a fost retras${actor}.`,
     '',
     'Lucrările active vi-au fost dezasignate. Contactați proprietarul companiei dacă credeți că este o eroare.',
   ].join('\n');
   const html = `
-      <p>Accesul dvs. la compania <strong>${params.companyName}</strong> a fost retras${actor}.</p>
+      <p>Accesul dvs. la compania <strong>${escapeHtml(params.companyName)}</strong> a fost retras${htmlActor}.</p>
       <p>Lucrările active vi-au fost dezasignate. Contactați proprietarul companiei dacă credeți că este o eroare.</p>
     `;
 
@@ -59,7 +63,7 @@ export function buildTeamMemberLeftEmail(params: {
     'Lucrările active ale acestui angajat au fost dezasignate.',
   ].join('\n');
   const html = `
-      <p><strong>${params.memberName}</strong> a părăsit echipa companiei <strong>${params.companyName}</strong>.</p>
+      <p><strong>${escapeHtml(params.memberName)}</strong> a părăsit echipa companiei <strong>${escapeHtml(params.companyName)}</strong>.</p>
       <p>Lucrările active ale acestui angajat au fost dezasignate.</p>
     `;
 
@@ -91,11 +95,11 @@ export function buildOwnershipTransferredEmail(params: {
       ].join('\n');
   const html = params.isNewOwner
     ? `
-        <p>Sunteți acum proprietarul companiei <strong>${params.companyName}</strong>.</p>
-        <p>Proprietarul anterior: <strong>${params.previousOwnerName}</strong>.</p>
+        <p>Sunteți acum proprietarul companiei <strong>${escapeHtml(params.companyName)}</strong>.</p>
+        <p>Proprietarul anterior: <strong>${escapeHtml(params.previousOwnerName)}</strong>.</p>
       `
     : `
-        <p>Ați transferat proprietatea companiei <strong>${params.companyName}</strong> către <strong>${params.newOwnerName}</strong>.</p>
+        <p>Ați transferat proprietatea companiei <strong>${escapeHtml(params.companyName)}</strong> către <strong>${escapeHtml(params.newOwnerName)}</strong>.</p>
         <p>Rolul dvs. în echipă este acum <strong>Manager</strong>.</p>
       `;
 

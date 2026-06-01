@@ -139,8 +139,11 @@ export class PortalController {
   @UseGuards(RolesGuard)
   @Roles('END_CLIENT')
   @Get('estimates/:id/comments')
-  listEstimateComments(@Param('id') id: string) {
-    return this.portal.listEstimateComments(id);
+  listEstimateComments(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+  ) {
+    return this.portal.listEstimateComments(user, id);
   }
 
   @UseGuards(RolesGuard)

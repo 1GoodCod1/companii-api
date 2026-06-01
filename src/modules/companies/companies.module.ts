@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { AuditModule } from '../audit/audit.module';
 import { CompanyAuthorizationModule } from './authorization/company-authorization.module';
@@ -14,7 +14,13 @@ import { LeadNotificationService } from './services/lead-notification.service';
 import { COMPANIES_USE_CASE_PROVIDERS } from './use-cases/companies-use-cases.providers';
 
 @Module({
-  imports: [AuthModule, AuditModule, PortalModule, TeamInviteModule, CompanyAuthorizationModule],
+  imports: [
+    forwardRef(() => AuthModule),
+    AuditModule,
+    forwardRef(() => PortalModule),
+    TeamInviteModule,
+    CompanyAuthorizationModule,
+  ],
   controllers: [MembersController, WaitlistController, CompaniesController],
   providers: [
     LeadNotificationService,

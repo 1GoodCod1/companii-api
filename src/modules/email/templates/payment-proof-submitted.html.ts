@@ -1,4 +1,4 @@
-import { EmailTemplateResult, formatRoMoney } from './types';
+import { EmailTemplateResult, formatRoMoney, escapeHtml } from './types';
 
 export function buildPaymentProofSubmittedEmail(params: {
   companyName: string;
@@ -16,7 +16,7 @@ export function buildPaymentProofSubmittedEmail(params: {
   ].join('\n');
 
   const html = `
-      <p>Clientul <strong>${params.clientName}</strong> a încărcat dovada plății pentru factura <strong>${params.invoiceNumber}</strong>.</p>
+      <p>Clientul <strong>${escapeHtml(params.clientName)}</strong> a încărcat dovada plății pentru factura <strong>${escapeHtml(params.invoiceNumber)}</strong>.</p>
       <p>Total factură: <strong>${total} MDL</strong></p>
       <p>Confirmați sau respingeți dovada din secțiunea <strong>Facturi</strong> a cabinetului companiei.</p>
     `;

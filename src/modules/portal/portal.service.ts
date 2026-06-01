@@ -99,7 +99,15 @@ export class PortalService {
     return this.createPortalInvitation.execute(customerId);
   }
 
-  async listEstimateComments(projectId: string) {
+  async listEstimateComments(user: JwtPayload, projectId: string) {
+    const customer = await findPortalCustomerForUser(this.prisma, user.sub);
+    const project = await this.prisma.estimateProject.findUniqueOrThrow({
+      where: { id: projectId },
+      select: { customerId: true },
+    });
+    if (project.customerId !== customer.id) {
+      throw AppErrors.forbidden('');
+    }
     return this.comments.listComments(projectId);
   }
 

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { PortalService } from './portal.service';
 import { PortalController } from './portal.controller';
 import { EndClientLinkService } from './end-client-link.service';
@@ -17,7 +17,7 @@ import { GetPortalInvoicePdfUseCase } from './use-cases/get-portal-invoice-pdf.u
 import { SubmitInvoicePaymentProofUseCase } from './use-cases/submit-invoice-payment-proof.use-case';
 
 @Module({
-  imports: [InvoicePdfModule, FsmModule, EmailModule, AuditModule],
+  imports: [InvoicePdfModule, forwardRef(() => FsmModule), EmailModule, AuditModule],
   controllers: [PortalController],
   providers: [
     PortalService,

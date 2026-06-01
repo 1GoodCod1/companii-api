@@ -7,16 +7,24 @@ import { RequiresFeature } from '../../../common/decorators/requires-feature.dec
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../../auth/types/jwt-payload';
 import { EstimatesService } from '../estimates.service';
+import { EstimateProjectAccessService } from '../services/projects/estimate-project-access.service';
 
 @Controller(CONTROLLER_PATH.estimates)
 export class EstimateVersionsController {
-  constructor(private readonly estimates: EstimatesService) {}
+  constructor(
+    private readonly estimates: EstimatesService,
+    private readonly projectAccess: EstimateProjectAccessService,
+  ) {}
 
   @Get('projects/:id/versions')
   @UseGuards(CompanyGuard, SubscriptionGuard)
   @RequiresFeature('estimates')
   @CompanyRoles('OWNER', 'MANAGER')
-  listVersions(@Param('id') id: string) {
+  async listVersions(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+  ) {
+    await this.projectAccess.findProjectOrThrow(user, id);
     return this.estimates.listVersions(id);
   }
 
@@ -24,11 +32,13 @@ export class EstimateVersionsController {
   @UseGuards(CompanyGuard, SubscriptionGuard)
   @RequiresFeature('estimates')
   @CompanyRoles('OWNER', 'MANAGER')
-  diffVersions(
+  async diffVersions(
+    @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
     @Query('from') from: string,
     @Query('to') to: string,
   ) {
+    await this.projectAccess.findProjectOrThrow(user, id);
     return this.estimates.diffVersions(id, parseInt(from, 10), parseInt(to, 10));
   }
 
@@ -36,7 +46,11 @@ export class EstimateVersionsController {
   @UseGuards(CompanyGuard, SubscriptionGuard)
   @RequiresFeature('estimates')
   @CompanyRoles('OWNER', 'MANAGER')
-  listComments(@Param('id') id: string) {
+  async listComments(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+  ) {
+    await this.projectAccess.findProjectOrThrow(user, id);
     return this.estimates.listComments(id);
   }
 
@@ -44,11 +58,12 @@ export class EstimateVersionsController {
   @UseGuards(CompanyGuard, SubscriptionGuard)
   @RequiresFeature('estimates')
   @CompanyRoles('OWNER', 'MANAGER')
-  addComment(
+  async addComment(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
     @Body() body: { body: string },
   ) {
+    await this.projectAccess.findProjectOrThrow(user, id);
     return this.estimates.addComment(user.sub, 'CONTRACTOR', id, body.body);
   }
 }

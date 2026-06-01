@@ -1,4 +1,4 @@
-import { EmailTemplateResult, formatRoMoney } from './types';
+import { EmailTemplateResult, formatRoMoney, escapeHtml, escapeHtmlMultiline } from './types';
 
 export function buildInvoiceEmail(params: {
   companyName: string;
@@ -28,16 +28,11 @@ export function buildInvoiceEmail(params: {
   lines.push('', 'PDF-ul este atașat la acest mesaj.');
   const text = lines.join('\n');
 
-  const escapedMessage = (params.customMessage ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-
   const html = `
-      <p><strong>${params.companyName}</strong> v-a trimis ${docTitle} <strong>${params.invoiceNumber}</strong>.</p>
+      <p><strong>${escapeHtml(params.companyName)}</strong> v-a trimis ${docTitle} <strong>${escapeHtml(params.invoiceNumber)}</strong>.</p>
       <p>Total: <strong>${total} MDL</strong></p>
-      ${!isPaid && params.dueDate ? `<p>Scadență: <strong>${params.dueDate}</strong></p>` : ''}
-      ${params.customMessage?.trim() ? `<p>${escapedMessage.replace(/\n/g, '<br>')}</p>` : ''}
+      ${!isPaid && params.dueDate ? `<p>Scadență: <strong>${escapeHtml(params.dueDate)}</strong></p>` : ''}
+      ${params.customMessage?.trim() ? `<p>${escapeHtmlMultiline(params.customMessage)}</p>` : ''}
       <p style="color:#6b7280;font-size:13px;">PDF-ul este atașat la acest mesaj.</p>
     `;
 

@@ -27,12 +27,8 @@ export class RlsInterceptor implements NestInterceptor {
       return next.handle();
     }
 
-    const companyIdHeader = req.headers?.['x-company-id'];
-    const headerCompanyId =
-      typeof companyIdHeader === 'string' ? companyIdHeader : undefined;
-
     const ctx = rlsContextFromUser(user, {
-      companyId: headerCompanyId ?? user.activeCompanyId,
+      companyId: user.activeCompanyId,
     });
 
     return defer(() =>

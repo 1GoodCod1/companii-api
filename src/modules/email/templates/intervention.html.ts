@@ -1,4 +1,4 @@
-import { EmailTemplateResult } from './types';
+import { EmailTemplateResult, escapeHtml, sanitizeUrl } from './types';
 
 export function buildInterventionAssignedEmail(params: {
   technicianName?: string | null;
@@ -30,16 +30,16 @@ export function buildInterventionAssignedEmail(params: {
   ].filter((line): line is string => line !== null);
 
   const htmlParts = [
-    `<p>${greeting}</p>`,
-    `<p>Ți-a fost atribuită o lucrare nouă la compania <strong>${params.companyName}</strong>.</p>`,
+    `<p>${escapeHtml(greeting)}</p>`,
+    `<p>Ți-a fost atribuită o lucrare nouă la compania <strong>${escapeHtml(params.companyName)}</strong>.</p>`,
     '<ul>',
-    `<li><strong>Nr. lucrare:</strong> ${params.interventionNumber}</li>`,
-    `<li><strong>Tip:</strong> ${params.type}</li>`,
-    params.customerName ? `<li><strong>Client:</strong> ${params.customerName}</li>` : '',
-    `<li><strong>Adresă:</strong> ${params.address}</li>`,
-    params.scheduledAt ? `<li><strong>Programată:</strong> ${params.scheduledAt}</li>` : '',
+    `<li><strong>Nr. lucrare:</strong> ${escapeHtml(params.interventionNumber)}</li>`,
+    `<li><strong>Tip:</strong> ${escapeHtml(params.type)}</li>`,
+    params.customerName ? `<li><strong>Client:</strong> ${escapeHtml(params.customerName)}</li>` : '',
+    `<li><strong>Adresă:</strong> ${escapeHtml(params.address)}</li>`,
+    params.scheduledAt ? `<li><strong>Programată:</strong> ${escapeHtml(params.scheduledAt)}</li>` : '',
     '</ul>',
-    `<p><a href="${params.interventionUrl}">Deschide lucrarea</a></p>`,
+    `<p><a href="${sanitizeUrl(params.interventionUrl)}">Deschide lucrarea</a></p>`,
   ].filter(Boolean);
 
   return {
