@@ -23,9 +23,10 @@ import { PrismaFilesRepository } from './infrastructure/persistence/prisma-files
     FilesService,
     FilesValidationService,
     StorageService,
+    PrismaFilesRepository,
     {
       provide: FILES_REPOSITORY,
-      useClass: PrismaFilesRepository,
+      useExisting: PrismaFilesRepository,
     },
   ],
   exports: [StorageService],

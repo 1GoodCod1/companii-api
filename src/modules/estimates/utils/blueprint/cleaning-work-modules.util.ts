@@ -1,5 +1,5 @@
-import type { EstimateBlueprintConfig } from '../../../../prisma/estimate-blueprint-config.types';
-import { readBoolean } from '../pricing/category/category-shared.util';
+import type { EstimateBlueprintConfig } from '../../../../../prisma/estimate-blueprint-config.types';
+import { readBoolean } from '../../pricing/category/category-shared.util';
 import { ENABLED_WORK_MODULES_KEY, readEnabledWorkModules } from './work-modules.util';
 
 export function augmentCleaningEnabledWorkModules(

@@ -11,9 +11,10 @@ import { PrismaConsentRepository } from './infrastructure/persistence/prisma-con
   controllers: [ConsentController],
   providers: [
     ConsentService,
+    PrismaConsentRepository,
     {
       provide: CONSENT_REPOSITORY,
-      useClass: PrismaConsentRepository,
+      useExisting: PrismaConsentRepository,
     },
   ],
 })

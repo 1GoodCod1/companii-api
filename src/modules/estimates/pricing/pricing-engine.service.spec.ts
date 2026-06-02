@@ -7,7 +7,7 @@ import {
   lucrariFinisajBlueprint,
   santehnikaBlueprint,
 } from '../../../../prisma/estimate-blueprints/registry';
-import { readEnabledWorkModules } from '../utils/work-modules.util';
+import { readEnabledWorkModules } from '../utils/blueprint/work-modules.util';
 import { EstimatePricingEngine } from './pricing-engine.service';
 import type { Plan2dData } from './plan2d.types';
 

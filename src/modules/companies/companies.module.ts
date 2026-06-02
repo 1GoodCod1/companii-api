@@ -30,9 +30,10 @@ import { COMPANIES_USE_CASE_PROVIDERS } from './use-cases/companies-use-cases.pr
   providers: [
     LeadNotificationService,
     WaitlistService,
+    PrismaWaitlistRepository,
     {
       provide: WAITLIST_REPOSITORY,
-      useClass: PrismaWaitlistRepository,
+      useExisting: PrismaWaitlistRepository,
     },
     ...COMPANIES_USE_CASE_PROVIDERS,
     CompaniesService,

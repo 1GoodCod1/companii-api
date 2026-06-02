@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client';
 import type { EstimateMeasurementUnit } from '../../../prisma/estimate-measurement-units';
-import type { EstimateFieldWarning } from './utils/estimate-custom-fields-validation.util';
-import type { SanityWarning } from './utils/sanity-checks.util';
+import type { EstimateFieldWarning } from './utils/blueprint/estimate-custom-fields-validation.util';
+import type { SanityWarning } from './utils/calculation/sanity-checks.util';
 
 export const projectInclude = {
   customer: true,

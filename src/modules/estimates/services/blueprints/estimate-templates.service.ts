@@ -7,7 +7,7 @@ import { EstimateProjectAccessService } from '../projects/estimate-project-acces
 import type { JwtPayload } from '../../../auth/types/jwt-payload';
 import { CreateTemplateDto, UpdateTemplateDto } from '@/modules/estimates/dto/template.dto';
 import { round2, projectInclude } from '../../estimate.constants';
-import { accumulateEstimateLineTotals } from '../../utils/estimate-line-recalculate.util';
+import { accumulateEstimateLineTotals } from '../../utils/calculation/estimate-line-recalculate.util';
 
 @Injectable()
 export class EstimateTemplatesService {

@@ -1,7 +1,7 @@
 import type {
   BlueprintStageDef,
   EstimateBlueprintConfig,
-} from '../../../../prisma/estimate-blueprint-config.types';
+} from '../../../../../prisma/estimate-blueprint-config.types';
 
 export type StageLineLike = {
   source?: string | null;

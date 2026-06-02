@@ -1,5 +1,5 @@
-import type { EstimateBlueprintConfig } from '../../../../prisma/estimate-blueprint-config.types';
-import { mergeEnabledWorkModulesIntoDiagnostic } from '../utils/work-modules.util';
+import type { EstimateBlueprintConfig } from '../../../../../prisma/estimate-blueprint-config.types';
+import { mergeEnabledWorkModulesIntoDiagnostic } from './work-modules.util';
 
 export const GLOBAL_PLAN_DERIVED_QTY_KEYS = new Set<string>([
   'baseArea',

@@ -1,6 +1,6 @@
 import type { Plan2dData } from '../../plan2d.types';
 import { round2 } from '../../../estimate.constants';
-import { ENABLED_WORK_MODULES_KEY } from '../../../utils/work-modules.util';
+import { ENABLED_WORK_MODULES_KEY } from '../../../utils/blueprint/work-modules.util';
 import {
   type CompanyPricingModifiers,
   resolvePricingModifierFactor,

@@ -1,4 +1,4 @@
-import type { EstimateBlueprintConfig } from '../../../../prisma/estimate-blueprint-config.types';
+import type { EstimateBlueprintConfig } from '../../../../../prisma/estimate-blueprint-config.types';
 import { filterWorksheetStages, type WorksheetStageSource } from './worksheet-stage-filter.util';
 
 export type InterventionDescriptionStage = WorksheetStageSource & {

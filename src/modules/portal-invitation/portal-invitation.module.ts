@@ -7,9 +7,10 @@ import { PrismaPortalInvitationRepository } from './infrastructure/persistence/p
 @Module({
   providers: [
     CreatePortalInvitationUseCase,
+    PrismaPortalInvitationRepository,
     {
       provide: PORTAL_INVITATION_REPOSITORY,
-      useClass: PrismaPortalInvitationRepository,
+      useExisting: PrismaPortalInvitationRepository,
     },
   ],
   exports: [CreatePortalInvitationUseCase],

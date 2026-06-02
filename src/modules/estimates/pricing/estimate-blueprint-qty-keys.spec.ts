@@ -6,7 +6,7 @@ import {
   findOrphanPricingQtyKeys,
   findUnusedDerivedMultipliers,
   formatOrphanQtyKeyReport,
-} from '../utils/estimate-blueprint-qty-keys.util';
+} from '../utils/blueprint/estimate-blueprint-qty-keys.util';
 import { elektrikaBlueprint } from '../../../../prisma/estimate-blueprints/categories/elektrika.blueprint';
 
 describe('Estimate blueprint qtyKey consistency (C-15)', () => {

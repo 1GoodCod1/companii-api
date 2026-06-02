@@ -27,7 +27,6 @@ import { EstimateStagesService } from './services/projects/estimate-stages.servi
 import { EstimateLinesService } from './services/projects/estimate-lines.service';
 import { EstimateWorksheetService } from './services/projects/estimate-worksheet.service';
 import { EstimateVersionService } from './services/history/estimate-version.service';
-import { EstimateCommentService } from './services/history/estimate-comment.service';
 import { EstimateProjectActualsService } from './services/projects/estimate-project-actuals.service';
 import { EstimateProjectShoppingListService } from './services/projects/estimate-project-shopping-list.service';
 import { AuditModule } from '../audit/audit.module';
@@ -50,9 +49,14 @@ import { ConvertToInterventionsUseCase } from './application/use-cases/convert-t
 import { LineRecalculatorService } from './domain/services/line-recalculator.service';
 import { SanityCheckerService } from './domain/services/sanity-checker.service';
 import { VarianceCalculatorService } from './domain/services/variance-calculator.service';
+import { ESTIMATE_PROJECT_PHOTO_REPOSITORY } from './domain/ports/estimate-project-photo.repository.port';
+import { PrismaEstimateProjectPhotoRepository } from './infrastructure/persistence/prisma-estimate-project-photo.repository';
+import { ESTIMATE_BLUEPRINT_REPOSITORY } from './domain/ports/estimate-blueprint.repository.port';
+import { PrismaEstimateBlueprintRepository } from './infrastructure/persistence/prisma-estimate-blueprint.repository';
+import { EstimateCommentModule } from './estimate-comment.module';
 
 @Module({
-  imports: [AuthModule, CompaniesModule, InvoicePdfModule, AuditModule, EmailModule, QueueModule],
+  imports: [AuthModule, CompaniesModule, InvoicePdfModule, AuditModule, EmailModule, QueueModule, EstimateCommentModule],
   controllers: [
     EstimatesBlueprintsController,
     EstimateProjectsController,
@@ -69,9 +73,19 @@ import { VarianceCalculatorService } from './domain/services/variance-calculator
     EstimatesContextService,
     EstimateProjectAccessService,
     EstimateBlueprintsService,
+    PrismaEstimateBlueprintRepository,
+    {
+      provide: ESTIMATE_BLUEPRINT_REPOSITORY,
+      useExisting: PrismaEstimateBlueprintRepository,
+    },
     EstimateTemplatesService,
     EstimateProjectsService,
     EstimateProjectPhotosService,
+    PrismaEstimateProjectPhotoRepository,
+    {
+      provide: ESTIMATE_PROJECT_PHOTO_REPOSITORY,
+      useExisting: PrismaEstimateProjectPhotoRepository,
+    },
     EstimateStagesService,
     EstimateLinesService,
     EstimateQuotesService,
@@ -79,7 +93,6 @@ import { VarianceCalculatorService } from './domain/services/variance-calculator
     EstimatePortalService,
     EstimateWorksheetService,
     EstimateVersionService,
-    EstimateCommentService,
     EstimateProjectActualsService,
     EstimateProjectShoppingListService,
     EstimatesService,

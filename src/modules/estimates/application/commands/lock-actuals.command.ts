@@ -7,7 +7,7 @@ import { EstimateProjectAccessService } from '../../services/projects/estimate-p
 import { EstimateProjectActualsService } from '../../services/projects/estimate-project-actuals.service';
 import { EmailService } from '../../../email/email.service';
 import { projectInclude, round2 } from '../../estimate.constants';
-import { accumulateEstimateLineTotals } from '../../utils/estimate-line-recalculate.util';
+import { accumulateEstimateLineTotals } from '../../utils/calculation/estimate-line-recalculate.util';
 
 @Injectable()
 export class LockActualsCommandHandler {

@@ -7,7 +7,7 @@ import { EstimatesContextService } from '../../context/estimates-context.service
 import { EstimateProjectAccessService } from '../../services/projects/estimate-project-access.service';
 import { EstimateStagesService } from '../../services/projects/estimate-stages.service';
 import { projectInclude } from '../../estimate.constants';
-import { isEstimateRecalculable } from '../../utils/estimate-status-transitions.util';
+import { isEstimateRecalculable } from '../../utils/project/estimate-status-transitions.util';
 import { nextCompanyNumber } from '../../../../common/utils/sequence-number.util';
 
 @Injectable()

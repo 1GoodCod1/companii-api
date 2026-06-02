@@ -3,8 +3,8 @@ import { PrismaService } from '../../../shared/database/prisma.service';
 import type { JwtPayload } from '../../../auth/types/jwt-payload';
 import { EstimatesContextService } from '../../context/estimates-context.service';
 import { EstimateProjectAccessService } from '../../services/projects/estimate-project-access.service';
-import { createEstimateProjectWithStages } from '../../utils/create-estimate-project.util';
-import { mergeEnabledWorkModulesIntoDiagnostic } from '../../utils/work-modules.util';
+import { createEstimateProjectWithStages } from '../../utils/project/create-estimate-project.util';
+import { mergeEnabledWorkModulesIntoDiagnostic } from '../../utils/blueprint/work-modules.util';
 import { projectInclude } from '../../estimate.constants';
 import { AppErrors, AppErrorMessages } from '../../../../common/errors';
 

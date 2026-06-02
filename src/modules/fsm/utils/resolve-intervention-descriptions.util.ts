@@ -2,7 +2,7 @@ import type { PrismaService } from '../../shared/database/prisma.service';
 import {
   buildInterventionDescriptionFromEstimate,
   type InterventionDescriptionAudience,
-} from '../../estimates/utils/intervention-description.util';
+} from '../../estimates/utils/worksheet/intervention-description.util';
 
 const estimateProjectSelect = {
   id: true,

@@ -1,4 +1,4 @@
-import type { MeasurementMap } from '../pricing/pricing-engine.service';
+import type { MeasurementMap } from '../../pricing/pricing-engine.service';
 
 export type SanityWarningSeverity = 'info' | 'warning';
 

@@ -3,7 +3,7 @@ import { PrismaService } from '../../../shared/database/prisma.service';
 import type { JwtPayload } from '../../../auth/types/jwt-payload';
 import { EstimatesContextService } from '../../context/estimates-context.service';
 import { EstimateProjectAccessService } from './estimate-project-access.service';
-import { isEstimateLaborLine } from '../../utils/estimate-line-recalculate.util';
+import { isEstimateLaborLine } from '../../utils/calculation/estimate-line-recalculate.util';
 import { EstimatePdfService } from '../../../fsm/pdf/estimate-pdf.service';
 
 @Injectable()

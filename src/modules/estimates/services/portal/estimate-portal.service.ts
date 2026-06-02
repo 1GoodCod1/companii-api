@@ -8,7 +8,7 @@ import { portalEstimateInclude } from '../../estimate.constants';
 import {
   appendClientFeedback,
   type EstimateClientFeedbackKind,
-} from '../../utils/client-feedback.util';
+} from '../../utils/portal/client-feedback.util';
 import { EstimateProjectAccessService } from '../projects/estimate-project-access.service';
 
 const TERMINAL_PORTAL_STATUSES: ReadonlySet<EstimateProjectStatus> = new Set([

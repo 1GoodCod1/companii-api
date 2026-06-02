@@ -1,4 +1,4 @@
-import type { EstimateBlueprintConfig } from '../../../../prisma/estimate-blueprint-config.types';
+import type { EstimateBlueprintConfig } from '../../../../../prisma/estimate-blueprint-config.types';
 import {
   normalizeAccessDifficulty,
   resolveAccessDifficultyLaborMultiplier,

@@ -4,7 +4,7 @@ import type { JwtPayload } from '../../../auth/types/jwt-payload';
 import { EstimatesContextService } from '../../context/estimates-context.service';
 import { EstimateProjectActualsService } from '../../services/projects/estimate-project-actuals.service';
 import { EstimateProjectAccessService } from '../../services/projects/estimate-project-access.service';
-import { isEstimateLaborLine } from '../../utils/estimate-line-recalculate.util';
+import { isEstimateLaborLine } from '../../utils/calculation/estimate-line-recalculate.util';
 import { round2, type EstimateProjectDetail } from '../../estimate.constants';
 import type { VarianceStageReport, VarianceBreakdown } from '../../domain/services/variance-calculator.service';
 

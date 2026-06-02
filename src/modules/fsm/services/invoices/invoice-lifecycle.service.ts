@@ -6,7 +6,7 @@ import { StorageService } from '../../../files/services/storage.service';
 import { FsmContextService } from '../../context/fsm-context.service';
 import type { JwtPayload } from '../../../auth/types/jwt-payload';
 import { assertPaymentTransition } from '../../utils/status-transitions';
-import { reconcileEstimateProjectLifecycle } from '../../../estimates/utils/estimate-lifecycle.util';
+import { reconcileEstimateProjectLifecycle } from '../../../estimates/utils/project/estimate-lifecycle.util';
 import { InvoicePdfCacheService } from './invoice-pdf-cache.service';
 
 @Injectable()

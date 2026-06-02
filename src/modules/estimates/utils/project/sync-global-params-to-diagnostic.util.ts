@@ -1,5 +1,5 @@
-import type { Plan2dData, Plan2dGlobalParameters, Plan2dWorkContext } from '../pricing/plan2d.types';
-import { ENABLED_WORK_MODULES_KEY } from './work-modules.util';
+import type { Plan2dData, Plan2dGlobalParameters, Plan2dWorkContext } from '../../pricing/plan2d.types';
+import { ENABLED_WORK_MODULES_KEY } from '../blueprint/work-modules.util';
 
 export function syncGlobalParamsToDiagnostic(
   plan: Plan2dData,

@@ -1,6 +1,6 @@
 import { EstimateProjectStatus, EstimateStageKind, Prisma } from '@prisma/client';
-import type { EstimateBlueprintConfig } from '../../../../prisma/estimate-blueprints';
-import { mergeEnabledWorkModulesIntoDiagnostic } from './blueprint/work-modules.util';
+import type { EstimateBlueprintConfig } from '../../../../../prisma/estimate-blueprints';
+import { mergeEnabledWorkModulesIntoDiagnostic } from '../blueprint/work-modules.util';
 
 export type CreateEstimateProjectParams = {
   companyId: string;

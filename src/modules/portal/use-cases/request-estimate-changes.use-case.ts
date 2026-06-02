@@ -4,7 +4,7 @@ import { PORTAL_REPOSITORY } from '../domain/ports/portal.repository.port';
 import type { PrismaPortalRepository } from '../infrastructure/persistence/prisma-portal.repository';
 import type { JwtPayload } from '../../auth/types/jwt-payload';
 import { EmailService } from '../../email/email.service';
-import { appendClientFeedback } from '../../estimates/utils/client-feedback.util';
+import { appendClientFeedback } from '../../estimates/utils/portal/client-feedback.util';
 
 @Injectable()
 export class RequestEstimateChangesUseCase {

@@ -8,7 +8,7 @@ import {
   RECEIPT_RECONCILIATION_MISMATCH,
   reconcileReceipt,
   type ReceiptLineInput,
-} from '../../utils/receipt-reconciliation.util';
+} from '../../utils/actuals/receipt-reconciliation.util';
 import { EstimateProjectAccessService } from './estimate-project-access.service';
 
 const RECEIPT_ALLOWED_STATUSES: ReadonlySet<EstimateProjectStatus> = new Set([

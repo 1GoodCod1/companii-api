@@ -7,13 +7,13 @@ import { EstimatesContextService } from '../../context/estimates-context.service
 import { EstimatePricingEngine } from '../../pricing/pricing-engine.service';
 import { EstimateProjectAccessService } from '../../services/projects/estimate-project-access.service';
 import { EstimateProjectActualsService } from '../../services/projects/estimate-project-actuals.service';
-import { syncGlobalParamsToDiagnostic } from '../../utils/sync-global-params-to-diagnostic.util';
-import { mergeEnabledWorkModulesIntoDiagnostic } from '../../utils/work-modules.util';
+import { syncGlobalParamsToDiagnostic } from '../../utils/project/sync-global-params-to-diagnostic.util';
+import { mergeEnabledWorkModulesIntoDiagnostic } from '../../utils/blueprint/work-modules.util';
 import {
   assertVersionMatch,
   isMutationAlreadyApplied,
   recordAppliedMutation,
-} from '../../utils/conflict-resolution.util';
+} from '../../utils/project/conflict-resolution.util';
 
 @Injectable()
 export class SaveSitePlanCommandHandler {

@@ -9,7 +9,7 @@ import { EstimateProjectAccessService } from '../../services/projects/estimate-p
 import {
   RECEIPT_RECONCILIATION_MISMATCH,
   reconcileReceipt,
-} from '../../utils/receipt-reconciliation.util';
+} from '../../utils/actuals/receipt-reconciliation.util';
 
 const RECEIPT_ALLOWED_STATUSES: ReadonlySet<EstimateProjectStatus> = new Set([
   EstimateProjectStatus.CALCULATED,

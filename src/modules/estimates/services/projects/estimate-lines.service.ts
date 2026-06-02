@@ -11,7 +11,7 @@ import {
   calculateTva,
   isEstimateLaborLine,
   shouldPromoteRecalculatedLineToManual,
-} from '../../utils/estimate-line-recalculate.util';
+} from '../../utils/calculation/estimate-line-recalculate.util';
 
 @Injectable()
 export class EstimateLinesService {

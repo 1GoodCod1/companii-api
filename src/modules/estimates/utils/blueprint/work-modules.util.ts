@@ -3,7 +3,7 @@ import type {
   BlueprintPricingRule,
   BlueprintWorkModule,
   EstimateBlueprintConfig,
-} from '../../../../prisma/estimate-blueprint-config.types';
+} from '../../../../../prisma/estimate-blueprint-config.types';
 import { readCleaningEnabledWorkModules } from './cleaning-work-modules.util';
 
 export const ENABLED_WORK_MODULES_KEY = 'enabledWorkModules';

@@ -1,14 +1,14 @@
 import type {
   BlueprintCustomField,
   EstimateBlueprintConfig,
-} from '../../../../prisma/estimate-blueprint-config.types';
+} from '../../../../../prisma/estimate-blueprint-config.types';
 import {
   ENABLED_WORK_MODULES_KEY,
   isCustomFieldActive,
   isCustomFieldRequired,
   readEnabledWorkModules,
 } from './work-modules.util';
-import { CUSTOM_PRICING_KEYS } from '../pricing/pricing-engine-utils';
+import { CUSTOM_PRICING_KEYS } from '../../pricing/pricing-engine-utils';
 
 export const ESTIMATE_VALIDATION_FAILED = 'ESTIMATE_VALIDATION_FAILED';
 

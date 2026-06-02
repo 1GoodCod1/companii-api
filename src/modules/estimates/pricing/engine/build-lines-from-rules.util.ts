@@ -1,5 +1,5 @@
 import type { BlueprintPricingRule } from '../pricing.types';
-import { isPricingRuleActive, getDefaultEnabledWorkModules } from '../../utils/work-modules.util';
+import { isPricingRuleActive, getDefaultEnabledWorkModules } from '../../utils/blueprint/work-modules.util';
 import { round2 } from '../shared/pricing-shared.util';
 import type {
   BuildLinesFromRulesOptions,

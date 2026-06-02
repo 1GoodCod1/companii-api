@@ -9,8 +9,8 @@ import {
   isTerminalInterventionStatus,
 } from '../../utils/status-transitions';
 import { EmailService } from '../../../email/email.service';
-import { isEstimateLaborLine } from '../../../estimates/utils/estimate-line-recalculate.util';
-import { reconcileEstimateProjectLifecycle } from '../../../estimates/utils/estimate-lifecycle.util';
+import { isEstimateLaborLine } from '../../../estimates/utils/calculation/estimate-line-recalculate.util';
+import { reconcileEstimateProjectLifecycle } from '../../../estimates/utils/project/estimate-lifecycle.util';
 
 @Injectable()
 export class InterventionLifecycleService {

@@ -10,9 +10,10 @@ import { PrismaReviewsRepository } from './infrastructure/persistence/prisma-rev
   controllers: [ReviewsController],
   providers: [
     ReviewsService,
+    PrismaReviewsRepository,
     {
       provide: REVIEWS_REPOSITORY,
-      useClass: PrismaReviewsRepository,
+      useExisting: PrismaReviewsRepository,
     },
   ],
 })

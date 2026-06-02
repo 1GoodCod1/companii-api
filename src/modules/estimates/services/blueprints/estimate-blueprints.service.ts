@@ -1,24 +1,21 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { AppErrorMessages, AppErrors } from '../../../../common/errors';
-import { PrismaService } from '../../../shared/database/prisma.service';
 import { CacheService } from '../../../shared/cache/cache.service';
+import { ESTIMATE_BLUEPRINT_REPOSITORY } from '../../domain/ports/estimate-blueprint.repository.port';
+import type { PrismaEstimateBlueprintRepository } from '../../infrastructure/persistence/prisma-estimate-blueprint.repository';
 
 @Injectable()
 export class EstimateBlueprintsService {
   constructor(
-    private readonly prisma: PrismaService,
+    @Inject(ESTIMATE_BLUEPRINT_REPOSITORY)
+    private readonly blueprintRepo: PrismaEstimateBlueprintRepository,
     private readonly cache: CacheService,
   ) {}
 
   list() {
     return this.cache.getOrSet(
       this.cache.keys.blueprintsAll(),
-      () =>
-        this.prisma.estimateBlueprint.findMany({
-          where: { isActive: true },
-          include: { category: { select: { id: true, name: true, slug: true } } },
-          orderBy: { name: 'asc' },
-        }),
+      () => this.blueprintRepo.findActive(),
       this.cache.ttl.blueprintsAll,
     );
   }
@@ -27,10 +24,7 @@ export class EstimateBlueprintsService {
     const result = await this.cache.getOrSet(
       this.cache.keys.blueprintByCategorySlug(slug),
       async () => {
-        const blueprint = await this.prisma.estimateBlueprint.findFirst({
-          where: { category: { slug }, isActive: true },
-          include: { category: { select: { id: true, name: true, slug: true } } },
-        });
+        const blueprint = await this.blueprintRepo.findActiveByCategorySlug(slug);
         if (!blueprint) return { __not_found: true };
         return blueprint;
       },

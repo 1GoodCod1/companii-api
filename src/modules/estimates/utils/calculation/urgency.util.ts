@@ -1,7 +1,7 @@
 import type {
   BlueprintUrgencyImpact,
   EstimateBlueprintConfig,
-} from '../../../../prisma/estimate-blueprint-config.types';
+} from '../../../../../prisma/estimate-blueprint-config.types';
 
 export type UrgencyLevel = 'normal' | 'urgent' | 'emergency';
 

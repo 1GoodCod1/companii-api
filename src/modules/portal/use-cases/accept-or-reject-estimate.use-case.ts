@@ -11,7 +11,7 @@ import { EmailService } from '../../email/email.service';
 import {
   appendClientFeedback,
   type EstimateClientFeedbackKind,
-} from '../../estimates/utils/client-feedback.util';
+} from '../../estimates/utils/portal/client-feedback.util';
 
 @Injectable()
 export class AcceptOrRejectEstimateUseCase {

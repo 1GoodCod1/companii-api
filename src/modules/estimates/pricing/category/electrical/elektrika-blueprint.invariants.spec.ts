@@ -1,6 +1,6 @@
 import { deriveElektrikaMeasurements } from './electrical-measurements.util';
 import { elektrikaBlueprint } from '../../../../../../prisma/estimate-blueprints/categories/elektrika.blueprint';
-import { findUnusedDerivedMultipliers } from '../../../utils/estimate-blueprint-qty-keys.util';
+import { findUnusedDerivedMultipliers } from '../../../utils/blueprint/estimate-blueprint-qty-keys.util';
 import type { Plan2dData } from '../../plan2d.types';
 
 const planFixture: Plan2dData = {

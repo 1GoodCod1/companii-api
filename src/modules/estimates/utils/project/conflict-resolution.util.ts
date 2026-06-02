@@ -1,4 +1,4 @@
-import { AppErrors } from '../../../common/errors';
+import { AppErrors } from '../../../../common/errors';
 import type { Prisma, PrismaClient } from '@prisma/client';
 
 export const ESTIMATE_VERSION_CONFLICT = 'ESTIMATE_VERSION_CONFLICT';

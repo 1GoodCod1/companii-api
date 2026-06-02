@@ -11,9 +11,10 @@ import { PrismaSubscriptionsRepository } from './infrastructure/persistence/pris
   controllers: [SubscriptionsController],
   providers: [
     SubscriptionsService,
+    PrismaSubscriptionsRepository,
     {
       provide: SUBSCRIPTIONS_REPOSITORY,
-      useClass: PrismaSubscriptionsRepository,
+      useExisting: PrismaSubscriptionsRepository,
     },
   ],
 })

@@ -1,6 +1,6 @@
-import type { EstimateBlueprintConfig } from '../../../../prisma/estimate-blueprint-config.types';
-import { readEnabledWorkModules } from './work-modules.util';
-import { filterStagesWithMeaningfulLines, getVisibleStages } from './stage-visibility.util';
+import type { EstimateBlueprintConfig } from '../../../../../prisma/estimate-blueprint-config.types';
+import { readEnabledWorkModules } from '../blueprint/work-modules.util';
+import { filterStagesWithMeaningfulLines, getVisibleStages } from '../blueprint/stage-visibility.util';
 
 export type WorksheetStageSource = {
   code: string;

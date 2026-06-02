@@ -9,7 +9,7 @@ import { normalizePhone } from '../../../../common/utils/phone.util';
 import { PrismaService } from '../../../shared/database/prisma.service';
 import { CompanyAuthorizationService } from '../../../companies/authorization/company-authorization.service';
 import type { JwtPayload } from '../../../auth/types/jwt-payload';
-import { createEstimateProjectWithStages } from '../../../estimates/utils/create-estimate-project.util';
+import { createEstimateProjectWithStages } from '../../../estimates/utils/project/create-estimate-project.util';
 import { nextCompanyNumber } from '../../../../common/utils/sequence-number.util';
 import type { EstimateBlueprintConfig } from '../../../../../prisma/estimate-blueprints';
 

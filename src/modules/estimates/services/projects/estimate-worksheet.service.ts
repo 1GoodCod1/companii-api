@@ -5,7 +5,7 @@ import { PrismaService } from '../../../shared/database/prisma.service';
 import type { JwtPayload } from '../../../auth/types/jwt-payload';
 import { EstimatesContextService } from '../../context/estimates-context.service';
 import { EstimateProjectAccessService } from './estimate-project-access.service';
-import { filterWorksheetStages, formatWorksheetMaterialDescription, isWorksheetMaterialLine } from '../../utils/worksheet-stage-filter.util';
+import { filterWorksheetStages, formatWorksheetMaterialDescription, isWorksheetMaterialLine } from '../../utils/worksheet/worksheet-stage-filter.util';
 
 @Injectable()
 export class EstimateWorksheetService {

@@ -1,7 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import type { JwtPayload } from '../../../auth/types/jwt-payload';
-import { ESTIMATE_VALIDATION_FAILED } from '../../utils/estimate-custom-fields-validation.util';
-import { ENABLED_WORK_MODULES_KEY } from '../../utils/work-modules.util';
+import { ESTIMATE_VALIDATION_FAILED } from '../../utils/blueprint/estimate-custom-fields-validation.util';
+import { ENABLED_WORK_MODULES_KEY } from '../../utils/blueprint/work-modules.util';
 import { EstimatesContextService } from '../../context/estimates-context.service';
 import { EstimatePricingEngine } from '../../pricing/pricing-engine.service';
 import { EstimateProjectAccessService } from './estimate-project-access.service';

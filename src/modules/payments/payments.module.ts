@@ -11,9 +11,10 @@ import { PrismaPaymentsRepository } from './infrastructure/persistence/prisma-pa
   controllers: [PaymentsController],
   providers: [
     PaymentsService,
+    PrismaPaymentsRepository,
     {
       provide: PAYMENTS_REPOSITORY,
-      useClass: PrismaPaymentsRepository,
+      useExisting: PrismaPaymentsRepository,
     },
   ],
 })

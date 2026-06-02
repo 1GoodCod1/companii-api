@@ -7,7 +7,7 @@ import { InvoicePdfModule } from '../fsm/pdf/invoice-pdf.module';
 import { FsmModule } from '../fsm/fsm.module';
 import { EmailModule } from '../email/email.module';
 import { AuditModule } from '../audit/audit.module';
-import { EstimateCommentService } from '../estimates/services/history/estimate-comment.service';
+import { EstimateCommentModule } from '../estimates/estimate-comment.module';
 import { GetPortalDashboardUseCase } from './use-cases/get-portal-dashboard.use-case';
 import { AcceptOrRejectEstimateUseCase } from './use-cases/accept-or-reject-estimate.use-case';
 import { RequestEstimateChangesUseCase } from './use-cases/request-estimate-changes.use-case';
@@ -19,11 +19,18 @@ import { PORTAL_REPOSITORY } from './domain/ports/portal.repository.port';
 import { PrismaPortalRepository } from './infrastructure/persistence/prisma-portal.repository';
 
 @Module({
-  imports: [EndClientLinkModule, PortalInvitationModule, InvoicePdfModule, forwardRef(() => FsmModule), EmailModule, AuditModule],
+  imports: [
+    EndClientLinkModule,
+    PortalInvitationModule,
+    InvoicePdfModule,
+    forwardRef(() => FsmModule),
+    EmailModule,
+    AuditModule,
+    EstimateCommentModule,
+  ],
   controllers: [PortalController],
   providers: [
     PortalService,
-    EstimateCommentService,
     GetPortalDashboardUseCase,
     AcceptOrRejectEstimateUseCase,
     RequestEstimateChangesUseCase,
@@ -31,9 +38,10 @@ import { PrismaPortalRepository } from './infrastructure/persistence/prisma-port
     GetPortalEstimatePdfUseCase,
     GetPortalInvoicePdfUseCase,
     SubmitInvoicePaymentProofUseCase,
+    PrismaPortalRepository,
     {
       provide: PORTAL_REPOSITORY,
-      useClass: PrismaPortalRepository,
+      useExisting: PrismaPortalRepository,
     },
   ],
 })

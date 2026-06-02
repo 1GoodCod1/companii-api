@@ -10,8 +10,8 @@ import { AuditService } from '../../../audit/audit.service';
 import { AuditAction } from '../../../audit/audit-action.enum';
 import { AuditEntityType } from '../../../audit/audit-entity-type.enum';
 import type { EstimateBlueprintConfig } from '../../../../../prisma/estimate-blueprint-config.types';
-import { buildSingleInterventionDescription } from '../../utils/intervention-description.util';
-import { filterWorksheetStages } from '../../utils/worksheet-stage-filter.util';
+import { buildSingleInterventionDescription } from '../../utils/worksheet/intervention-description.util';
+import { filterWorksheetStages } from '../../utils/worksheet/worksheet-stage-filter.util';
 
 @Injectable()
 export class ConvertToInterventionsUseCase {

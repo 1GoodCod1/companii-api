@@ -1,4 +1,4 @@
-import { sanitizeInterventionDescriptionForTechnician } from '../../estimates/utils/intervention-description.util';
+import { sanitizeInterventionDescriptionForTechnician } from '../../estimates/utils/worksheet/intervention-description.util';
 
 type InterventionNoteLike = { isInternal?: boolean | null };
 

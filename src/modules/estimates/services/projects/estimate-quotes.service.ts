@@ -7,7 +7,7 @@ import type { JwtPayload } from '../../../auth/types/jwt-payload';
 import { EmailService } from '../../../email/email.service';
 import { EstimatePdfService } from '../../../fsm/pdf/estimate-pdf.service';
 import { projectInclude } from '../../estimate.constants';
-import { isEstimateRecalculable } from '../../utils/estimate-status-transitions.util';
+import { isEstimateRecalculable } from '../../utils/project/estimate-status-transitions.util';
 import { nextCompanyNumber } from '../../../../common/utils/sequence-number.util';
 import { EstimatesContextService } from '../../context/estimates-context.service';
 import { EstimateProjectAccessService } from './estimate-project-access.service';

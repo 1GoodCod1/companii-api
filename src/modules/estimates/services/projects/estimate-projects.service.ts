@@ -7,22 +7,22 @@ import { projectInclude, type EstimateProjectUpdateResult, type EstimateProjectD
 import { EstimatesContextService } from '../../context/estimates-context.service';
 import { EstimatePricingEngine } from '../../pricing/pricing-engine.service';
 import type { Plan2dData } from '../../pricing/plan2d.types';
-import { syncGlobalParamsToDiagnostic } from '../../utils/sync-global-params-to-diagnostic.util';
-import { createEstimateProjectWithStages } from '../../utils/create-estimate-project.util';
+import { syncGlobalParamsToDiagnostic } from '../../utils/project/sync-global-params-to-diagnostic.util';
+import { createEstimateProjectWithStages } from '../../utils/project/create-estimate-project.util';
 import {
   mergeEnabledWorkModulesIntoDiagnostic,
   readEnabledWorkModules,
   validateEnabledWorkModules,
-} from '../../utils/work-modules.util';
+} from '../../utils/blueprint/work-modules.util';
 import {
   type EstimateFieldWarning,
   validateCustomFieldsAnswers,
-} from '../../utils/estimate-custom-fields-validation.util';
+} from '../../utils/blueprint/estimate-custom-fields-validation.util';
 import {
   assertVersionMatch,
   isMutationAlreadyApplied,
   recordAppliedMutation,
-} from '../../utils/conflict-resolution.util';
+} from '../../utils/project/conflict-resolution.util';
 import { EstimateProjectAccessService } from './estimate-project-access.service';
 import type { EstimateBlueprintConfig } from '../../../../../prisma/estimate-blueprints';
 import { EstimateProjectActualsService } from './estimate-project-actuals.service';

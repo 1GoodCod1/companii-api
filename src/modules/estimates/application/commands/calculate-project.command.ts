@@ -8,30 +8,30 @@ import { EstimatesContextService } from '../../context/estimates-context.service
 import { EstimatePricingEngine } from '../../pricing/pricing-engine.service';
 import type { CustomPricingOverrideResult } from '../../pricing/pricing-engine.service';
 import { EstimateProjectAccessService } from '../../services/projects/estimate-project-access.service';
-import { isEstimateRecalculable } from '../../utils/estimate-status-transitions.util';
-import { assertBlueprintUnitsValid } from '../../utils/estimate-unit-validation.util';
-import { readEnabledWorkModulesForCategory } from '../../utils/work-modules.util';
+import { isEstimateRecalculable } from '../../utils/project/estimate-status-transitions.util';
+import { assertBlueprintUnitsValid } from '../../utils/blueprint/estimate-unit-validation.util';
+import { readEnabledWorkModulesForCategory } from '../../utils/blueprint/work-modules.util';
 import {
   resolveAccessDifficultyLaborMultiplier,
   resolveAccessDifficultyLevel,
   resolveAccessDifficultyMaterialMultiplier,
-} from '../../utils/access-difficulty.util';
-import { normalizeUrgency, resolveUrgencyLaborMultiplier, resolveUrgencyMaterialMultiplier } from '../../utils/urgency.util';
+} from '../../utils/calculation/access-difficulty.util';
+import { normalizeUrgency, resolveUrgencyLaborMultiplier, resolveUrgencyMaterialMultiplier } from '../../utils/calculation/urgency.util';
 import {
   buildCalculationTrace,
   filterPersistableMeasurements,
   resolveRequiresManualReview,
-} from '../../utils/estimate-calculation-trace.util';
+} from '../../utils/calculation/estimate-calculation-trace.util';
 import {
   RECALCULATED_ESTIMATE_LINE_SOURCES,
   accumulateEstimateLineTotals,
   nextRuleLineSortOrder,
   calculateTva,
   stageHasManualCustomLaborTotalOverride,
-} from '../../utils/estimate-line-recalculate.util';
+} from '../../utils/calculation/estimate-line-recalculate.util';
 import { parseCompanyPricingModifiers } from '../../../../../prisma/estimate-pricing-modifiers';
 import { guessUnit } from '../../estimate.constants';
-import { runSanityChecks } from '../../utils/sanity-checks.util';
+import { runSanityChecks } from '../../utils/calculation/sanity-checks.util';
 import { distributeDurationDays } from '../../pricing/pricing-engine-utils';
 import { filterChargeableStages, isStageDefaultLaborChargeable } from '../../services/projects/estimate-stages.service';
 import type { EstimateBlueprintConfig } from '../../../../../prisma/estimate-blueprints';

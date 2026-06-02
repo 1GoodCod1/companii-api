@@ -7,9 +7,9 @@ import {
 } from './cleaning-measurements.util';
 import type { EstimateBlueprintConfig } from '../../../../../../prisma/estimate-blueprint-config.types';
 import { cleaningBlueprint } from '../../../../../../prisma/estimate-blueprints/categories/cleaning.blueprint';
-import { findUnusedDerivedMultipliers } from '../../../utils/estimate-blueprint-qty-keys.util';
+import { findUnusedDerivedMultipliers } from '../../../utils/blueprint/estimate-blueprint-qty-keys.util';
 import { isStageDefaultLaborChargeable } from '../../../services/projects/estimate-stages.service';
-import { readCleaningEnabledWorkModules } from '../../../utils/cleaning-work-modules.util';
+import { readCleaningEnabledWorkModules } from '../../../utils/blueprint/cleaning-work-modules.util';
 import {
   CLEANING_PARITY_VECTORS,
   assertNoNaNInMeasurements,

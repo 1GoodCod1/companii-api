@@ -25,9 +25,10 @@ import { PrismaAdminRepository } from './infrastructure/persistence/prisma-admin
     AdminBlueprintsService,
     AdminService,
     RolesGuard,
+    PrismaAdminRepository,
     {
       provide: ADMIN_REPOSITORY,
-      useClass: PrismaAdminRepository,
+      useExisting: PrismaAdminRepository,
     },
   ],
 })

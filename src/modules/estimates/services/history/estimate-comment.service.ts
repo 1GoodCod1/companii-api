@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
-import { AppErrorMessages, AppErrors } from '../../../../common/errors';
-import { PrismaService } from '../../../shared/database/prisma.service';
+import { Inject, Injectable } from '@nestjs/common';
+import { AppErrors } from '../../../../common/errors';
+import { ESTIMATE_COMMENT_REPOSITORY } from '../../domain/ports/estimate-comment.repository.port';
+import type { PrismaEstimateCommentRepository } from '../../infrastructure/persistence/prisma-estimate-comment.repository';
 
 export interface EstimateCommentDto {
   id: string;
@@ -12,13 +13,13 @@ export interface EstimateCommentDto {
 
 @Injectable()
 export class EstimateCommentService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(ESTIMATE_COMMENT_REPOSITORY)
+    private readonly commentRepo: PrismaEstimateCommentRepository,
+  ) {}
 
   async listComments(projectId: string): Promise<EstimateCommentDto[]> {
-    const comments = await this.prisma.estimateComment.findMany({
-      where: { projectId },
-      orderBy: { createdAt: 'asc' },
-    });
+    const comments = await this.commentRepo.findByProject(projectId);
     return comments.map((c) => ({
       id: c.id,
       authorKind: c.authorKind as 'CLIENT' | 'CONTRACTOR',
@@ -39,13 +40,11 @@ export class EstimateCommentService {
       throw AppErrors.badRequest('Comment must be 1-2000 characters');
     }
 
-    const comment = await this.prisma.estimateComment.create({
-      data: {
-        projectId,
-        authorId,
-        authorKind,
-        body: trimmed,
-      },
+    const comment = await this.commentRepo.create({
+      projectId,
+      authorId,
+      authorKind,
+      body: trimmed,
     });
 
     return {

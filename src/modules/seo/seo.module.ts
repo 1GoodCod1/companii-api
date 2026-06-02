@@ -10,9 +10,10 @@ import { PrismaSeoRepository } from './infrastructure/persistence/prisma-seo.rep
   controllers: [SeoController],
   providers: [
     SeoService,
+    PrismaSeoRepository,
     {
       provide: SEO_REPOSITORY,
-      useClass: PrismaSeoRepository,
+      useExisting: PrismaSeoRepository,
     },
   ],
 })

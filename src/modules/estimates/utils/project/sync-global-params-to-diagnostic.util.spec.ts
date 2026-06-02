@@ -1,6 +1,6 @@
 import { syncGlobalParamsToDiagnostic } from './sync-global-params-to-diagnostic.util';
-import { ENABLED_WORK_MODULES_KEY } from './work-modules.util';
-import type { Plan2dData } from '../pricing/plan2d.types';
+import { ENABLED_WORK_MODULES_KEY } from '../blueprint/work-modules.util';
+import type { Plan2dData } from '../../pricing/plan2d.types';
 
 function plan(partial: Partial<Plan2dData>): Plan2dData {
   return {

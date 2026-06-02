@@ -1,5 +1,5 @@
 import { round2 } from '../../estimate.constants';
-import { isEstimateLaborLine } from '../../utils/estimate-line-recalculate.util';
+import { isEstimateLaborLine } from '../../utils/calculation/estimate-line-recalculate.util';
 
 export interface RecalculatedLine {
   stageCode: string;

@@ -6,7 +6,7 @@ import type { JwtPayload } from '../../../auth/types/jwt-payload';
 import { projectInclude, type EstimateProjectDetail, round2 } from '../../estimate.constants';
 import { EstimatesContextService } from '../../context/estimates-context.service';
 import { EstimateProjectAccessService } from './estimate-project-access.service';
-import { isEstimateLaborLine, accumulateEstimateLineTotals } from '../../utils/estimate-line-recalculate.util';
+import { isEstimateLaborLine, accumulateEstimateLineTotals } from '../../utils/calculation/estimate-line-recalculate.util';
 import { EmailService } from '../../../email/email.service';
 
 @Injectable()

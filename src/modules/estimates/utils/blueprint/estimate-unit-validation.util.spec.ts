@@ -2,9 +2,9 @@ import {
   ESTIMATE_MEASUREMENT_UNITS,
   isEstimateMeasurementUnit,
   normalizeEstimateUnit,
-} from '../../../../prisma/estimate-measurement-units';
+} from '../../../../../prisma/estimate-measurement-units';
 import { collectBlueprintUnitIssues } from './estimate-unit-validation.util';
-import type { EstimateBlueprintConfig } from '../../../../prisma/estimate-blueprint-config.types';
+import type { EstimateBlueprintConfig } from '../../../../../prisma/estimate-blueprint-config.types';
 
 describe('estimate measurement units', () => {
   it('accepts canonical units', () => {

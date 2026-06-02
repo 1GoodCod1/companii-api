@@ -10,9 +10,10 @@ import { PrismaMaintenanceRepository } from './infrastructure/persistence/prisma
   imports: [ScheduleModule.forRoot(), PrismaModule],
   providers: [
     MaintenanceCleanupService,
+    PrismaMaintenanceRepository,
     {
       provide: MAINTENANCE_REPOSITORY,
-      useClass: PrismaMaintenanceRepository,
+      useExisting: PrismaMaintenanceRepository,
     },
   ],
 })
