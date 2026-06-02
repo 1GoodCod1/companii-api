@@ -54,6 +54,77 @@ const RLS_DELEGATE_KEYS = new Set([
   'boundTransaction',
 ]);
 
+type PrismaQueryEvent = {
+  timestamp: Date;
+  query: string;
+  params: string;
+  duration: number;
+  target: string;
+};
+
+function createPrismaRlsProxy(
+  target: PrismaService,
+  boundTransaction: PrismaClient['$transaction'],
+): PrismaService {
+  return new Proxy(target, {
+    get: (proxyTarget, prop) => {
+      if (typeof prop === 'symbol') {
+        return Reflect.get(proxyTarget, prop);
+      }
+
+      if (prop === '$transaction') {
+        const existing = rlsTxStorage.getStore();
+        if (existing) {
+          return <T>(
+            arg: Array<Promise<unknown>> | ((tx: Prisma.TransactionClient) => Promise<T>),
+            _options?: unknown,
+          ) => {
+            if (Array.isArray(arg)) {
+              return (async () => {
+                const results: unknown[] = [];
+                for (const item of arg) {
+                  results.push(await item);
+                }
+                return results as T;
+              })();
+            }
+            return arg(existing);
+          };
+        }
+
+        return (<R>(
+          arg:
+            | readonly Prisma.PrismaPromise<unknown>[]
+            | ((tx: Prisma.TransactionClient) => Promise<R>),
+          options?: Parameters<PrismaClient['$transaction']>[1],
+        ) => {
+          if (Array.isArray(arg)) {
+            return boundTransaction(arg, options);
+          }
+          return boundTransaction(
+            async (rawTx) => {
+              const tx = wrapSerialTransactionClient(rawTx);
+              return (arg as (tx: Prisma.TransactionClient) => Promise<R>)(tx);
+            },
+            options,
+          );
+        }) as PrismaClient['$transaction'];
+      }
+
+      const tx = rlsTxStorage.getStore();
+      if (tx && !RLS_DELEGATE_KEYS.has(prop)) {
+        return (tx as Record<string, unknown>)[prop];
+      }
+
+      if (RLS_DELEGATE_KEYS.has(prop) || prop.startsWith('$')) {
+        return Reflect.get(proxyTarget, prop);
+      }
+
+      return Reflect.get(proxyTarget, prop);
+    },
+  }) as PrismaService;
+}
+
 @Injectable()
 export class PrismaService
   extends PrismaClient
@@ -62,6 +133,7 @@ export class PrismaService
   private readonly logger = new Logger(PrismaService.name);
   readonly pool: Pool;
   private readonly boundTransaction: PrismaClient['$transaction'];
+  private readonly nodeEnv: string;
 
   constructor(configService: ConfigService) {
     const connectionString =
@@ -71,7 +143,8 @@ export class PrismaService
       throw new Error('DATABASE_URL is not set');
     }
     const pool = createPgPool(connectionString);
-    const isDev = process.env.NODE_ENV === 'development';
+    const nodeEnv = configService.get<string>('nodeEnv') ?? 'development';
+    const isDev = nodeEnv === 'development';
     const logLevels: Prisma.LogLevel[] = isDev
       ? (['query', 'info', 'warn', 'error'] as Prisma.LogLevel[])
       : (['warn', 'error'] as Prisma.LogLevel[]);
@@ -81,11 +154,14 @@ export class PrismaService
       log: logLevels,
     });
     this.pool = pool;
+    this.nodeEnv = nodeEnv;
+    this.boundTransaction = this.$transaction.bind(this);
 
-    // U-01: Emit slow-query warnings via the query event (metrics + audit trail).
-    // Prisma's built-in 'query' log fires after execution; we use $on to measure
-    // duration and flag queries exceeding the threshold without spamming every query.
-    this.$on('query' as never, (e: { timestamp: Date; query: string; params: string; duration: number; target: string }) => {
+    return createPrismaRlsProxy(this, this.boundTransaction);
+  }
+
+  async onModuleInit() {
+    this.$on('query' as never, (e: PrismaQueryEvent) => {
       if (e.duration >= SLOW_QUERY_THRESHOLD_MS) {
         const params = e.params.replace(/\s+/g, ' ').substring(0, 200);
         const queryPreview = e.query.replace(/\s+/g, ' ').substring(0, 300);
@@ -95,75 +171,10 @@ export class PrismaService
       }
     });
 
-    this.boundTransaction = this.$transaction.bind(this);
-    const boundTransaction = this.boundTransaction;
-
-    return new Proxy(this, {
-      get: (target, prop) => {
-        if (typeof prop === 'symbol') {
-          return Reflect.get(target, prop);
-        }
-
-        if (prop === '$transaction') {
-          const existing = rlsTxStorage.getStore();
-          if (existing) {
-            return <T>(
-              arg: Array<Promise<unknown>> | ((tx: Prisma.TransactionClient) => Promise<T>),
-              _options?: unknown,
-            ) => {
-              if (Array.isArray(arg)) {
-                return (async () => {
-                  const results: unknown[] = [];
-                  for (const item of arg) {
-                    results.push(await item);
-                  }
-                  return results as T;
-                })();
-              }
-              return arg(existing);
-            };
-          }
-
-          const baseTransaction = boundTransaction;
-
-          return (<R>(
-            arg:
-              | readonly Prisma.PrismaPromise<unknown>[]
-              | ((tx: Prisma.TransactionClient) => Promise<R>),
-            options?: Parameters<PrismaClient['$transaction']>[1],
-          ) => {
-            if (Array.isArray(arg)) {
-              return baseTransaction(arg, options);
-            }
-            return baseTransaction(
-              async (rawTx) => {
-                const tx = wrapSerialTransactionClient(rawTx);
-                return (arg as (tx: Prisma.TransactionClient) => Promise<R>)(tx);
-              },
-              options,
-            );
-          }) as PrismaClient['$transaction'];
-        }
-
-        const tx = rlsTxStorage.getStore();
-        if (tx && !RLS_DELEGATE_KEYS.has(prop)) {
-          return (tx as Record<string, unknown>)[prop];
-        }
-
-        if (RLS_DELEGATE_KEYS.has(prop) || prop.startsWith('$')) {
-          return Reflect.get(target, prop);
-        }
-
-        return Reflect.get(target, prop);
-      },
-    }) as PrismaService;
-  }
-
-  async onModuleInit() {
     try {
       await this.$connect();
     } catch (err) {
-      if (process.env.NODE_ENV === 'production') throw err;
+      if (this.nodeEnv === 'production') throw err;
       this.logger.warn('DB connect failed (dev continues)', err);
     }
   }
@@ -179,10 +190,10 @@ export class PrismaService
   ): Promise<T> {
     const existing = rlsTxStorage.getStore();
     if (existing) {
-      return work(existing);
+      return await work(existing);
     }
 
-    return this.runInteractiveTransaction(async (tx) => {
+    return await this.runInteractiveTransaction(async (tx) => {
       await tx.$executeRaw`
         SELECT set_config('app.current_user_id', ${ctx.userId}, true),
                set_config('app.current_company_id', ${ctx.companyId ?? ''}, true),

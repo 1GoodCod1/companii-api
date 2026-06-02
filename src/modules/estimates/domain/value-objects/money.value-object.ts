@@ -40,7 +40,7 @@ export class Money {
     return this.amount > other.amount;
   }
 
-  toString(): string {
+  format(): string {
     return `${this.amount.toFixed(2)} MDL`;
   }
 }

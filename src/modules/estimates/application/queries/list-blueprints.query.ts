@@ -10,7 +10,7 @@ export class ListBlueprintsQuery {
   ) {}
 
   async execute() {
-    return this.cache.getOrSet(
+    return await this.cache.getOrSet(
       this.cache.keys.blueprintsAll(),
       () =>
         this.prisma.estimateBlueprint.findMany({

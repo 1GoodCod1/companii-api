@@ -17,7 +17,6 @@ import { EstimatesContextService } from './context/estimates-context.service';
 import { EstimatePricingEngine } from './pricing/pricing-engine.service';
 import { EstimateBlueprintsService } from './services/blueprints/estimate-blueprints.service';
 import { EstimateTemplatesService } from './services/blueprints/estimate-templates.service';
-import { EstimateConversionService } from './services/portal/estimate-conversion.service';
 import { EstimatePortalService } from './services/portal/estimate-portal.service';
 import { EstimateProjectAccessService } from './services/projects/estimate-project-access.service';
 import { EstimateProjectPhotosService } from './services/projects/estimate-project-photos.service';
@@ -34,6 +33,7 @@ import { EstimateProjectShoppingListService } from './services/projects/estimate
 import { AuditModule } from '../audit/audit.module';
 import { EstimateCalculateProcessor } from './processors/calculate.processor';
 import { EmailModule } from '../email/email.module';
+import { QueueModule } from '../shared/queue';
 import { CreateProjectCommandHandler } from './application/commands/create-project.command';
 import { DeleteProjectCommandHandler } from './application/commands/delete-project.command';
 import { SaveSitePlanCommandHandler } from './application/commands/save-site-plan.command';
@@ -50,14 +50,9 @@ import { ConvertToInterventionsUseCase } from './application/use-cases/convert-t
 import { LineRecalculatorService } from './domain/services/line-recalculator.service';
 import { SanityCheckerService } from './domain/services/sanity-checker.service';
 import { VarianceCalculatorService } from './domain/services/variance-calculator.service';
-import { NestEmailSender } from './infrastructure/mail/nest-email-sender.adapter';
-import { NestPdfGenerator } from './infrastructure/pdf/nest-pdf-generator.adapter';
-import { NestAuditLog } from './infrastructure/audit/nest-audit-log.adapter';
-import { PrismaEstimateProjectRepository } from './infrastructure/persistence/prisma-estimate-project.repository';
-import { PrismaPricingRuleRepository } from './infrastructure/persistence/prisma-pricing-rule.repository';
 
 @Module({
-  imports: [AuthModule, CompaniesModule, InvoicePdfModule, AuditModule, EmailModule],
+  imports: [AuthModule, CompaniesModule, InvoicePdfModule, AuditModule, EmailModule, QueueModule],
   controllers: [
     EstimatesBlueprintsController,
     EstimateProjectsController,
@@ -82,7 +77,6 @@ import { PrismaPricingRuleRepository } from './infrastructure/persistence/prisma
     EstimateQuotesService,
     EstimateReceiptsService,
     EstimatePortalService,
-    EstimateConversionService,
     EstimateWorksheetService,
     EstimateVersionService,
     EstimateCommentService,
@@ -94,11 +88,6 @@ import { PrismaPricingRuleRepository } from './infrastructure/persistence/prisma
     LineRecalculatorService,
     SanityCheckerService,
     VarianceCalculatorService,
-    NestEmailSender,
-    NestPdfGenerator,
-    NestAuditLog,
-    PrismaEstimateProjectRepository,
-    PrismaPricingRuleRepository,
     GenerateQuoteUseCase,
     SendEstimateToClientUseCase,
     ConvertToInterventionsUseCase,
@@ -113,6 +102,5 @@ import { PrismaPricingRuleRepository } from './infrastructure/persistence/prisma
     GetVarianceReportQuery,
     ListBlueprintsQuery,
   ],
-  exports: [EstimatesService, EstimateTemplatesService],
 })
 export class EstimatesModule {}

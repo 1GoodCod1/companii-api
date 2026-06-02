@@ -19,7 +19,7 @@ async function streamToBuffer(stream: Readable | NodeJS.ReadableStream): Promise
       chunks.push(Buffer.from(chunk));
     }
   }
-  return Buffer.concat(chunks);
+  return await Buffer.concat(chunks);
 }
 
 function fnv1a32(value: string): number {

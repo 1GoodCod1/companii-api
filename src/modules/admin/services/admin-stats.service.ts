@@ -1,47 +1,24 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../shared/database/prisma.service';
-import type { AdminAuditQueryDto } from '../dto/admin-audit-query.dto';
+import { Inject, Injectable } from '@nestjs/common';
+import type { AdminAuditQueryDto } from '@/modules/admin/dto/admin-audit-query.dto';
+import { ADMIN_REPOSITORY } from '../domain/ports/admin.repository.port';
+import type { PrismaAdminRepository } from '../infrastructure/persistence/prisma-admin.repository';
 
 @Injectable()
 export class AdminStatsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(ADMIN_REPOSITORY)
+    private readonly adminRepo: PrismaAdminRepository,
+  ) {}
 
   stats() {
-    return this.prisma.inSerial([
-      () => this.prisma.company.count(),
-      () => this.prisma.user.count(),
-      () => this.prisma.intervention.count(),
-      () => this.prisma.companyWaitlist.count(),
-    ]).then(([companies, users, interventions, waitlist]) => ({
-      companies,
-      users,
-      interventions,
-      waitlist,
-    }));
+    return this.adminRepo.getStats();
   }
 
   listWaitlist() {
-    return this.prisma.companyWaitlist.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 200,
-    });
+    return this.adminRepo.listWaitlist();
   }
 
   listAuditLogs(query: AdminAuditQueryDto) {
-    const limit = query.limit ?? 50;
-    return this.prisma.auditLog.findMany({
-      where: {
-        ...(query.entityType ? { entityType: query.entityType } : {}),
-        ...(query.entityId ? { entityId: query.entityId } : {}),
-        ...(query.action ? { action: query.action } : {}),
-      },
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-      include: {
-        user: {
-          select: { id: true, email: true, firstName: true, lastName: true },
-        },
-      },
-    });
+    return this.adminRepo.listAuditLogs(query);
   }
 }

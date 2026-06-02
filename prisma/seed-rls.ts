@@ -9,7 +9,7 @@ export async function withSeedRlsContext<T>(
   prisma: PrismaClient,
   work: (tx: Prisma.TransactionClient) => Promise<T>,
 ): Promise<T> {
-  return prisma.$transaction(async (tx) => {
+  return await prisma.$transaction(async (tx) => {
     await tx.$executeRaw`
       SELECT set_config('app.current_user_id', ${SEED_RLS_CONTEXT.userId}, true),
              set_config('app.current_company_id', '', true),

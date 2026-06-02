@@ -1,11 +1,12 @@
+import { Type } from 'class-transformer';
 import { IsObject } from 'class-validator';
 
+export class PricingModifiersMapDto {
+  [key: string]: number | null;
+}
+
 export class UpdatePricingModifiersDto {
-  /**
-   * Map of registry key → surcharge percent. `null` clears the override (back to
-   * the registry default). Keys and ranges are validated in the service against
-   * the pricing-modifier registry.
-   */
   @IsObject()
+  @Type(() => PricingModifiersMapDto)
   modifiers!: Record<string, number | null>;
 }

@@ -1,11 +1,12 @@
-import { Injectable, Logger, StreamableFile } from '@nestjs/common';
+import { Inject, Injectable, Logger, StreamableFile } from '@nestjs/common';
 import type { Response } from 'express';
 import { FileVisibility } from '@prisma/client';
 import {
   AppErrorMessages,
   AppErrors,
 } from '../../../common/errors';
-import { PrismaService } from '../../shared/database/prisma.service';
+import { FILES_REPOSITORY } from '../domain/ports/files.repository.port';
+import type { PrismaFilesRepository } from '../infrastructure/persistence/prisma-files.repository';
 import type { JwtPayload } from '../../auth/types/jwt-payload';
 import { FilesValidationService } from './files-validation.service';
 import { StorageService } from './storage.service';
@@ -31,7 +32,8 @@ export class FilesService {
   private readonly logger = new Logger(FilesService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    @Inject(FILES_REPOSITORY)
+    private readonly filesRepo: PrismaFilesRepository,
     private readonly validation: FilesValidationService,
     private readonly storage: StorageService,
   ) {}
@@ -51,15 +53,13 @@ export class FilesService {
       throw err;
     }
 
-    const record = await this.prisma.file.create({
-      data: {
-        filename: file.originalname,
-        path: storedPath,
-        mimetype: file.mimetype,
-        size: file.size,
-        visibility,
-        uploadedById: userId,
-      },
+    const record = await this.filesRepo.create({
+      filename: file.originalname,
+      path: storedPath,
+      mimetype: file.mimetype,
+      size: file.size,
+      visibility,
+      uploadedById: userId,
     });
 
     return this.toDto(record);
@@ -83,7 +83,7 @@ export class FilesService {
     user: JwtPayload | undefined,
     res: Response,
   ): Promise<StreamableFile | void> {
-    const file = await this.prisma.file.findUnique({ where: { id: fileId } });
+    const file = await this.filesRepo.findById(fileId);
     if (!file) throw AppErrors.notFound(AppErrorMessages.FILES_NOT_FOUND);
 
     if (file.visibility === FileVisibility.PUBLIC) {
@@ -102,12 +102,12 @@ export class FilesService {
   }
 
   async deleteFileIfOwned(fileId: string, userId: string): Promise<void> {
-    const file = await this.prisma.file.findUnique({ where: { id: fileId } });
+    const file = await this.filesRepo.findById(fileId);
     if (!file) throw AppErrors.notFound(AppErrorMessages.FILES_NOT_FOUND);
     if (file.uploadedById !== userId) {
       throw AppErrors.forbidden(AppErrorMessages.FILES_ACCESS_DENIED);
     }
-    await this.prisma.file.delete({ where: { id: fileId } });
+    await this.filesRepo.delete(fileId);
     try {
       await this.storage.deleteByStoredPath(file.path);
     } catch (err) {
@@ -122,16 +122,16 @@ export class FilesService {
   private async persistMulterResult(file: Express.Multer.File): Promise<string> {
     const s3file = file as MulterS3File;
     if (s3file.bucket && s3file.key) {
-      return this.storage.encodeB2(s3file.bucket, s3file.key);
+      return await this.storage.encodeB2(s3file.bucket, s3file.key);
     }
 
     const localPath = file.path?.replace(/\\/g, '/') ?? '';
     if (!localPath) {
       throw AppErrors.badRequest(AppErrorMessages.FILES_NONE_UPLOADED);
     }
-    if (localPath.startsWith('uploads/')) return `/${localPath}`;
+    if (localPath.startsWith('uploads/')) return await `/${localPath}`;
     const base = localPath.split('/').pop() ?? 'file';
-    return `/uploads/${base}`;
+    return await `/uploads/${base}`;
   }
 
   private buildPublicUrl(storedPath: string): string | null {
@@ -192,19 +192,7 @@ export class FilesService {
     if (user.accountKind === 'PLATFORM_ADMIN') return;
     if (file.uploadedById && file.uploadedById === user.sub) return;
 
-    const isReceiptForLine = await this.prisma.estimateLine.findFirst({
-      where: {
-        receiptFileKey: file.id,
-        stage: {
-          project: {
-            OR: [
-              { companyId: user.activeCompanyId },
-              { customer: { portalUserId: user.sub } },
-            ],
-          },
-        },
-      },
-    });
+    const isReceiptForLine = await this.filesRepo.isReceiptForLine(file.id, user.activeCompanyId ?? null, user.sub);
     if (!isReceiptForLine) {
       throw AppErrors.forbidden(AppErrorMessages.FILES_ACCESS_DENIED);
     }

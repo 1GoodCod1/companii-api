@@ -1,9 +1,9 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuditModule } from '../audit/audit.module';
-import { PortalModule } from '../portal/portal.module';
+import { EndClientLinkModule } from '../end-client-link/end-client-link.module';
 import { TeamInviteModule } from '../companies/team/team-invite.module';
 import { EmailModule } from '../email/email.module';
 import { AuthService } from './auth.service';
@@ -21,7 +21,7 @@ import { AUTH_USE_CASE_PROVIDERS } from './use-cases/auth-use-cases.providers';
 @Module({
   imports: [
     AuditModule,
-    forwardRef(() => PortalModule),
+    EndClientLinkModule,
     TeamInviteModule,
     EmailModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
@@ -47,6 +47,6 @@ import { AUTH_USE_CASE_PROVIDERS } from './use-cases/auth-use-cases.providers';
     SubscriptionGuard,
     ...AUTH_USE_CASE_PROVIDERS,
   ],
-  exports: [AuthService, JwtModule, PassportModule, SubscriptionGuard, RefreshCookieService],
+  exports: [AuthService, RefreshCookieService],
 })
 export class AuthModule {}

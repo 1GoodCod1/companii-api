@@ -1,11 +1,9 @@
-import { Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { AuditService } from '../../../audit/audit.service';
 import type { AuditLog } from '../../domain/ports/audit-log.port';
 import { AuditAction } from '../../../audit/audit-action.enum';
 import { AuditEntityType } from '../../../audit/audit-entity-type.enum';
 
-@Injectable()
 export class NestAuditLog implements AuditLog {
   constructor(private readonly audit: AuditService) {}
 

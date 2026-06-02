@@ -1,4 +1,4 @@
-import { Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 import { QUEUE_NAMES } from '../../shared/queue/queue.constants';
@@ -7,6 +7,7 @@ import { EstimatesService } from '../estimates.service';
 import type { JwtPayload } from '../../auth/types/jwt-payload';
 
 @Processor(QUEUE_NAMES.ESTIMATE_CALCULATE)
+@Injectable()
 export class EstimateCalculateProcessor extends WorkerHost {
   private readonly logger = new Logger(EstimateCalculateProcessor.name);
 

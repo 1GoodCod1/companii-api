@@ -94,6 +94,6 @@ export class QuotePdfService {
     doc.text(`TOTAL: ${formatMoney(total)}`, 370, rowY + 20, { width: 170, align: 'right' });
 
     doc.end();
-    return finished;
+    return await finished;
   }
 }

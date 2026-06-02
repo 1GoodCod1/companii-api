@@ -1,50 +1,40 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import { AppErrorMessages, AppErrors } from '../../../common/errors';
-import { PrismaService } from '../../shared/database/prisma.service';
 import { CacheService } from '../../shared/cache/cache.service';
-import type { CreateAdminBlueprintDto, UpdateAdminBlueprintDto } from '../dto/admin-blueprint.dto';
+import { ADMIN_REPOSITORY } from '../domain/ports/admin.repository.port';
+import type { PrismaAdminRepository } from '../infrastructure/persistence/prisma-admin.repository';
+import type { CreateAdminBlueprintDto, UpdateAdminBlueprintDto } from '@/modules/admin/dto/admin-blueprint.dto';
 
 @Injectable()
 export class AdminBlueprintsService {
   constructor(
-    private readonly prisma: PrismaService,
+    @Inject(ADMIN_REPOSITORY)
+    private readonly adminRepo: PrismaAdminRepository,
     private readonly cache: CacheService,
   ) {}
 
   list() {
-    return this.prisma.estimateBlueprint.findMany({
-      include: {
-        category: { select: { id: true, name: true, slug: true } },
-        _count: { select: { projects: true } },
-      },
-      orderBy: { name: 'asc' },
-    });
+    return this.adminRepo.listBlueprints();
   }
 
   async create(dto: CreateAdminBlueprintDto) {
-    const category = await this.prisma.category.findUnique({
-      where: { id: dto.categoryId },
-    });
+    const category = await this.adminRepo.findCategoryById(dto.categoryId);
     if (!category) {
       throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
     }
 
-    const existing = await this.prisma.estimateBlueprint.findUnique({
-      where: { categoryId: dto.categoryId },
-    });
+    const existing = await this.adminRepo.findBlueprintByCategoryId(dto.categoryId);
     if (existing) {
       throw AppErrors.conflict('This category already has an estimate blueprint');
     }
 
-    const blueprint = await this.prisma.estimateBlueprint.create({
-      data: {
-        categoryId: dto.categoryId,
-        name: dto.name.trim(),
-        version: dto.version ?? 1,
-        config: dto.config as any,
-        isActive: dto.isActive !== false,
-      },
-      include: { category: { select: { id: true, name: true, slug: true } } },
+    const blueprint = await this.adminRepo.createBlueprint({
+      categoryId: dto.categoryId,
+      name: dto.name.trim(),
+      version: dto.version ?? 1,
+      config: dto.config as Prisma.InputJsonValue,
+      isActive: dto.isActive !== false,
     });
 
     await this.invalidateCache(category.slug);
@@ -52,25 +42,18 @@ export class AdminBlueprintsService {
   }
 
   async update(id: string, dto: UpdateAdminBlueprintDto) {
-    const existing = await this.prisma.estimateBlueprint.findUnique({
-      where: { id },
-      include: { category: true },
-    });
+    const existing = await this.adminRepo.findBlueprintById(id);
     if (!existing) {
       throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
     }
 
-    const data: any = {};
+    const data: Prisma.EstimateBlueprintUncheckedUpdateInput = {};
     if (dto.name !== undefined) data.name = dto.name.trim();
     if (dto.version !== undefined) data.version = dto.version;
-    if (dto.config !== undefined) data.config = dto.config;
+    if (dto.config !== undefined) data.config = dto.config as Prisma.InputJsonValue;
     if (dto.isActive !== undefined) data.isActive = dto.isActive;
 
-    const blueprint = await this.prisma.estimateBlueprint.update({
-      where: { id },
-      data,
-      include: { category: { select: { id: true, name: true, slug: true } } },
-    });
+    const blueprint = await this.adminRepo.updateBlueprint(id, data);
 
     await this.invalidateCache(existing.category.slug);
     if (existing.category.slug !== blueprint.category.slug) {
@@ -80,13 +63,7 @@ export class AdminBlueprintsService {
   }
 
   async delete(id: string) {
-    const blueprint = await this.prisma.estimateBlueprint.findUnique({
-      where: { id },
-      include: {
-        category: true,
-        _count: { select: { projects: true } },
-      },
-    });
+    const blueprint = await this.adminRepo.findBlueprintById(id);
     if (!blueprint) {
       throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
     }
@@ -95,7 +72,7 @@ export class AdminBlueprintsService {
       throw AppErrors.conflict('Cannot delete a blueprint that is in use by estimate projects');
     }
 
-    await this.prisma.estimateBlueprint.delete({ where: { id } });
+    await this.adminRepo.deleteBlueprint(id);
     await this.invalidateCache(blueprint.category.slug);
     return { message: 'Blueprint deleted' };
   }

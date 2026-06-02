@@ -1,6 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { PrismaService } from '../database/prisma.service';
+import { MAINTENANCE_REPOSITORY } from './domain/ports/maintenance.repository.port';
+import type { PrismaMaintenanceRepository } from './infrastructure/persistence/prisma-maintenance.repository';
+
 @Injectable()
 export class MaintenanceCleanupService {
   private readonly logger = new Logger(MaintenanceCleanupService.name);
@@ -8,7 +10,10 @@ export class MaintenanceCleanupService {
   private static readonly PASSWORD_RESET_GRACE_DAYS = 30;
   private static readonly REFRESH_TOKEN_GRACE_DAYS = 7;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(MAINTENANCE_REPOSITORY)
+    private readonly maintenanceRepo: PrismaMaintenanceRepository,
+  ) {}
 
   @Cron(CronExpression.EVERY_HOUR)
   async cleanupExpiredPasswordResetTokens(): Promise<void> {
@@ -16,17 +21,10 @@ export class MaintenanceCleanupService {
       const cutoff = this.cutoffDate(
         MaintenanceCleanupService.PASSWORD_RESET_GRACE_DAYS,
       );
-      const result = await this.prisma.passwordResetToken.deleteMany({
-        where: {
-          OR: [
-            { expiresAt: { lt: cutoff } },
-            { used: true, createdAt: { lt: cutoff } },
-          ],
-        },
-      });
-      if (result.count > 0) {
+      const prunedCount = await this.maintenanceRepo.prunePasswordResetTokens(cutoff);
+      if (prunedCount > 0) {
         this.logger.log(
-          `Pruned ${result.count} expired password reset tokens (older than ${MaintenanceCleanupService.PASSWORD_RESET_GRACE_DAYS}d).`,
+          `Pruned ${prunedCount} expired password reset tokens (older than ${MaintenanceCleanupService.PASSWORD_RESET_GRACE_DAYS}d).`,
         );
       }
     });
@@ -38,35 +36,23 @@ export class MaintenanceCleanupService {
       const cutoff = this.cutoffDate(
         MaintenanceCleanupService.REFRESH_TOKEN_GRACE_DAYS,
       );
-      const result = await this.prisma.refreshToken.deleteMany({
-        where: { expiresAt: { lt: cutoff } },
-      });
-      if (result.count > 0) {
+      const prunedCount = await this.maintenanceRepo.pruneRefreshTokens(cutoff);
+      if (prunedCount > 0) {
         this.logger.log(
-          `Pruned ${result.count} expired refresh tokens (older than ${MaintenanceCleanupService.REFRESH_TOKEN_GRACE_DAYS}d).`,
+          `Pruned ${prunedCount} expired refresh tokens (older than ${MaintenanceCleanupService.REFRESH_TOKEN_GRACE_DAYS}d).`,
         );
       }
     });
   }
 
-  /**
-   * Mark UNPAID invoices whose `dueDate` has elapsed as OVERDUE.
-   * Runs hourly so a status flip happens within ~1h of due-date passing.
-   */
   @Cron(CronExpression.EVERY_HOUR)
   async markOverdueInvoices(): Promise<void> {
     await this.withAdvisoryLock('invoice-overdue', async () => {
       const now = new Date();
-      const result = await this.prisma.companyInvoice.updateMany({
-        where: {
-          paymentStatus: 'UNPAID',
-          dueDate: { not: null, lt: now },
-        },
-        data: { paymentStatus: 'OVERDUE' },
-      });
-      if (result.count > 0) {
+      const markedCount = await this.maintenanceRepo.markOverdueInvoices(now);
+      if (markedCount > 0) {
         this.logger.log(
-          `Marked ${result.count} invoices as OVERDUE (dueDate before ${now.toISOString()}).`,
+          `Marked ${markedCount} invoices as OVERDUE (dueDate before ${now.toISOString()}).`,
         );
       }
     });
@@ -82,10 +68,10 @@ export class MaintenanceCleanupService {
   ): Promise<void> {
     const subKey = this.hashString(jobName);
     try {
-      const rows = await this.prisma.$queryRaw<Array<{ locked: boolean }>>`
-        SELECT pg_try_advisory_lock(${MaintenanceCleanupService.LOCK_KEY}::int, ${subKey}::int) AS locked
-      `;
-      const acquired = rows[0]?.locked === true;
+      const acquired = await this.maintenanceRepo.tryAdvisoryLock(
+        MaintenanceCleanupService.LOCK_KEY,
+        subKey,
+      );
       if (!acquired) {
         this.logger.debug(
           `[${jobName}] another replica holds the lock; skipping`,
@@ -96,9 +82,10 @@ export class MaintenanceCleanupService {
       try {
         await job();
       } finally {
-        await this.prisma.$executeRaw`
-          SELECT pg_advisory_unlock(${MaintenanceCleanupService.LOCK_KEY}::int, ${subKey}::int)
-        `;
+        await this.maintenanceRepo.advisoryUnlock(
+          MaintenanceCleanupService.LOCK_KEY,
+          subKey,
+        );
       }
     } catch (err) {
       this.logger.error(

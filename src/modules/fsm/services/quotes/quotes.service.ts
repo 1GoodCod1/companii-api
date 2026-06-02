@@ -68,7 +68,7 @@ export class QuotesService {
     },
   ) {
     const cid = this.ctx.companyId(user);
-    return this.prisma.$transaction(async (tx) => {
+    return await this.prisma.$transaction(async (tx) => {
       const number = await nextCompanyNumber(tx, {
         companyId: cid,
         namespace: 'quote-number',

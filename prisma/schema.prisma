@@ -215,6 +215,8 @@ model City {
   name         String
   slug         String    @unique
   translations Json?
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
   companies    Company[]
 
   @@map("cities")
@@ -225,6 +227,8 @@ model Category {
   name         String
   slug         String    @unique
   translations Json?
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
   companies          Company[]
   companyServices    CompanyService[]
   estimateBlueprints EstimateBlueprint[]
@@ -261,9 +265,9 @@ model Company {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  owner        User                 @relation("CompanyOwner", fields: [ownerUserId], references: [id])
-  city         City                 @relation(fields: [cityId], references: [id])
-  category     Category?            @relation(fields: [categoryId], references: [id])
+  owner        User                 @relation("CompanyOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  city         City                 @relation(fields: [cityId], references: [id], onDelete: Restrict)
+  category     Category?            @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   members      CompanyMember[]
   invitations  CompanyInvitation[]
   documents    CompanyDocument[]
@@ -442,7 +446,7 @@ model CompanySubscription {
   updatedAt          DateTime                  @updatedAt @map("updated_at")
 
   company Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  plan    CompanyPlan @relation(fields: [planId], references: [id])
+  plan    CompanyPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
 
   @@map("company_subscriptions")
 }
@@ -460,7 +464,7 @@ model CompanyCustomer {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   company       Company                    @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  portalUser    User?                      @relation(fields: [portalUserId], references: [id])
+  portalUser    User?                      @relation(fields: [portalUserId], references: [id], onDelete: SetNull)
   documents     CompanyCustomerDocument[]
   interventions Intervention[]
   quotes            Quote[]
@@ -554,8 +558,8 @@ model Intervention {
   updatedAt          DateTime           @updatedAt @map("updated_at")
 
   company         Company                     @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  customer        CompanyCustomer             @relation(fields: [customerId], references: [id])
-  technician      CompanyMember?              @relation("TechnicianInterventions", fields: [technicianId], references: [id])
+  customer        CompanyCustomer             @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  technician      CompanyMember?              @relation("TechnicianInterventions", fields: [technicianId], references: [id], onDelete: SetNull)
   crew            Crew?                       @relation("CrewInterventions", fields: [crewId], references: [id], onDelete: SetNull)
   sourceLead      CompanyLead?                @relation(fields: [sourceLeadId], references: [id], onDelete: SetNull)
   estimateProject EstimateProject?            @relation(fields: [estimateProjectId], references: [id], onDelete: SetNull)
@@ -633,7 +637,7 @@ model InterventionStatusHistory {
   changedAt         DateTime           @default(now()) @map("changed_at")
 
   intervention Intervention  @relation(fields: [interventionId], references: [id], onDelete: Cascade)
-  changedBy    CompanyMember @relation(fields: [changedByMemberId], references: [id])
+  changedBy    CompanyMember @relation(fields: [changedByMemberId], references: [id], onDelete: Cascade)
 
   @@index([interventionId, changedAt])
   @@map("intervention_status_history")
@@ -648,17 +652,19 @@ model InterventionNote {
   createdAt        DateTime @default(now()) @map("created_at")
 
   intervention Intervention  @relation(fields: [interventionId], references: [id], onDelete: Cascade)
-  author       CompanyMember @relation(fields: [authorMemberId], references: [id])
+  author       CompanyMember @relation(fields: [authorMemberId], references: [id], onDelete: Cascade)
 
   @@index([interventionId, createdAt])
   @@map("intervention_notes")
 }
 
 model InterventionPhoto {
-  id             String @id @default(uuid())
-  interventionId String @map("intervention_id")
-  fileKey        String @map("file_key")
-  sortOrder      Int    @default(0) @map("sort_order")
+  id             String   @id @default(uuid())
+  interventionId String   @map("intervention_id")
+  fileKey        String   @map("file_key")
+  sortOrder      Int      @default(0) @map("sort_order")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
   intervention Intervention @relation(fields: [interventionId], references: [id], onDelete: Cascade)
 
@@ -679,8 +685,8 @@ model Quote {
   updatedAt      DateTime    @updatedAt @map("updated_at")
 
   company      Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  customer     CompanyCustomer    @relation(fields: [customerId], references: [id])
-  intervention Intervention?      @relation(fields: [interventionId], references: [id])
+  customer     CompanyCustomer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  intervention Intervention?      @relation(fields: [interventionId], references: [id], onDelete: SetNull)
   estimateProject EstimateProject?
   lines        QuoteLine[]
 
@@ -697,9 +703,11 @@ model QuoteLine {
   qty              Decimal  @db.Decimal(10, 2)
   unitPrice        Decimal  @map("unit_price") @db.Decimal(12, 2)
   vatRate          Decimal? @map("vat_rate") @db.Decimal(5, 2)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
   quote          Quote           @relation(fields: [quoteId], references: [id], onDelete: Cascade)
-  companyService CompanyService? @relation(fields: [companyServiceId], references: [id])
+  companyService CompanyService? @relation(fields: [companyServiceId], references: [id], onDelete: SetNull)
 
   @@map("quote_lines")
 }
@@ -727,7 +735,7 @@ model CompanyInvoice {
   paymentProofRejectedAt        DateTime? @map("payment_proof_rejected_at")
 
   company      Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  intervention Intervention?     @relation(fields: [interventionId], references: [id])
+  intervention Intervention?     @relation(fields: [interventionId], references: [id], onDelete: SetNull)
 
   @@index([companyId, paymentStatus])
   @@index([companyId, issuedAt])
@@ -852,8 +860,8 @@ model EstimateProject {
   updatedAt         DateTime              @updatedAt @map("updated_at")
 
   company      Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  customer     CompanyCustomer         @relation(fields: [customerId], references: [id])
-  category     Category                @relation(fields: [categoryId], references: [id])
+  customer     CompanyCustomer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  category     Category                @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   blueprint    EstimateBlueprint?      @relation(fields: [blueprintId], references: [id], onDelete: SetNull)
   quote        Quote?                  @relation(fields: [quoteId], references: [id], onDelete: SetNull)
   versions     EstimateVersion[]
@@ -971,6 +979,8 @@ model EstimateLine {
   actualStatusUpdatedAt   DateTime?                @map("actual_status_updated_at")
   actualStatusByMemberId  String?                  @map("actual_status_by_member_id")
   receiptId               String?                  @map("receipt_id")
+  createdAt               DateTime                 @default(now()) @map("created_at")
+  updatedAt               DateTime                 @updatedAt @map("updated_at")
 
   stage   EstimateStage    @relation(fields: [stageId], references: [id], onDelete: Cascade)
   receipt EstimateReceipt? @relation(fields: [receiptId], references: [id], onDelete: SetNull)

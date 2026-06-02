@@ -97,7 +97,7 @@ export class CacheService {
   }
 
   async invalidate(pattern: string): Promise<number> {
-    return this.delByPattern(pattern);
+    return await this.delByPattern(pattern);
   }
 
   async invalidateWithLeafKey(

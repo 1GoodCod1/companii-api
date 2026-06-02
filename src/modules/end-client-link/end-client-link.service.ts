@@ -12,7 +12,7 @@ export class EndClientLinkService {
   constructor(private readonly prisma: PrismaService) {}
 
   async acceptInviteToken(token: string, userId: string) {
-    return this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async () => {
+    return await this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async () => {
       const invite = await this.prisma.portalInvitation.findUnique({
         where: { token },
         include: { customer: true },
@@ -50,7 +50,7 @@ export class EndClientLinkService {
   }
 
   async previewInvite(token: string) {
-    return this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async () => {
+    return await this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async () => {
       const invite = await this.prisma.portalInvitation.findUnique({
         where: { token },
         include: {
@@ -91,7 +91,7 @@ export class EndClientLinkService {
     phone?: string;
     portalInviteToken: string;
   }) {
-    return this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async () => {
+    return await this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async () => {
       const invite = await this.prisma.portalInvitation.findUnique({
         where: { token: dto.portalInviteToken },
         include: { customer: true },
@@ -129,7 +129,7 @@ export class EndClientLinkService {
   }
 
   async linkByContact(userId: string, contact: { phone?: string; email?: string }) {
-    return this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async () => {
+    return await this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async () => {
         const normalizedPhone = normalizePhone(contact.phone);
         const email = contact.email?.trim().toLowerCase();
 

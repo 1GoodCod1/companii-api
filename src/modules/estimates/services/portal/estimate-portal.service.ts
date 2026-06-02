@@ -32,7 +32,7 @@ export class EstimatePortalService {
     projectId: string,
     status: 'ACCEPTED' | 'REJECTED',
   ) {
-    return this.prisma.$transaction(async (tx) => {
+    return await this.prisma.$transaction(async (tx) => {
       const lockedProjects = await tx.$queryRaw<Array<{ status: EstimateProjectStatus; clientFeedback: any; number: string; title: string; grandTotal: any }>>`
         SELECT status, client_feedback as "clientFeedback", number, title, grand_total as "grandTotal"
         FROM estimate_projects 
@@ -102,7 +102,7 @@ export class EstimatePortalService {
       throw AppErrors.badRequest('Comentariul depășește 2000 de caractere');
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    return await this.prisma.$transaction(async (tx) => {
       const lockedProjects = await tx.$queryRaw<Array<{ status: EstimateProjectStatus; clientFeedback: any; number: string; title: string }>>`
         SELECT status, client_feedback as "clientFeedback", number, title FROM estimate_projects
         WHERE id = ${projectId} AND customer_id = ${customerId} FOR UPDATE

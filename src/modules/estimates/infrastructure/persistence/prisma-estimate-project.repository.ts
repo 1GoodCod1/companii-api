@@ -1,10 +1,8 @@
-import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../shared/database/prisma.service';
 import { CacheService } from '../../../shared/cache/cache.service';
 import type { EstimateProjectRepository } from '../../domain/ports/estimate-project.repository.port';
 import type { EstimateProjectDetail } from '../../estimate.constants';
 
-@Injectable()
 export class PrismaEstimateProjectRepository implements EstimateProjectRepository {
   constructor(
     private readonly prisma: PrismaService,
@@ -12,21 +10,21 @@ export class PrismaEstimateProjectRepository implements EstimateProjectRepositor
   ) {}
 
   async findById(id: string): Promise<EstimateProjectDetail | null> {
-    return this.prisma.estimateProject.findUnique({
+    return await this.prisma.estimateProject.findUnique({
       where: { id },
       include: this.fullInclude(),
     }) as unknown as EstimateProjectDetail | null;
   }
 
   async findByCompanyId(companyId: string, id: string): Promise<EstimateProjectDetail | null> {
-    return this.prisma.estimateProject.findFirst({
+    return await this.prisma.estimateProject.findFirst({
       where: { id, companyId },
       include: this.fullInclude(),
     }) as unknown as EstimateProjectDetail | null;
   }
 
   async findByCustomerId(customerId: string, projectId: string): Promise<EstimateProjectDetail | null> {
-    return this.prisma.estimateProject.findFirst({
+    return await this.prisma.estimateProject.findFirst({
       where: { id: projectId, customerId },
       include: this.fullInclude(),
     }) as unknown as EstimateProjectDetail | null;
@@ -47,7 +45,7 @@ export class PrismaEstimateProjectRepository implements EstimateProjectRepositor
     return { items: items as unknown as EstimateProjectDetail[], nextCursor: items.length === take ? items[items.length - 1]?.id : null };
   }
 
-  async create(project: import('../../domain/entities/estimate-project.entity').EstimateProject): Promise<EstimateProjectDetail> {
+  create(project: import('../../domain/entities/estimate-project.entity').EstimateProject): Promise<EstimateProjectDetail> {
     throw new Error('Use create with transaction');
   }
 

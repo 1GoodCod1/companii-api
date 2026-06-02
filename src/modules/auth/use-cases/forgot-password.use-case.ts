@@ -7,7 +7,7 @@ import { AuditEntityType } from '../../audit/audit-entity-type.enum';
 import { AuditService } from '../../audit/audit.service';
 import { EmailService } from '../../email/email.service';
 import { RedisService } from '../../shared/redis/redis.service';
-import { ForgotPasswordDto } from '../dto/forgot-password.dto';
+import { ForgotPasswordDto } from '@/modules/auth/dto/forgot-password.dto';
 
 const GENERIC_RESPONSE = {
   message:

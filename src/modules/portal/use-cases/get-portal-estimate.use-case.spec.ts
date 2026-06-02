@@ -4,18 +4,17 @@ import { EstimateProjectStatus } from '@prisma/client';
 
 describe('GetPortalEstimateUseCase', () => {
   let useCase: GetPortalEstimateUseCase;
-  let prisma: any;
+  let portalRepo: {
+    findCustomerByUserId: jest.Mock;
+    findProjectByIdAndCustomer: jest.Mock;
+  };
 
   beforeEach(() => {
-    prisma = {
-      companyCustomer: {
-        findFirst: jest.fn(),
-      },
-      estimateProject: {
-        findFirst: jest.fn(),
-      },
+    portalRepo = {
+      findCustomerByUserId: jest.fn(),
+      findProjectByIdAndCustomer: jest.fn(),
     };
-    useCase = new GetPortalEstimateUseCase(prisma as any);
+    useCase = new GetPortalEstimateUseCase(portalRepo as any);
   });
 
   const mockUser: JwtPayload = {
@@ -57,8 +56,8 @@ describe('GetPortalEstimateUseCase', () => {
   };
 
   it('successfully fetches and sanitizes estimate details for end client', async () => {
-    prisma.companyCustomer.findFirst.mockResolvedValue(mockCustomer);
-    prisma.estimateProject.findFirst.mockResolvedValue(mockProject);
+    portalRepo.findCustomerByUserId.mockResolvedValue(mockCustomer);
+    portalRepo.findProjectByIdAndCustomer.mockResolvedValue(mockProject);
 
     const result = await useCase.execute(mockUser, 'project-123');
 
@@ -82,12 +81,15 @@ describe('GetPortalEstimateUseCase', () => {
     expect(line.materialCost).toBeUndefined();
     expect(line.name).toBe('Pipes');
 
-    expect(prisma.estimateProject.findFirst).toHaveBeenCalled();
+    expect(portalRepo.findProjectByIdAndCustomer).toHaveBeenCalledWith(
+      'project-123',
+      mockCustomer.id,
+    );
   });
 
   it('throws NotFound if the estimate does not exist or does not belong to client', async () => {
-    prisma.companyCustomer.findFirst.mockResolvedValue(mockCustomer);
-    prisma.estimateProject.findFirst.mockResolvedValue(null);
+    portalRepo.findCustomerByUserId.mockResolvedValue(mockCustomer);
+    portalRepo.findProjectByIdAndCustomer.mockResolvedValue(null);
 
     await expect(useCase.execute(mockUser, 'invalid-id')).rejects.toThrow();
   });

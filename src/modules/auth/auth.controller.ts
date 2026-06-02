@@ -19,6 +19,7 @@ import {
 } from '../../common/constants';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { AuthService } from './auth.service';
 import { RefreshCookieService } from './services/refresh-cookie.service';
 import { RegisterDto } from './dto/register.dto';
@@ -29,6 +30,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import type { JwtPayload } from './types/jwt-payload';
 
+@UseGuards(JwtAuthGuard)
 @Controller(CONTROLLER_PATH.auth)
 export class AuthController {
   constructor(

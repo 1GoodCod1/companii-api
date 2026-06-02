@@ -1,8 +1,6 @@
-import { Injectable } from '@nestjs/common';
 import { EmailService } from '../../../email/email.service';
 import type { EmailSender } from '../../domain/ports/email-sender.port';
 
-@Injectable()
 export class NestEmailSender implements EmailSender {
   constructor(private readonly email: EmailService) {}
 

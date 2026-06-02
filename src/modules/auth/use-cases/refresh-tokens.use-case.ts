@@ -10,6 +10,6 @@ export class RefreshTokensUseCase {
   ) {}
 
   async execute(refreshToken: string) {
-    return this.tokens.refreshTokens(refreshToken, (p) => this.jwtPayload.enrichPayload(p));
+    return await this.tokens.refreshTokens(refreshToken, (p) => this.jwtPayload.enrichPayload(p));
   }
 }

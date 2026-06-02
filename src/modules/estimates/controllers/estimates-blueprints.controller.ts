@@ -1,7 +1,7 @@
 import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { CONTROLLER_PATH } from '../../../common/constants';
-import { CompanyGuard } from '../../companies/guards/company.guard';
-import { SubscriptionGuard } from '../../auth/guards/subscription.guard';
+import { CompanyGuard } from '@/modules/companies/guards/company.guard';
+import { SubscriptionGuard } from '@/modules/auth/guards/subscription.guard';
 import { RequiresFeature } from '../../../common/decorators/requires-feature.decorator';
 import { EstimatesService } from '../estimates.service';
 

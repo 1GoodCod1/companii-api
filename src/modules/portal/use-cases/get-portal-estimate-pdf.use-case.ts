@@ -1,42 +1,21 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { AppErrorMessages, AppErrors } from '../../../common/errors';
-import { findPortalCustomerForUser } from '../../../common/utils/portal-customer.util';
-import { PrismaService } from '../../shared/database/prisma.service';
+import { PORTAL_REPOSITORY } from '../domain/ports/portal.repository.port';
+import type { PrismaPortalRepository } from '../infrastructure/persistence/prisma-portal.repository';
 import { EstimatePdfService } from '../../fsm/pdf/estimate-pdf.service';
 import type { JwtPayload } from '../../auth/types/jwt-payload';
 
 @Injectable()
 export class GetPortalEstimatePdfUseCase {
   constructor(
-    private readonly prisma: PrismaService,
+    @Inject(PORTAL_REPOSITORY)
+    private readonly portalRepo: PrismaPortalRepository,
     private readonly estimatePdf: EstimatePdfService,
   ) {}
 
   async execute(user: JwtPayload, projectId: string, lang?: 'ro' | 'ru') {
-    const customer = await findPortalCustomerForUser(this.prisma, user.sub);
-    const project = await this.prisma.estimateProject.findFirst({
-      where: { id: projectId, customerId: customer.id },
-      include: {
-        company: {
-          select: {
-            name: true,
-            legalName: true,
-            idno: true,
-            legalAddress: true,
-            contactPhone: true,
-            contactEmail: true,
-            isTvaPayer: true,
-            tvaCode: true,
-          },
-        },
-        customer: true,
-        category: { select: { name: true } },
-        stages: {
-          orderBy: { sortOrder: 'asc' },
-          include: { lines: { orderBy: { sortOrder: 'asc' } } },
-        },
-      },
-    });
+    const customer = await this.portalRepo.findCustomerByUserId(user.sub);
+    const project = await this.portalRepo.getEstimatePdfData(projectId, customer.id);
     if (!project) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
 
     const buffer = await this.estimatePdf.build(project, { isClientView: true, locale: lang });

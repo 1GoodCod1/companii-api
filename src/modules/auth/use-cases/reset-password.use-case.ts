@@ -6,7 +6,7 @@ import { AuditAction } from '../../audit/audit-action.enum';
 import { AuditEntityType } from '../../audit/audit-entity-type.enum';
 import { AuditService } from '../../audit/audit.service';
 import { timingSafeStringEquals } from '../../../common/utils/timing-safe.util';
-import { ResetPasswordDto } from '../dto/reset-password.dto';
+import { ResetPasswordDto } from '@/modules/auth/dto/reset-password.dto';
 
 @Injectable()
 export class ResetPasswordUseCase {

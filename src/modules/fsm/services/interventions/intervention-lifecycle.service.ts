@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InterventionStatus, Prisma } from '@prisma/client';
 import { AppErrorMessages, AppErrors } from '../../../../common/errors';
 import { PrismaService } from '../../../shared/database/prisma.service';
@@ -14,6 +14,8 @@ import { reconcileEstimateProjectLifecycle } from '../../../estimates/utils/esti
 
 @Injectable()
 export class InterventionLifecycleService {
+  private readonly logger = new Logger(InterventionLifecycleService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly ctx: FsmContextService,
@@ -61,8 +63,6 @@ export class InterventionLifecycleService {
           },
         });
       }
-      // B1 — cancelling the last open intervention can complete the parent
-      // estimate (when the rest are already paid).
       if (toStatus === 'CANCELLED' && existing.estimateProjectId) {
         await reconcileEstimateProjectLifecycle(tx, existing.estimateProjectId);
       }
@@ -70,11 +70,13 @@ export class InterventionLifecycleService {
     });
 
     if (toStatus === 'COMPLETED' && existing.estimateProjectId) {
-      this.notifyManagersAboutPendingReceipts(
+      void this.notifyManagersAboutPendingReceipts(
         existing.companyId,
         existing.number,
         existing.estimateProjectId,
-      ).catch(() => {});
+      ).catch((err) =>
+        this.logger.error('Failed to notify managers about pending receipts', err),
+      );
     }
 
     return result;

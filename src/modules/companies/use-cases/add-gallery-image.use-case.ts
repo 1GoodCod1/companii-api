@@ -6,7 +6,7 @@ import { PrismaService } from '../../shared/database/prisma.service';
 import type { JwtPayload } from '../../auth/types/jwt-payload';
 import { CompanyAuthorizationService } from '../authorization/company-authorization.service';
 import { isGalleryVideoUrl } from '../companies.constants';
-import { AddGalleryImageDto } from '../dto/add-gallery-image.dto';
+import { AddGalleryImageDto } from '@/modules/companies/dto/add-gallery-image.dto';
 import { invalidateCompanyCacheById } from '../utils/company-cache.util';
 
 @Injectable()

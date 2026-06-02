@@ -2,11 +2,11 @@ import { Body, Controller, Get, Param, Post, Query, Res, UseGuards } from '@nest
 import type { Response } from 'express';
 import { CONTROLLER_PATH } from '../../common/constants';
 import { PortalService } from './portal.service';
-import { EndClientLinkService } from './end-client-link.service';
+import { EndClientLinkService } from '../end-client-link/end-client-link.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { RolesGuard } from '../../common/guards/roles.guard';
+import { RolesGuard } from '@/common/guards/roles.guard';
 import type { JwtPayload } from '../auth/types/jwt-payload';
 
 @Controller(CONTROLLER_PATH.portal)

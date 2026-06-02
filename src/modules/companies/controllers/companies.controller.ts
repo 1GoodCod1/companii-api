@@ -14,10 +14,10 @@ import type { Response } from 'express';
 import { AppErrorMessages, AppErrors } from '../../../common/errors';
 import { CompaniesService } from '../companies.service';
 import { TeamMembersService } from '../team/team-members.service';
-import { CreateCompanyDto } from '../dto/create-company.dto';
-import { AddGalleryImageDto } from '../dto/add-gallery-image.dto';
-import { SwitchCompanyDto } from '../dto/switch-company.dto';
-import { TransferOwnershipDto } from '../team/dto/team-member.dto';
+import { CreateCompanyDto } from '@/modules/companies/dto/create-company.dto';
+import { AddGalleryImageDto } from '@/modules/companies/dto/add-gallery-image.dto';
+import { SwitchCompanyDto } from '@/modules/companies/dto/switch-company.dto';
+import { TransferOwnershipDto } from '@/modules/companies/team/dto/team-member.dto';
 import { CONTROLLER_PATH } from '../../../common/constants';
 import { AuthService } from '../../auth/auth.service';
 import { RefreshCookieService } from '../../auth/services/refresh-cookie.service';
@@ -31,15 +31,17 @@ const RESERVED_COMPANY_SLUGS = new Set([
 ]);
 import { Public } from '../../../common/decorators/public.decorator';
 import { Roles } from '../../../common/decorators/roles.decorator';
-import { RolesGuard } from '../../../common/guards/roles.guard';
-import { CompanyGuard } from '../guards/company.guard';
+import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
+import { RolesGuard } from '@/common/guards/roles.guard';
+import { CompanyGuard } from '@/modules/companies/guards/company.guard';
 import { CompanyRoles } from '../decorators/company-roles.decorator';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../../auth/types/jwt-payload';
-import { ClientProjectRequestDto } from '../dto/client-project-request.dto';
-import { ClientServiceRequestDto } from '../dto/client-service-request.dto';
-import { UpdatePricingModifiersDto } from '../dto/update-pricing-modifiers.dto';
+import { ClientProjectRequestDto } from '@/modules/companies/dto/client-project-request.dto';
+import { ClientServiceRequestDto } from '@/modules/companies/dto/client-service-request.dto';
+import { UpdatePricingModifiersDto } from '@/modules/companies/dto/update-pricing-modifiers.dto';
 
+@UseGuards(JwtAuthGuard)
 @Controller(CONTROLLER_PATH.companies)
 export class CompaniesController {
   constructor(

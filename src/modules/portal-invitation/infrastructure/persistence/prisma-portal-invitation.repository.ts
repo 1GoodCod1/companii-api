@@ -1,17 +1,16 @@
 import { Injectable } from '@nestjs/common';
-import { randomUUID } from 'crypto';
-import { PrismaService } from '../../shared/database/prisma.service';
-
-const PORTAL_INVITE_TTL_MS = 2 * 60 * 60 * 1000;
+import { PrismaService } from '@/modules/shared/database/prisma.service';
+import type { PortalInvitationRepository } from '../../domain/ports/portal-invitation.repository.port';
 
 @Injectable()
-export class CreatePortalInvitationUseCase {
+export class PrismaPortalInvitationRepository implements PortalInvitationRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async execute(customerId: string) {
-    const token = `pi_${randomUUID().replace(/-/g, '')}`;
-    const expiresAt = new Date(Date.now() + PORTAL_INVITE_TTL_MS);
-
+  createInvitationAndExpirePending(
+    customerId: string,
+    token: string,
+    expiresAt: Date,
+  ) {
     return this.prisma.$transaction(async (tx) => {
       await tx.portalInvitation.updateMany({
         where: {

@@ -3,7 +3,7 @@ import { AppErrorMessages, AppErrors } from '../../../common/errors';
 import { CacheService } from '../../shared/cache/cache.service';
 import { PrismaService } from '../../shared/database/prisma.service';
 import type { JwtPayload } from '../../auth/types/jwt-payload';
-import { CreateCompanyDto } from '../dto/create-company.dto';
+import { CreateCompanyDto } from '@/modules/companies/dto/create-company.dto';
 import { slugifyCompanyName } from '../utils/slug.util';
 
 @Injectable()

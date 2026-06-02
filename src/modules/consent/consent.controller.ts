@@ -4,7 +4,7 @@ import { ConsentService } from './consent.service';
 import { GrantConsentDto } from './dto/grant-consent.dto';
 import { RevokeConsentDto } from './dto/revoke-consent.dto';
 import { CONTROLLER_PATH } from '../../common/constants';
-import { CompanyGuard } from '../companies/guards/company.guard';
+import { CompanyGuard } from '@/modules/companies/guards/company.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../auth/types/jwt-payload';
 

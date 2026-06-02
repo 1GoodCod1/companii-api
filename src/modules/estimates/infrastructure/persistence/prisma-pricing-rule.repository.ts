@@ -1,9 +1,7 @@
-import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../shared/database/prisma.service';
 import type { PricingRuleRepository } from '../../domain/ports/pricing-rule.repository.port';
 import { parseCompanyPricingModifiers } from '../../../../../prisma/estimate-pricing-modifiers';
 
-@Injectable()
 export class PrismaPricingRuleRepository implements PricingRuleRepository {
   constructor(private readonly prisma: PrismaService) {}
 

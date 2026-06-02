@@ -4,7 +4,7 @@ import { RLS_SYSTEM_CONTEXT } from '../../../common/rls/rls-system.util';
 import { resolveClientContactFromUser } from '../../../common/utils/client-contact.util';
 import { PrismaService } from '../../shared/database/prisma.service';
 import type { JwtPayload } from '../../auth/types/jwt-payload';
-import { ClientServiceRequestDto } from '../dto/client-service-request.dto';
+import { ClientServiceRequestDto } from '@/modules/companies/dto/client-service-request.dto';
 import { createPublicCompanyLead } from '../utils/public-lead.util';
 import { LeadNotificationService } from '../services/lead-notification.service';
 

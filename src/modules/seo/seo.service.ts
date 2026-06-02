@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../shared/database/prisma.service';
+import { Inject, Injectable } from '@nestjs/common';
+import { SEO_REPOSITORY } from './domain/ports/seo.repository.port';
+import type { PrismaSeoRepository } from './infrastructure/persistence/prisma-seo.repository';
 import { SeoUrlKind } from './dto/query-seo-urls.dto';
 
 export type SeoUrlItem = {
@@ -19,7 +20,10 @@ const SEO_LOCALES = ['ro', 'ru'] as const;
 
 @Injectable()
 export class SeoService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(SEO_REPOSITORY)
+    private readonly seoRepo: PrismaSeoRepository,
+  ) {}
 
   async getUrls(
     kind: SeoUrlKind,
@@ -28,11 +32,11 @@ export class SeoService {
   ): Promise<SeoUrlsPage> {
     switch (kind) {
       case SeoUrlKind.COMPANIES:
-        return this.getCompanyUrls(page, limit);
+        return await this.getCompanyUrls(page, limit);
       case SeoUrlKind.CATEGORIES:
-        return this.getCategoryUrls(page, limit);
+        return await this.getCategoryUrls(page, limit);
       case SeoUrlKind.LANDINGS:
-        return this.getLandingUrls(page, limit);
+        return await this.getLandingUrls(page, limit);
       default: {
         const exhaustive: never = kind;
         throw new Error(`Unknown SEO url kind: ${String(exhaustive)}`);
@@ -44,12 +48,7 @@ export class SeoService {
     page: number,
     limit: number,
   ): Promise<SeoUrlsPage> {
-    const where = { isPublished: true, isVerified: true };
-    const rows = await this.prisma.company.findMany({
-      where,
-      select: { slug: true, updatedAt: true },
-      orderBy: { updatedAt: 'desc' },
-    });
+    const rows = await this.seoRepo.getPublishedCompanies();
 
     const all: SeoUrlItem[] = [];
     for (const locale of SEO_LOCALES) {
@@ -69,10 +68,7 @@ export class SeoService {
     page: number,
     limit: number,
   ): Promise<SeoUrlsPage> {
-    const rows = await this.prisma.category.findMany({
-      select: { slug: true },
-      orderBy: { name: 'asc' },
-    });
+    const rows = await this.seoRepo.getCategories();
 
     const all: SeoUrlItem[] = [];
     for (const locale of SEO_LOCALES) {
@@ -91,14 +87,8 @@ export class SeoService {
     limit: number,
   ): Promise<SeoUrlsPage> {
     const [categories, cities] = await Promise.all([
-      this.prisma.category.findMany({
-        select: { slug: true },
-        orderBy: { name: 'asc' },
-      }),
-      this.prisma.city.findMany({
-        select: { slug: true },
-        orderBy: { name: 'asc' },
-      }),
+      this.seoRepo.getCategories(),
+      this.seoRepo.getCities(),
     ]);
 
     const all: SeoUrlItem[] = [];

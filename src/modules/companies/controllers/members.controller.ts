@@ -11,30 +11,30 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Response } from 'express';
-import { PrismaService } from '../../shared/database/prisma.service';
 import { CONTROLLER_PATH } from '../../../common/constants';
 import { Public } from '../../../common/decorators/public.decorator';
-import { CompanyGuard } from '../guards/company.guard';
+import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
+import { CompanyGuard } from '@/modules/companies/guards/company.guard';
 import { CompanyRoles } from '../decorators/company-roles.decorator';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../../auth/types/jwt-payload';
 import { AuthService } from '../../auth/auth.service';
 import { RefreshCookieService } from '../../auth/services/refresh-cookie.service';
-import { PortalService } from '../../portal/portal.service';
+import { CreatePortalInvitationUseCase } from '../../portal-invitation/create-portal-invitation.use-case';
 import { TeamInviteService } from '../team/team-invite.service';
 import { TeamMembersService } from '../team/team-members.service';
 import {
   AcceptTeamInviteDto,
   AddTeamMemberDirectDto,
   CreateTeamInviteLinkDto,
-} from '../team/dto/team-invite.dto';
-import { TransferOwnershipDto, UpdateMemberRoleDto } from '../team/dto/team-member.dto';
+} from '@/modules/companies/team/dto/team-invite.dto';
+import { TransferOwnershipDto, UpdateMemberRoleDto } from '@/modules/companies/team/dto/team-member.dto';
 
+@UseGuards(JwtAuthGuard)
 @Controller(`${CONTROLLER_PATH.companies}/members`)
 export class MembersController {
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly portal: PortalService,
+    private readonly portalInvitation: CreatePortalInvitationUseCase,
     private readonly teamInvite: TeamInviteService,
     private readonly teamMembers: TeamMembersService,
     private readonly auth: AuthService,
@@ -44,45 +44,14 @@ export class MembersController {
   @Get('list')
   @UseGuards(CompanyGuard)
   list(@CurrentUser() user: JwtPayload) {
-    const isTechnician = user.companyRole === 'MEMBER';
-    return this.prisma.companyMember.findMany({
-      where: {
-        companyId: user.activeCompanyId!,
-        status: 'ACTIVE',
-        ...(isTechnician && user.memberId ? { id: user.memberId } : {}),
-      },
-      include: {
-        user: {
-          select: isTechnician
-            ? { id: true, firstName: true, lastName: true }
-            : {
-                id: true,
-                email: true,
-                phone: true,
-                firstName: true,
-                lastName: true,
-              },
-        },
-        _count: {
-          select: { interventions: true },
-        },
-      },
-      orderBy: [{ role: 'asc' }, { joinedAt: 'asc' }],
-    });
+    return this.teamMembers.listMembers(user);
   }
 
   @Get('invitations')
   @UseGuards(CompanyGuard)
   @CompanyRoles('OWNER', 'MANAGER')
   listInvitations(@CurrentUser() user: JwtPayload) {
-    return this.prisma.companyInvitation.findMany({
-      where: {
-        companyId: user.activeCompanyId!,
-        status: 'PENDING',
-        expiresAt: { gt: new Date() },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    return this.teamInvite.listPendingInvitations(user.activeCompanyId!);
   }
 
   @Public()
@@ -163,6 +132,6 @@ export class MembersController {
   @UseGuards(CompanyGuard)
   @CompanyRoles('OWNER', 'MANAGER')
   portalInvite(@Param('customerId') customerId: string) {
-    return this.portal.createInvite(customerId);
+    return this.portalInvitation.execute(customerId);
   }
 }

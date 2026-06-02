@@ -66,6 +66,6 @@ import { InvoiceLifecycleService } from './services/invoices/invoice-lifecycle.s
     LeadsService,
     CustomerImportService,
   ],
-  exports: [FsmService, LeadsService, CustomerImportService, InvoiceLifecycleService],
+  exports: [InvoiceLifecycleService],
 })
 export class FsmModule {}

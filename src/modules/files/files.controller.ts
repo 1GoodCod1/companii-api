@@ -19,7 +19,8 @@ import { FileVisibility } from '@prisma/client';
 import { CONTROLLER_PATH } from '../../common/constants';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
-import { OptionalJwtAuthGuard } from '../../common/guards/optional-jwt-auth.guard';
+import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '@/common/guards/optional-jwt-auth.guard';
 import type { JwtPayload } from '../auth/types/jwt-payload';
 import { FilesService } from './services/files.service';
 
@@ -30,6 +31,7 @@ function parseVisibility(raw: unknown): FileVisibility {
   return FileVisibility.PRIVATE;
 }
 
+@UseGuards(JwtAuthGuard)
 @Controller(CONTROLLER_PATH.files)
 export class FilesController {
   constructor(private readonly files: FilesService) {}

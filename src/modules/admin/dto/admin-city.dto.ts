@@ -1,8 +1,11 @@
+import { Type } from 'class-transformer';
 import { IsObject, IsOptional, IsString, Matches, MinLength } from 'class-validator';
 
-export type CatalogTranslationPayload = {
+export class CatalogTranslationPayloadDto {
+  @IsOptional()
+  @IsString()
   name?: string;
-};
+}
 
 export class CreateAdminCityDto {
   @IsString()
@@ -16,7 +19,8 @@ export class CreateAdminCityDto {
 
   @IsOptional()
   @IsObject()
-  translations?: Record<string, CatalogTranslationPayload>;
+  @Type(() => CatalogTranslationPayloadDto)
+  translations?: Record<string, CatalogTranslationPayloadDto>;
 }
 
 export class UpdateAdminCityDto {
@@ -32,5 +36,6 @@ export class UpdateAdminCityDto {
 
   @IsOptional()
   @IsObject()
-  translations?: Record<string, CatalogTranslationPayload>;
+  @Type(() => CatalogTranslationPayloadDto)
+  translations?: Record<string, CatalogTranslationPayloadDto>;
 }

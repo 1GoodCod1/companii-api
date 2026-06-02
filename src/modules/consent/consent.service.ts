@@ -1,18 +1,20 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConsentType, CompanyConsent } from '@prisma/client';
-import { PrismaService } from '../shared/database/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { AuditEntityType } from '../audit/audit-entity-type.enum';
 import { AuditAction } from '../audit/audit-action.enum';
 import type { JwtPayload } from '../auth/types/jwt-payload';
 import { AppErrorMessages, AppErrors } from '../../common/errors';
+import { CONSENT_REPOSITORY } from './domain/ports/consent.repository.port';
+import type { PrismaConsentRepository } from './infrastructure/persistence/prisma-consent.repository';
 
 @Injectable()
 export class ConsentService {
   private readonly logger = new Logger(ConsentService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    @Inject(CONSENT_REPOSITORY)
+    private readonly consentRepo: PrismaConsentRepository,
     private readonly audit: AuditService,
   ) {}
 
@@ -30,15 +32,11 @@ export class ConsentService {
   ): Promise<CompanyConsent> {
     const { companyId, memberId } = this.getContext(user);
 
-    const consent = await this.prisma.companyConsent.upsert({
-      where: {
-        companyId_memberId_consentType: {
-          companyId,
-          memberId,
-          consentType,
-        },
-      },
-      create: {
+    const consent = await this.consentRepo.upsertConsent(
+      companyId,
+      memberId,
+      consentType,
+      {
         companyId,
         memberId,
         consentType,
@@ -47,14 +45,14 @@ export class ConsentService {
         version: meta.version,
         ipAddress: meta.ipAddress ?? null,
       },
-      update: {
+      {
         granted: true,
         lawfulBasis: meta.lawfulBasis,
         version: meta.version,
         ipAddress: meta.ipAddress ?? null,
         revokedAt: null,
       },
-    });
+    );
 
     this.logger.log(
       `Consent GRANTED: companyId=${companyId}, memberId=${memberId}, type=${consentType}, version=${meta.version}`,
@@ -85,33 +83,25 @@ export class ConsentService {
   ): Promise<CompanyConsent> {
     const { companyId, memberId } = this.getContext(user);
 
-    const existing = await this.prisma.companyConsent.findUnique({
-      where: {
-        companyId_memberId_consentType: {
-          companyId,
-          memberId,
-          consentType,
-        },
-      },
-    });
+    const existing = await this.consentRepo.findConsent(
+      companyId,
+      memberId,
+      consentType,
+    );
 
     if (!existing) {
       throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
     }
 
-    const consent = await this.prisma.companyConsent.update({
-      where: {
-        companyId_memberId_consentType: {
-          companyId,
-          memberId,
-          consentType,
-        },
-      },
-      data: {
+    const consent = await this.consentRepo.updateConsent(
+      companyId,
+      memberId,
+      consentType,
+      {
         granted: false,
         revokedAt: new Date(),
       },
-    });
+    );
 
     this.logger.log(`Consent REVOKED: companyId=${companyId}, memberId=${memberId}, type=${consentType}`);
 
@@ -135,23 +125,16 @@ export class ConsentService {
   }
 
   async hasConsent(companyId: string, memberId: string, consentType: ConsentType): Promise<boolean> {
-    const consent = await this.prisma.companyConsent.findUnique({
-      where: {
-        companyId_memberId_consentType: {
-          companyId,
-          memberId,
-          consentType,
-        },
-      },
-    });
+    const consent = await this.consentRepo.findConsent(
+      companyId,
+      memberId,
+      consentType,
+    );
     return consent?.granted === true && consent.revokedAt === null;
   }
 
   async getMyConsents(user: JwtPayload): Promise<CompanyConsent[]> {
     const { companyId, memberId } = this.getContext(user);
-    return this.prisma.companyConsent.findMany({
-      where: { companyId, memberId },
-      orderBy: { createdAt: 'desc' },
-    });
+    return await this.consentRepo.findConsents(companyId, memberId);
   }
 }

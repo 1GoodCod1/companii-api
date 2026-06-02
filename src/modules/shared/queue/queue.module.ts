@@ -43,6 +43,6 @@ import {
     InvoicePdfProcessor,
     ConvertProcessor,
   ],
-  exports: [BullModule, QueueService],
+  exports: [QueueService],
 })
 export class QueueModule {}

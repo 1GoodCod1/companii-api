@@ -8,13 +8,13 @@ export class AuthUserLookupService {
 
   async findByLogin(login: string) {
     if (isEmailLogin(login)) {
-      return this.prisma.user.findUnique({ where: { email: login.toLowerCase() } });
+      return await this.prisma.user.findUnique({ where: { email: login.toLowerCase() } });
     }
 
     const normalizedPhone = normalizePhone(login);
-    if (!normalizedPhone) return null;
+    if (!normalizedPhone) return await null;
 
-    return this.prisma.user.findFirst({
+    return await this.prisma.user.findFirst({
       where: {
         OR: phoneVariants(normalizedPhone).map((variant) => ({ phone: variant })),
       },

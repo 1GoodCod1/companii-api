@@ -6,7 +6,7 @@ import { extractRequestContext } from '../../shared/utils/request-context.util';
 import { AuditAction } from '../../audit/audit-action.enum';
 import { AuditEntityType } from '../../audit/audit-entity-type.enum';
 import { AuditService } from '../../audit/audit.service';
-import { LoginDto } from '../dto/login.dto';
+import { LoginDto } from '@/modules/auth/dto/login.dto';
 import { AuthLockoutService } from '../services/auth-lockout.service';
 import { AuthJwtPayloadService } from '../services/auth-jwt-payload.service';
 import { AuthSessionService } from '../services/auth-session.service';

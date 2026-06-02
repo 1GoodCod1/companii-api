@@ -5,7 +5,7 @@ import { PrismaService } from '../../../shared/database/prisma.service';
 import { EstimatesContextService } from '../../context/estimates-context.service';
 import { EstimateProjectAccessService } from '../projects/estimate-project-access.service';
 import type { JwtPayload } from '../../../auth/types/jwt-payload';
-import { CreateTemplateDto, UpdateTemplateDto } from '../../dto/template.dto';
+import { CreateTemplateDto, UpdateTemplateDto } from '@/modules/estimates/dto/template.dto';
 import { round2, projectInclude } from '../../estimate.constants';
 import { accumulateEstimateLineTotals } from '../../utils/estimate-line-recalculate.util';
 
@@ -283,7 +283,7 @@ export class EstimateTemplatesService {
       }
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    return await this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT id FROM estimate_projects WHERE id = ${projectId} FOR UPDATE`;
 
       const stages = await tx.estimateStage.findMany({

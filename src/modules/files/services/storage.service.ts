@@ -1,7 +1,7 @@
 import {
   createReadStream,
-  existsSync,
   type ReadStream,
+  type Stats,
 } from 'fs';
 import { open, stat, unlink } from 'fs/promises';
 import { isAbsolute, join, relative, resolve, sep } from 'path';
@@ -170,13 +170,15 @@ export class StorageService implements OnModuleDestroy {
   }> {
     const decoded = this.decodeStoredPath(storedPath);
     if (decoded.kind === 'local') {
-      if (!existsSync(decoded.absolutePath)) {
+      let fileStat: Stats;
+      try {
+        fileStat = await stat(decoded.absolutePath);
+      } catch {
         throw AppErrors.notFound(AppErrorMessages.FILES_NOT_FOUND);
       }
-      const s = await stat(decoded.absolutePath);
       return {
         stream: createReadStream(decoded.absolutePath),
-        size: s.size,
+        size: fileStat.size,
         contentType: null,
       };
     }
@@ -289,11 +291,11 @@ export class StorageService implements OnModuleDestroy {
   private async collectBodyBuffer(
     resp: GetObjectCommandOutput,
   ): Promise<Buffer | null> {
-    if (!resp.Body) return null;
+    if (!resp.Body) return await null;
     const chunks: Uint8Array[] = [];
     for await (const chunk of resp.Body as AsyncIterable<Uint8Array>) {
       chunks.push(chunk);
     }
-    return Buffer.concat(chunks);
+    return await Buffer.concat(chunks);
   }
 }

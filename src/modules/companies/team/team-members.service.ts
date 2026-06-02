@@ -330,4 +330,32 @@ export class TeamMembersService {
     const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ').trim();
     return fullName || user.email;
   }
+
+  listMembers(user: JwtPayload) {
+    const isTechnician = user.companyRole === 'MEMBER';
+    return this.prisma.companyMember.findMany({
+      where: {
+        companyId: user.activeCompanyId!,
+        status: 'ACTIVE',
+        ...(isTechnician && user.memberId ? { id: user.memberId } : {}),
+      },
+      include: {
+        user: {
+          select: isTechnician
+            ? { id: true, firstName: true, lastName: true }
+            : {
+                id: true,
+                email: true,
+                phone: true,
+                firstName: true,
+                lastName: true,
+              },
+        },
+        _count: {
+          select: { interventions: true },
+        },
+      },
+      orderBy: [{ role: 'asc' }, { joinedAt: 'asc' }],
+    });
+  }
 }

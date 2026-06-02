@@ -4,12 +4,15 @@ import {
   Injectable,
   NestInterceptor,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Observable } from 'rxjs';
 import type { Request } from 'express';
 import { stripApiPrefix } from '../utils/api-route.util';
 
 @Injectable()
 export class CacheControlInterceptor implements NestInterceptor {
+  constructor(private readonly configService: ConfigService) {}
+
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const request = context.switchToHttp().getRequest<Request>();
     const response = context.switchToHttp().getResponse<{
@@ -18,7 +21,7 @@ export class CacheControlInterceptor implements NestInterceptor {
 
     if (request.method === 'GET') {
       const path = stripApiPrefix(request.path);
-      const isProd = process.env.NODE_ENV === 'production';
+      const isProd = this.configService.get<string>('nodeEnv') === 'production';
 
       if (
         path === '/companies' ||

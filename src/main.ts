@@ -10,7 +10,7 @@ import helmet from 'helmet';
 import { WinstonModule } from 'nest-winston';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
-import { TransformInterceptor } from './common/interceptors';
+import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { requestIdMiddleware } from './common/request-context';
 import {
   applyGlobalPrefix,
@@ -22,10 +22,6 @@ import {
 } from './config';
 
 process.on('warning', (warning) => {
-  // Suppress the noisy "client.query" deprecation that pg emits while still
-  // using the recommended `query` overload. Everything else — including
-  // other deprecations, ExperimentalWarning, MaxListenersExceededWarning —
-  // is still surfaced so we don't accidentally hide useful signal.
   const isPgClientQueryDeprecation =
     warning.name === 'DeprecationWarning' &&
     warning.message.includes('client.query') &&
@@ -104,8 +100,6 @@ async function bootstrap() {
       err && typeof err === 'object' && 'code' in err
         ? String((err as NodeJS.ErrnoException).code)
         : undefined;
-    // nest --watch in Docker (volume mounts on Windows) can spawn a second process
-    // before the first releases the port; exit quietly — the first instance keeps serving.
     if (!isProd && code === 'EADDRINUSE') {
       await app.close();
       process.exit(0);

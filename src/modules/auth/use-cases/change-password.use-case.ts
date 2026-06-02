@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { AppErrors, AppErrorMessages } from '../../../common/errors';
 import { PrismaService } from '../../shared/database/prisma.service';
-import { ChangePasswordDto } from '../dto/change-password.dto';
+import { ChangePasswordDto } from '@/modules/auth/dto/change-password.dto';
 
 @Injectable()
 export class ChangePasswordUseCase {

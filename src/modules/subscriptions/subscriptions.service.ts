@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { CompanySubscriptionPlan } from '@prisma/client';
 import { AppErrorMessages, AppErrors } from '../../common/errors';
 import { DAYS_FREE_SUBSCRIPTION, planRank } from '../../common/constants';
@@ -6,16 +6,18 @@ import { AuditAction } from '../audit/audit-action.enum';
 import { AuditEntityType } from '../audit/audit-entity-type.enum';
 import { AuditService } from '../audit/audit.service';
 import { CacheService } from '../shared/cache/cache.service';
-import { PrismaService } from '../shared/database/prisma.service';
 import type { JwtPayload } from '../auth/types/jwt-payload';
 import { CompanyAuthorizationService } from '../companies/authorization/company-authorization.service';
+import { SUBSCRIPTIONS_REPOSITORY } from './domain/ports/subscriptions.repository.port';
+import type { PrismaSubscriptionsRepository } from './infrastructure/persistence/prisma-subscriptions.repository';
 
 const SUBSCRIPTION_USAGE_TTL_SEC = 60;
 
 @Injectable()
 export class SubscriptionsService {
   constructor(
-    private readonly prisma: PrismaService,
+    @Inject(SUBSCRIPTIONS_REPOSITORY)
+    private readonly subscriptionsRepo: PrismaSubscriptionsRepository,
     private readonly cache: CacheService,
     private readonly audit: AuditService,
     private readonly companyAuth: CompanyAuthorizationService,
@@ -24,10 +26,7 @@ export class SubscriptionsService {
   listPlans() {
     return this.cache.getOrSet(
       this.cache.keys.plansAll(),
-      () =>
-        this.prisma.companyPlan.findMany({
-          orderBy: { price: 'asc' },
-        }),
+      () => this.subscriptionsRepo.findPlans(),
       this.cache.ttl.plansAll,
     );
   }
@@ -37,17 +36,12 @@ export class SubscriptionsService {
   }
 
   private async buildMeResponse(companyId: string) {
-    const subscription = await this.prisma.companySubscription.findUnique({
-      where: { companyId },
-      include: { plan: true },
-    });
+    const subscription = await this.subscriptionsRepo.findSubscriptionByCompanyId(companyId);
     if (!subscription) return null;
 
     const usage = await this.cache.getOrSet(
       this.buildUsageKey(companyId),
-      () => {
-        return this.computeUsage(companyId);
-      },
+      () => this.subscriptionsRepo.computeSubscriptionUsage(companyId),
       SUBSCRIPTION_USAGE_TTL_SEC,
     );
 
@@ -58,49 +52,6 @@ export class SubscriptionsService {
         maxTechnicians: subscription.plan.maxTechnicians,
         maxInterventionsPerMonth: subscription.plan.maxInterventionsPerMonth,
       },
-    };
-  }
-
-  private async computeUsage(companyId: string): Promise<{
-    activeTechnicians: number;
-    pendingTechnicianInvites: number;
-    interventionsThisMonth: number;
-  }> {
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
-    const now = new Date();
-    const rows = await this.prisma.$queryRaw<
-      Array<{
-        active_technicians: bigint;
-        pending_invites: bigint;
-        interventions_this_month: bigint;
-      }>
-    >`
-      SELECT
-        (SELECT COUNT(*) FROM company_members cm
-           WHERE cm.company_id = ${companyId}
-             AND cm.status = 'ACTIVE'
-             AND cm.role = 'MEMBER') AS active_technicians,
-        (SELECT COUNT(*) FROM company_invitations ci
-           WHERE ci.company_id = ${companyId}
-             AND ci.status = 'PENDING'
-             AND ci.role = 'MEMBER'
-             AND ci.expires_at > ${now}) AS pending_invites,
-        (SELECT COUNT(*) FROM interventions i
-           WHERE i.company_id = ${companyId}
-             AND i.created_at >= ${startOfMonth}) AS interventions_this_month
-    `;
-
-    const row = rows[0] ?? {
-      active_technicians: 0n,
-      pending_invites: 0n,
-      interventions_this_month: 0n,
-    };
-    return {
-      activeTechnicians: Number(row.active_technicians),
-      pendingTechnicianInvites: Number(row.pending_invites),
-      interventionsThisMonth: Number(row.interventions_this_month),
     };
   }
 
@@ -117,31 +68,26 @@ export class SubscriptionsService {
     planCode: CompanySubscriptionPlan,
     adminUserId: string,
   ) {
-    const plan = await this.prisma.companyPlan.findUnique({
-      where: { code: planCode },
-    });
+    const plan = await this.subscriptionsRepo.findPlanByCode(planCode);
     if (!plan) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
 
-    const existing = await this.prisma.companySubscription.findUnique({
-      where: { companyId },
-      include: { plan: true },
-    });
+    const existing = await this.subscriptionsRepo.findSubscriptionByCompanyId(companyId);
 
-    const result = await this.prisma.companySubscription.upsert({
-      where: { companyId },
-      create: {
+    const result = await this.subscriptionsRepo.upsertSubscription(
+      companyId,
+      {
         companyId,
         planId: plan.id,
         status: 'ACTIVE',
         currentPeriodEnd: new Date(Date.now() + 30 * 86400000),
         activatedByAdminId: adminUserId,
       },
-      update: {
+      {
         planId: plan.id,
         status: 'ACTIVE',
         activatedByAdminId: adminUserId,
       },
-    });
+    );
     await this.cache.invalidatePlans();
 
     void this.audit.log({
@@ -168,15 +114,10 @@ export class SubscriptionsService {
 
     await this.companyAuth.assertCompanyOwner(user, companyId);
 
-    const plan = await this.prisma.companyPlan.findUnique({
-      where: { code: planCode },
-    });
+    const plan = await this.subscriptionsRepo.findPlanByCode(planCode);
     if (!plan) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
 
-    const sub = await this.prisma.companySubscription.findUnique({
-      where: { companyId },
-      include: { plan: true },
-    });
+    const sub = await this.subscriptionsRepo.findSubscriptionByCompanyId(companyId);
     if (!sub) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
 
     if (sub.plan.code === planCode) {
@@ -197,15 +138,11 @@ export class SubscriptionsService {
       throw AppErrors.badRequest(AppErrorMessages.SUBSCRIPTION_INVALID_UPGRADE);
     }
 
-    const result = await this.prisma.companySubscription.update({
-      where: { companyId },
-      data: {
-        planId: plan.id,
-        status: 'ACTIVE',
-        currentPeriodEnd: new Date(Date.now() + DAYS_FREE_SUBSCRIPTION * 86400000),
-        activatedByAdminId: null,
-      },
-      include: { plan: true },
+    const result = await this.subscriptionsRepo.updateSubscription(companyId, {
+      planId: plan.id,
+      status: 'ACTIVE',
+      currentPeriodEnd: new Date(Date.now() + DAYS_FREE_SUBSCRIPTION * 86400000),
+      activatedByAdminId: null,
     });
 
     await this.cache.invalidatePlans();

@@ -25,7 +25,7 @@ export class InvoicesService {
   }
 
   async get(user: JwtPayload, id: string) {
-    return this.queries.get(user, id);
+    return await this.queries.get(user, id);
   }
 
   async create(
@@ -36,7 +36,7 @@ export class InvoicesService {
       dueDate?: string;
     },
   ) {
-    return this.lifecycle.create(user, data);
+    return await this.lifecycle.create(user, data);
   }
 
   async update(
@@ -48,11 +48,11 @@ export class InvoicesService {
       paymentReversalReason?: string;
     },
   ) {
-    return this.lifecycle.update(user, id, data);
+    return await this.lifecycle.update(user, id, data);
   }
 
   async cancel(user: JwtPayload, id: string, reason: string) {
-    return this.lifecycle.cancel(user, id, reason);
+    return await this.lifecycle.cancel(user, id, reason);
   }
 
   async recordPayment(
@@ -60,23 +60,23 @@ export class InvoicesService {
     id: string,
     data: { amount: number; note?: string },
   ) {
-    return this.lifecycle.recordPayment(user, id, data);
+    return await this.lifecycle.recordPayment(user, id, data);
   }
 
   async confirmPaymentProof(user: JwtPayload, id: string) {
-    return this.lifecycle.confirmPaymentProof(user, id);
+    return await this.lifecycle.confirmPaymentProof(user, id);
   }
 
   async rejectPaymentProof(user: JwtPayload, id: string, reason: string) {
-    return this.lifecycle.rejectPaymentProof(user, id, reason);
+    return await this.lifecycle.rejectPaymentProof(user, id, reason);
   }
 
   async delete(user: JwtPayload, id: string) {
-    return this.lifecycle.delete(user, id);
+    return await this.lifecycle.delete(user, id);
   }
 
   async getPdf(user: JwtPayload, id: string) {
-    return this.pdfCache.getPdf(user, id);
+    return await this.pdfCache.getPdf(user, id);
   }
 
   async sendByEmail(user: JwtPayload, id: string, customMessage?: string) {
@@ -111,6 +111,6 @@ export class InvoicesService {
   }
 
   async exportCsv(user: JwtPayload) {
-    return this.queries.exportCsv(user);
+    return await this.queries.exportCsv(user);
   }
 }

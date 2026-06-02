@@ -170,7 +170,7 @@ export class TeamInviteService {
   }
 
   async previewInvite(token: string) {
-    return this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async () => {
+    return await this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async () => {
       const invite = await this.prisma.companyInvitation.findUnique({
         where: { token },
         include: {
@@ -213,7 +213,7 @@ export class TeamInviteService {
   }
 
   async acceptInviteToken(token: string, userId: string) {
-    return this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async () => {
+    return await this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async () => {
       const invite = await this.prisma.companyInvitation.findUnique({
         where: { token },
         include: { company: true },
@@ -288,6 +288,17 @@ export class TeamInviteService {
       });
 
       return { member, company: invite.company };
+    });
+  }
+
+  listPendingInvitations(companyId: string) {
+    return this.prisma.companyInvitation.findMany({
+      where: {
+        companyId,
+        status: 'PENDING',
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: 'desc' },
     });
   }
 }

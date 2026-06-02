@@ -28,7 +28,9 @@ export class WebVitalsController {
   @Get()
   @Head()
   @HttpCode(204)
-  probe(): void {}
+  probe(): void {
+    return;
+  }
 
   @Public()
   @Post()

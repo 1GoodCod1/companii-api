@@ -71,7 +71,7 @@ export class AuditLogWriterService implements OnModuleInit, OnModuleDestroy {
   }
 
   async flush(): Promise<void> {
-    if (this.inFlight) return this.inFlight;
+    if (this.inFlight) return await this.inFlight;
     if (this.buffer.length === 0) return;
     const batch = this.buffer;
     this.buffer = [];
@@ -109,7 +109,7 @@ export class AuditLogWriterService implements OnModuleInit, OnModuleDestroy {
       }
     })();
 
-    return this.inFlight;
+    return await this.inFlight;
   }
 
   private async persistSingle(data: AuditLogData): Promise<void> {

@@ -25,7 +25,7 @@ export class AuthJwtPayloadService {
     options?: { preferredCompanyId?: string },
   ): Promise<JwtPayload> {
     const base: JwtPayload = { ...payload };
-    return this.prisma.withRlsContext(
+    return await this.prisma.withRlsContext(
       rlsContextFromUserId(base.sub, base.accountKind, {
         companyId: options?.preferredCompanyId ?? base.activeCompanyId,
       }),

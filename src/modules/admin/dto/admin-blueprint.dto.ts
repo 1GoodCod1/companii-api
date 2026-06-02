@@ -1,4 +1,9 @@
+import { Type } from 'class-transformer';
 import { IsBoolean, IsInt, IsObject, IsOptional, IsString, Min, MinLength } from 'class-validator';
+
+export class AdminBlueprintConfigDto {
+  [key: string]: unknown;
+}
 
 export class CreateAdminBlueprintDto {
   @IsString()
@@ -14,7 +19,8 @@ export class CreateAdminBlueprintDto {
   version?: number;
 
   @IsObject()
-  config!: Record<string, any>;
+  @Type(() => AdminBlueprintConfigDto)
+  config!: Record<string, unknown>;
 
   @IsOptional()
   @IsBoolean()
@@ -34,7 +40,8 @@ export class UpdateAdminBlueprintDto {
 
   @IsOptional()
   @IsObject()
-  config?: Record<string, any>;
+  @Type(() => AdminBlueprintConfigDto)
+  config?: Record<string, unknown>;
 
   @IsOptional()
   @IsBoolean()

@@ -1,5 +1,5 @@
 import type { EstimateProjectDetail, EstimateProjectUpdateResult } from '../../estimate.constants';
-import type { EstimateProject } from '../entities/estimate-project.entity';
+import type { EstimateProject } from '@/modules/estimates/domain/entities/estimate-project.entity';
 
 export const ESTIMATE_PROJECT_REPOSITORY = Symbol('EstimateProjectRepository');
 

@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import cookieParser from 'cookie-parser';
 import { applyGlobalPrefix } from '../../src/config/http-app';
 import { HttpExceptionFilter } from '../../src/common/filters/http-exception.filter';
-import { TransformInterceptor } from '../../src/common/interceptors';
+import { TransformInterceptor } from '../../src/common/interceptors/transform.interceptor';
 
 export function applyE2eAppConfig(app: INestApplication): void {
   applyGlobalPrefix(app);

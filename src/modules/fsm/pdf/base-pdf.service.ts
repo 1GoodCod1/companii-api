@@ -1,8 +1,6 @@
-import { Injectable } from '@nestjs/common';
 import path from 'path';
 import PDFDocument from 'pdfkit';
 
-@Injectable()
 export class BasePdfService {
   protected initPdfDocument(options: PDFKit.PDFDocumentOptions = { size: 'A4', margin: 48 }): {
     doc: PDFKit.PDFDocument;

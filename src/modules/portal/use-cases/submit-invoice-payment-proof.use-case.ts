@@ -1,7 +1,6 @@
-import { Injectable } from '@nestjs/common';
-import { AppErrorMessages, AppErrors } from '../../../common/errors';
-import { findPortalCustomerForUser } from '../../../common/utils/portal-customer.util';
-import { PrismaService } from '../../shared/database/prisma.service';
+import { Inject, Injectable } from '@nestjs/common';
+import { PORTAL_REPOSITORY } from '../domain/ports/portal.repository.port';
+import type { PrismaPortalRepository } from '../infrastructure/persistence/prisma-portal.repository';
 import { EmailService } from '../../email/email.service';
 import { InvoiceLifecycleService } from '../../fsm/services/invoices/invoice-lifecycle.service';
 import type { JwtPayload } from '../../auth/types/jwt-payload';
@@ -9,13 +8,14 @@ import type { JwtPayload } from '../../auth/types/jwt-payload';
 @Injectable()
 export class SubmitInvoicePaymentProofUseCase {
   constructor(
-    private readonly prisma: PrismaService,
+    @Inject(PORTAL_REPOSITORY)
+    private readonly portalRepo: PrismaPortalRepository,
     private readonly lifecycle: InvoiceLifecycleService,
     private readonly email: EmailService,
   ) {}
 
   async execute(user: JwtPayload, invoiceId: string, fileId: string) {
-    const customer = await findPortalCustomerForUser(this.prisma, user.sub);
+    const customer = await this.portalRepo.findCustomerByUserId(user.sub);
     const invoice = await this.lifecycle.submitPaymentProof({
       invoiceId,
       customerId: customer.id,
@@ -23,19 +23,7 @@ export class SubmitInvoicePaymentProofUseCase {
       uploadedByUserId: user.sub,
     });
 
-    const full = await this.prisma.companyInvoice.findUniqueOrThrow({
-      where: { id: invoice.id },
-      include: {
-        intervention: { include: { customer: { select: { fullName: true } } } },
-        company: {
-          select: {
-            name: true,
-            contactEmail: true,
-            owner: { select: { email: true } },
-          },
-        },
-      },
-    });
+    const full = await this.portalRepo.getInvoiceDetails(invoice.id);
 
     const notifyEmail = full.company.contactEmail ?? full.company.owner.email;
     if (notifyEmail) {

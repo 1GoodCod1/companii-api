@@ -5,13 +5,13 @@ import { PrismaService } from '../../shared/database/prisma.service';
 import { AuditAction } from '../../audit/audit-action.enum';
 import { AuditEntityType } from '../../audit/audit-entity-type.enum';
 import { AuditService } from '../../audit/audit.service';
-import { RegisterDto } from '../dto/register.dto';
+import { RegisterDto } from '@/modules/auth/dto/register.dto';
 import { AuthJwtPayloadService } from '../services/auth-jwt-payload.service';
 import { AuthSessionService } from '../services/auth-session.service';
 import {
   CURRENT_TERMS_VERSION,
   EndClientLinkService,
-} from '../../portal/end-client-link.service';
+} from '../../end-client-link/end-client-link.service';
 import { TeamInviteService } from '../../companies/team/team-invite.service';
 import { normalizePhone, phoneVariants } from '../../../common/utils/phone.util';
 

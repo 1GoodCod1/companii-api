@@ -1,43 +1,29 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ReviewStatus } from '@prisma/client';
 import { AppErrorMessages, AppErrors } from '../../../common/errors';
 import { AuditAction } from '../../audit/audit-action.enum';
 import { AuditEntityType } from '../../audit/audit-entity-type.enum';
 import { AuditService } from '../../audit/audit.service';
-import { PrismaService } from '../../shared/database/prisma.service';
+import { ADMIN_REPOSITORY } from '../domain/ports/admin.repository.port';
+import type { PrismaAdminRepository } from '../infrastructure/persistence/prisma-admin.repository';
 
 @Injectable()
 export class AdminModerationService {
   constructor(
-    private readonly prisma: PrismaService,
+    @Inject(ADMIN_REPOSITORY)
+    private readonly adminRepo: PrismaAdminRepository,
     private readonly audit: AuditService,
   ) {}
 
   listReviews() {
-    return this.prisma.companyReview.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 200,
-      include: {
-        company: { select: { id: true, name: true, slug: true } },
-        author: { select: { id: true, email: true, firstName: true, lastName: true } },
-        intervention: { select: { id: true, number: true } },
-      },
-    });
+    return this.adminRepo.listReviews();
   }
 
   async moderateReview(id: string, status: ReviewStatus, adminUserId: string) {
-    const existing = await this.prisma.companyReview.findUnique({ where: { id } });
+    const existing = await this.adminRepo.findReviewById(id);
     if (!existing) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
 
-    const updated = await this.prisma.companyReview.update({
-      where: { id },
-      data: { status },
-      include: {
-        company: { select: { id: true, name: true, slug: true } },
-        author: { select: { id: true, email: true, firstName: true, lastName: true } },
-        intervention: { select: { id: true, number: true } },
-      },
-    });
+    const updated = await this.adminRepo.updateReviewStatus(id, status);
 
     void this.audit.log({
       userId: adminUserId,

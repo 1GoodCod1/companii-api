@@ -5,6 +5,5 @@ import { WebVitalsStoreService } from './web-vitals-store.service';
 @Module({
   controllers: [WebVitalsController],
   providers: [WebVitalsStoreService],
-  exports: [WebVitalsStoreService],
 })
 export class WebVitalsModule {}

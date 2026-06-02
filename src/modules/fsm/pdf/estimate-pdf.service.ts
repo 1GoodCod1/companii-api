@@ -312,7 +312,7 @@ export class EstimatePdfService {
     this.drawWatermark(doc, watermarkText);
 
     doc.end();
-    return finished;
+    return await finished;
   }
 
   private drawWatermark(doc: PDFKit.PDFDocument, text?: string) {
@@ -420,7 +420,7 @@ export class EstimatePdfService {
     }
 
     doc.end();
-    return finished;
+    return await finished;
   }
 
   async buildShoppingListStream(

@@ -130,6 +130,6 @@ export class InvoicePdfService extends BasePdfService {
     }
 
     doc.end();
-    return finished;
+    return await finished;
   }
 }

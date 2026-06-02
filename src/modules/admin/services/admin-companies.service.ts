@@ -1,50 +1,36 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { AppErrorMessages, AppErrors } from '../../../common/errors';
 import { AuditAction } from '../../audit/audit-action.enum';
 import { AuditEntityType } from '../../audit/audit-entity-type.enum';
 import { AuditService } from '../../audit/audit.service';
-import { PrismaService } from '../../shared/database/prisma.service';
-import { companyDetailInclude, companyListInclude } from '../admin.constants';
+import { ADMIN_REPOSITORY } from '../domain/ports/admin.repository.port';
+import type { PrismaAdminRepository } from '../infrastructure/persistence/prisma-admin.repository';
 
 @Injectable()
 export class AdminCompaniesService {
   constructor(
-    private readonly prisma: PrismaService,
+    @Inject(ADMIN_REPOSITORY)
+    private readonly adminRepo: PrismaAdminRepository,
     private readonly audit: AuditService,
   ) {}
 
   pendingCompanies() {
-    return this.prisma.company.findMany({
-      where: { isVerified: false },
-      include: companyListInclude,
-      orderBy: { createdAt: 'desc' },
-    });
+    return this.adminRepo.pendingCompanies();
   }
 
   async getCompany(id: string) {
-    const company = await this.prisma.company.findUnique({
-      where: { id },
-      include: companyDetailInclude,
-    });
+    const company = await this.adminRepo.findCompanyById(id, /* includeDetails */ true);
     if (!company) throw AppErrors.notFound(AppErrorMessages.COMPANY_NOT_FOUND);
     return company;
   }
 
   listCompanies() {
-    return this.prisma.company.findMany({
-      include: companyListInclude,
-      orderBy: { createdAt: 'desc' },
-      take: 100,
-    });
+    return this.adminRepo.listCompanies();
   }
 
   async verifyCompany(id: string, adminUserId: string, note?: string) {
     const existing = await this.findCompanyOrThrow(id);
-    const updated = await this.prisma.company.update({
-      where: { id },
-      data: { isVerified: true },
-      include: companyDetailInclude,
-    });
+    const updated = await this.adminRepo.updateCompany(id, { isVerified: true }, /* includeDetails */ true);
 
     void this.audit.log({
       userId: adminUserId,
@@ -60,11 +46,7 @@ export class AdminCompaniesService {
 
   async rejectCompany(id: string, adminUserId: string, note?: string) {
     const existing = await this.findCompanyOrThrow(id);
-    const updated = await this.prisma.company.update({
-      where: { id },
-      data: { isVerified: false, isPublished: false },
-      include: companyDetailInclude,
-    });
+    const updated = await this.adminRepo.updateCompany(id, { isVerified: false, isPublished: false }, /* includeDetails */ true);
 
     void this.audit.log({
       userId: adminUserId,
@@ -80,11 +62,7 @@ export class AdminCompaniesService {
 
   async unpublishCompany(id: string, adminUserId: string, note?: string) {
     const existing = await this.findCompanyOrThrow(id);
-    const updated = await this.prisma.company.update({
-      where: { id },
-      data: { isPublished: false },
-      include: companyDetailInclude,
-    });
+    const updated = await this.adminRepo.updateCompany(id, { isPublished: false }, /* includeDetails */ true);
 
     void this.audit.log({
       userId: adminUserId,
@@ -99,7 +77,7 @@ export class AdminCompaniesService {
   }
 
   private async findCompanyOrThrow(id: string) {
-    const company = await this.prisma.company.findUnique({ where: { id } });
+    const company = await this.adminRepo.findCompanyById(id, /* includeDetails */ false);
     if (!company) throw AppErrors.notFound(AppErrorMessages.COMPANY_NOT_FOUND);
     return company;
   }

@@ -1,8 +1,8 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { FsmService } from '../fsm.service';
 import { CONTROLLER_PATH } from '../../../common/constants';
-import { CompanyGuard } from '../../companies/guards/company.guard';
-import { SubscriptionGuard } from '../../auth/guards/subscription.guard';
+import { CompanyGuard } from '@/modules/companies/guards/company.guard';
+import { SubscriptionGuard } from '@/modules/auth/guards/subscription.guard';
 import { RequiresFeature } from '../../../common/decorators/requires-feature.decorator';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../../auth/types/jwt-payload';

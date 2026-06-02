@@ -3,7 +3,7 @@ import { CacheService } from '../../shared/cache/cache.service';
 import { PrismaService } from '../../shared/database/prisma.service';
 import type { JwtPayload } from '../../auth/types/jwt-payload';
 import { CompanyAuthorizationService } from '../authorization/company-authorization.service';
-import { CreateCompanyDto } from '../dto/create-company.dto';
+import { CreateCompanyDto } from '@/modules/companies/dto/create-company.dto';
 
 @Injectable()
 export class UpdateCompanyUseCase {

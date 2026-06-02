@@ -6,17 +6,12 @@ import type { Response } from 'express';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
 import configuration from './config';
-import {
-  AppThrottlerGuard,
-  CookieOriginGuard,
-  JwtAuthGuard,
-} from './common/guards';
-import {
-  CacheControlInterceptor,
-  SlowRequestInterceptor,
-  TimeoutInterceptor,
-} from './common/interceptors';
-import { AuditInterceptor } from './modules/audit/audit.interceptor';
+import { AppThrottlerGuard } from './common/guards/app-throttler.guard';
+import { CookieOriginGuard } from './common/guards/cookie-origin.guard';
+import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+import { CacheControlInterceptor } from './common/interceptors/cache-control.interceptor';
+import { SlowRequestInterceptor } from './common/interceptors/slow-request.interceptor';
+import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor';
 import { AuditModule } from './modules/audit/audit.module';
 import { PrismaModule } from './modules/shared/database/prisma.module';
 import { RedisModule } from './modules/shared/redis/redis.module';
@@ -39,6 +34,7 @@ import { SeoModule } from './modules/seo/seo.module';
 import { WebVitalsModule } from './modules/web-vitals/web-vitals.module';
 import { RlsModule } from './common/rls/rls.module';
 import { HealthController } from './health.controller';
+import { HealthService } from './health.service';
 import { AUTH_THROTTLER_NAME } from './common/constants';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 
@@ -94,10 +90,10 @@ const isProd = process.env.NODE_ENV === 'production';
   ],
   controllers: [HealthController],
   providers: [
+    HealthService,
     { provide: APP_GUARD, useClass: AppThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: CookieOriginGuard },
-    { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
     {
       provide: APP_INTERCEPTOR,
       useFactory: () => new TimeoutInterceptor(30_000),

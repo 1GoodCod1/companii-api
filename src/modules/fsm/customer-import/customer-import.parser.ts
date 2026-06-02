@@ -224,7 +224,7 @@ export function parseCustomerImportCsv(buffer: Buffer): ParsedCustomerImportRow[
 }
 
 export async function parseCustomerImportXlsx(buffer: Buffer): Promise<ParsedCustomerImportRow[]> {
-  return new XlsxCustomerImportParserStrategy().parse(buffer);
+  return await new XlsxCustomerImportParserStrategy().parse(buffer);
 }
 
 export function parseCustomerImportFile(

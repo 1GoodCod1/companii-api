@@ -1,8 +1,8 @@
 import { Body, Controller, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { CONTROLLER_PATH } from '../../../common/constants';
-import { CompanyGuard } from '../../companies/guards/company.guard';
+import { CompanyGuard } from '@/modules/companies/guards/company.guard';
 import { CompanyRoles } from '../../companies/decorators/company-roles.decorator';
-import { SubscriptionGuard } from '../../auth/guards/subscription.guard';
+import { SubscriptionGuard } from '@/modules/auth/guards/subscription.guard';
 import { RequiresFeature } from '../../../common/decorators/requires-feature.decorator';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../../auth/types/jwt-payload';

@@ -7,6 +7,9 @@ import { FilesValidationService } from './services/files-validation.service';
 import { StorageService } from './services/storage.service';
 import { createMulterOptions } from './config/multer-config.factory';
 
+import { FILES_REPOSITORY } from './domain/ports/files.repository.port';
+import { PrismaFilesRepository } from './infrastructure/persistence/prisma-files.repository';
+
 @Module({
   imports: [
     MulterModule.registerAsync({
@@ -16,7 +19,15 @@ import { createMulterOptions } from './config/multer-config.factory';
     }),
   ],
   controllers: [FilesController],
-  providers: [FilesService, FilesValidationService, StorageService],
-  exports: [FilesService, StorageService],
+  providers: [
+    FilesService,
+    FilesValidationService,
+    StorageService,
+    {
+      provide: FILES_REPOSITORY,
+      useClass: PrismaFilesRepository,
+    },
+  ],
+  exports: [StorageService],
 })
 export class FilesModule {}

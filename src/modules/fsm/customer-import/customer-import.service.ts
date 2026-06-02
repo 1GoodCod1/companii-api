@@ -32,7 +32,7 @@ export class CustomerImportService {
   }
 
   async getTemplate(format: 'xlsx' | 'csv') {
-    return buildCustomerImportTemplate(format);
+    return await buildCustomerImportTemplate(format);
   }
 
   async previewFromFile(

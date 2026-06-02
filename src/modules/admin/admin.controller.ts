@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } f
 import { CONTROLLER_PATH } from '../../common/constants';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { RolesGuard } from '../../common/guards/roles.guard';
+import { RolesGuard } from '@/common/guards/roles.guard';
 import type { JwtPayload } from '../auth/types/jwt-payload';
 import { AdminService } from './admin.service';
 import { AdminAuditQueryDto } from './dto/admin-audit-query.dto';

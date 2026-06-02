@@ -71,7 +71,7 @@ export class EmailService implements OnModuleInit {
     expiresAt: Date;
   }): Promise<boolean> {
     const tpl = buildTeamInviteEmail(params);
-    return this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
+    return await this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
   }
 
   async sendTeamMemberDeactivatedEmail(params: {
@@ -80,7 +80,7 @@ export class EmailService implements OnModuleInit {
     actorName?: string;
   }): Promise<boolean> {
     const tpl = buildTeamMemberDeactivatedEmail(params);
-    return this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
+    return await this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
   }
 
   async sendTeamMemberLeftEmail(params: {
@@ -89,7 +89,7 @@ export class EmailService implements OnModuleInit {
     memberName: string;
   }): Promise<boolean> {
     const tpl = buildTeamMemberLeftEmail(params);
-    return this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
+    return await this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
   }
 
   async sendOwnershipTransferredEmail(params: {
@@ -100,7 +100,7 @@ export class EmailService implements OnModuleInit {
     isNewOwner: boolean;
   }): Promise<boolean> {
     const tpl = buildOwnershipTransferredEmail(params);
-    return this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
+    return await this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
   }
 
   async sendQuoteEmail(params: {
@@ -111,7 +111,7 @@ export class EmailService implements OnModuleInit {
     portalUrl: string;
   }): Promise<boolean> {
     const tpl = buildQuoteEmail(params);
-    return this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
+    return await this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
   }
 
   async sendEstimateEmail(params: {
@@ -123,7 +123,7 @@ export class EmailService implements OnModuleInit {
     portalUrl: string;
   }): Promise<boolean> {
     const tpl = buildEstimateEmail(params);
-    return this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
+    return await this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
   }
 
   async sendNewLeadEmail(params: {
@@ -141,7 +141,7 @@ export class EmailService implements OnModuleInit {
     leadsUrl: string;
   }): Promise<boolean> {
     const tpl = buildNewLeadEmail(params);
-    return this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
+    return await this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
   }
 
   async sendInterventionAssignedEmail(params: {
@@ -156,7 +156,7 @@ export class EmailService implements OnModuleInit {
     interventionUrl: string;
   }): Promise<boolean> {
     const tpl = buildInterventionAssignedEmail(params);
-    return this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
+    return await this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
   }
 
   async sendEstimateStatusEmail(params: {
@@ -169,7 +169,7 @@ export class EmailService implements OnModuleInit {
     total: number;
   }): Promise<boolean> {
     const tpl = buildEstimateStatusEmail(params);
-    return this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
+    return await this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
   }
 
   async sendEstimateFeedbackEmail(params: {
@@ -180,7 +180,7 @@ export class EmailService implements OnModuleInit {
     comment: string;
   }): Promise<boolean> {
     const tpl = buildEstimateFeedbackEmail(params);
-    return this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
+    return await this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
   }
 
   async sendPasswordResetEmail(params: {
@@ -188,7 +188,7 @@ export class EmailService implements OnModuleInit {
     resetUrl: string;
   }): Promise<boolean> {
     const tpl = buildPasswordResetEmail(params);
-    return this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
+    return await this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
   }
 
   async sendCompletedInterventionPendingReceiptsEmail(params: {
@@ -199,7 +199,7 @@ export class EmailService implements OnModuleInit {
     pendingTotal: number;
   }): Promise<boolean> {
     const tpl = buildCompletedInterventionPendingReceiptsEmail(params);
-    return this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
+    return await this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
   }
 
   async sendInvoiceEmail(params: {
@@ -220,7 +220,7 @@ export class EmailService implements OnModuleInit {
       paymentStatus: params.paymentStatus,
       customMessage: params.customMessage,
     });
-    return this.send(
+    return await this.send(
       params.to,
       tpl.subject,
       tpl.html,
@@ -240,7 +240,7 @@ export class EmailService implements OnModuleInit {
     total: number;
   }): Promise<boolean> {
     const tpl = buildPaymentProofSubmittedEmail(params);
-    return this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
+    return await this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
   }
 
   async sendEstimateVarianceAlertEmail(params: {
@@ -251,7 +251,7 @@ export class EmailService implements OnModuleInit {
     variancePct: number;
   }): Promise<boolean> {
     const tpl = buildEstimateVarianceAlertEmail(params);
-    return this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
+    return await this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
   }
 
   private async send(

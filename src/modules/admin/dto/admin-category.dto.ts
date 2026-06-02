@@ -1,7 +1,8 @@
+import { Type } from 'class-transformer';
 import { IsObject, IsOptional, IsString, Matches, MinLength } from 'class-validator';
-import type { CatalogTranslationPayload } from './admin-city.dto';
+import { CatalogTranslationPayloadDto } from './admin-city.dto';
 
-export type { CatalogTranslationPayload };
+export type { CatalogTranslationPayloadDto as CatalogTranslationPayload };
 
 export class CreateAdminCategoryDto {
   @IsString()
@@ -15,7 +16,8 @@ export class CreateAdminCategoryDto {
 
   @IsOptional()
   @IsObject()
-  translations?: Record<string, CatalogTranslationPayload>;
+  @Type(() => CatalogTranslationPayloadDto)
+  translations?: Record<string, CatalogTranslationPayloadDto>;
 }
 
 export class UpdateAdminCategoryDto {
@@ -31,5 +33,6 @@ export class UpdateAdminCategoryDto {
 
   @IsOptional()
   @IsObject()
-  translations?: Record<string, CatalogTranslationPayload>;
+  @Type(() => CatalogTranslationPayloadDto)
+  translations?: Record<string, CatalogTranslationPayloadDto>;
 }
