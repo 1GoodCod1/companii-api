@@ -12,6 +12,11 @@ export type PortalInvitationWithCustomer = PortalInvitation & {
 };
 
 export interface PortalInvitationRepository {
+  findCustomerForInvite(
+    companyId: string,
+    customerId: string,
+  ): Promise<{ portalUserId: string | null } | null>;
+
   createInvitationAndExpirePending(
     customerId: string,
     token: string,

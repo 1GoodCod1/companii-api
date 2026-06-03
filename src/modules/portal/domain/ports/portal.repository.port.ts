@@ -49,10 +49,12 @@ export type PortalDashboardEstimate = EstimateProject & {
   company: { id: string; name: string; slug: string | null };
 };
 
+export type PortalCompanyRef = { id: string; name: string; slug: string | null };
+
 export interface PortalDashboardData {
   interventions: PortalDashboardIntervention[];
-  quotes: Quote[];
-  invoices: CompanyInvoice[];
+  quotes: (Quote & { company: PortalCompanyRef })[];
+  invoices: (CompanyInvoice & { company: PortalCompanyRef })[];
   reviews: PortalDashboardReview[];
   estimates: PortalDashboardEstimate[];
 }
@@ -80,29 +82,32 @@ export type PortalEstimateChangesResult = PortalEstimateActionResult & {
 export type FeedbackAppendFn = (currentFeedback: Prisma.JsonValue) => Prisma.InputJsonValue;
 
 export interface PortalRepository {
+  // All customer-bound reads/writes are scoped by the portal USER (a user may be
+  // a customer of several companies); ownership = customer.portalUserId === userId.
   findCustomerByUserId(userId: string): Promise<CompanyCustomer>;
   listMyLeads(userId: string, take: number, cursor?: string): Promise<PortalLead[]>;
-  findQuoteByIdAndCustomer(quoteId: string, customerId: string): Promise<Quote | null>;
+  findSentQuoteForUser(quoteId: string, userId: string): Promise<Quote | null>;
   updateQuoteStatus(quoteId: string, status: QuoteStatus): Promise<Quote>;
-  findProjectByIdAndCustomer(projectId: string, customerId: string): Promise<EstimateProject | null>;
+  findProjectForUser(projectId: string, userId: string): Promise<EstimateProject | null>;
+  findOwnedInvoiceCustomerId(invoiceId: string, userId: string): Promise<string | null>;
 
-  getDashboardData(customer: CompanyCustomer): Promise<PortalDashboardData>;
+  getDashboardData(userId: string): Promise<PortalDashboardData>;
 
   acceptOrRejectEstimate(
-    customerId: string,
+    userId: string,
     projectId: string,
     status: 'ACCEPTED' | 'REJECTED',
     appendFeedbackFn: FeedbackAppendFn,
   ): Promise<PortalEstimateActionResult>;
 
   requestEstimateChanges(
-    customerId: string,
+    userId: string,
     projectId: string,
     comment: string,
     appendFeedbackFn: FeedbackAppendFn,
   ): Promise<PortalEstimateChangesResult>;
 
-  getInvoicePdfData(invoiceId: string, customerId: string): Promise<Prisma.CompanyInvoiceGetPayload<{
+  getInvoicePdfData(invoiceId: string, userId: string): Promise<Prisma.CompanyInvoiceGetPayload<{
     include: {
       company: {
         select: {
@@ -120,7 +125,7 @@ export interface PortalRepository {
     };
   }> | null>;
 
-  getEstimatePdfData(projectId: string, customerId: string): Promise<Prisma.EstimateProjectGetPayload<{
+  getEstimatePdfData(projectId: string, userId: string): Promise<Prisma.EstimateProjectGetPayload<{
     include: {
       company: {
         select: {
@@ -155,5 +160,5 @@ export interface PortalRepository {
     };
   }>>;
 
-  checkProjectOwnership(projectId: string, customerId: string): Promise<void>;
+  checkProjectOwnership(projectId: string, userId: string): Promise<void>;
 }

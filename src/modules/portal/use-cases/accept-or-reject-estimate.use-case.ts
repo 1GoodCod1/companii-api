@@ -23,11 +23,10 @@ export class AcceptOrRejectEstimateUseCase {
   ) {}
 
   async execute(user: JwtPayload, projectId: string, status: 'ACCEPTED' | 'REJECTED') {
-    const customer = await this.portalRepo.findCustomerByUserId(user.sub);
     const kind: EstimateClientFeedbackKind = status === 'ACCEPTED' ? 'ACCEPT' : 'REJECT';
 
     const { updatedProject, fullProject } = await this.portalRepo.acceptOrRejectEstimate(
-      customer.id,
+      user.sub,
       projectId,
       status,
       (currentFeedback) => appendClientFeedback(currentFeedback, { kind }),

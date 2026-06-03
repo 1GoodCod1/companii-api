@@ -8,3 +8,4 @@ export const AUTH_LOCKOUT_TTL_SEC = 15 * 60;
 export const AUTH_LOCKOUT_WINDOW_TTL_SEC = 15 * 60;
 export const AUTH_SESSION_DAYS = 1;
 export const AUTH_REMEMBER_ME_DAYS = 30;
+export const AUTH_REFRESH_ROTATION_GRACE_MS = 60_000;

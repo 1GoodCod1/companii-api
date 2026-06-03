@@ -129,7 +129,7 @@ enum PaymentProductType {
 }
 
 model User {
-  id              String      @id @default(uuid())
+  id              String      @id @default(uuid(7))
   email           String      @unique
   phone           String?     @unique
   passwordHash    String?     @map("password_hash")
@@ -144,7 +144,7 @@ model User {
 
   ownedCompanies     Company[]           @relation("CompanyOwner")
   companyMemberships CompanyMember[]
-  portalCustomer     CompanyCustomer?
+  portalCustomers    CompanyCustomer[]
   refreshTokens      RefreshToken[]
   auditLogs          AuditLog[]
   uploadedFiles      File[]
@@ -160,7 +160,7 @@ enum FileVisibility {
 }
 
 model File {
-  id           String         @id @default(uuid())
+  id           String         @id @default(uuid(7))
   filename     String
   path         String         @unique
   mimetype     String
@@ -178,7 +178,7 @@ model File {
 }
 
 model AuditLog {
-  id         String   @id @default(uuid())
+  id         String   @id @default(uuid(7))
   userId     String?  @map("user_id")
   action     String
   entityType String?  @map("entity_type")
@@ -198,11 +198,12 @@ model AuditLog {
 }
 
 model RefreshToken {
-  id        String   @id @default(uuid())
-  userId    String   @map("user_id")
-  tokenHash String   @map("token_hash")
-  expiresAt DateTime @map("expires_at")
-  createdAt DateTime @default(now()) @map("created_at")
+  id             String    @id @default(uuid(7))
+  userId         String    @map("user_id")
+  tokenHash      String    @map("token_hash")
+  expiresAt      DateTime  @map("expires_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  graceExpiresAt DateTime? @map("grace_expires_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -211,7 +212,7 @@ model RefreshToken {
 }
 
 model City {
-  id           String    @id @default(uuid())
+  id           String    @id @default(uuid(7))
   name         String
   slug         String    @unique
   translations Json?
@@ -223,7 +224,7 @@ model City {
 }
 
 model Category {
-  id           String    @id @default(uuid())
+  id           String    @id @default(uuid(7))
   name         String
   slug         String    @unique
   translations Json?
@@ -239,7 +240,7 @@ model Category {
 }
 
 model Company {
-  id           String   @id @default(uuid())
+  id           String   @id @default(uuid(7))
   slug         String   @unique
   ownerUserId  String   @map("owner_user_id")
   name         String
@@ -293,7 +294,7 @@ model Company {
 }
 
 model CompanyWaitlist {
-  id          String   @id @default(uuid())
+  id          String   @id @default(uuid(7))
   email       String
   companyName String   @map("company_name")
   createdAt   DateTime @default(now()) @map("created_at")
@@ -303,7 +304,7 @@ model CompanyWaitlist {
 }
 
 model CompanyMember {
-  id                 String              @id @default(uuid())
+  id                 String              @id @default(uuid(7))
   companyId          String              @map("company_id")
   userId             String              @map("user_id")
   role               CompanyRole
@@ -332,7 +333,7 @@ model CompanyMember {
 }
 
 model CompanyInvitation {
-  id            String           @id @default(uuid())
+  id            String           @id @default(uuid(7))
   companyId     String           @map("company_id")
   invitedEmail  String?          @map("invited_email")
   invitedUserId String?          @map("invited_user_id")
@@ -349,7 +350,7 @@ model CompanyInvitation {
 }
 
 model CompanyDocument {
-  id         String             @id @default(uuid())
+  id         String             @id @default(uuid(7))
   companyId  String             @map("company_id")
   type       String
   fileKey    String             @map("file_key")
@@ -363,7 +364,7 @@ model CompanyDocument {
 }
 
 model CompanyGalleryImage {
-  id        String   @id @default(uuid())
+  id        String   @id @default(uuid(7))
   companyId String   @map("company_id")
   url       String
   caption   String?
@@ -377,7 +378,7 @@ model CompanyGalleryImage {
 }
 
 model CompanyConsent {
-  id           String      @id @default(uuid())
+  id           String      @id @default(uuid(7))
   companyId    String      @map("company_id")
   memberId     String      @map("member_id")
   consentType  ConsentType @map("consent_type")
@@ -395,7 +396,7 @@ model CompanyConsent {
 }
 
 model CompanyService {
-  id              String   @id @default(uuid())
+  id              String   @id @default(uuid(7))
   companyId       String   @map("company_id")
   slug            String   @unique
   name            String
@@ -420,7 +421,7 @@ model CompanyService {
 }
 
 model CompanyPlan {
-  id                       String                  @id @default(uuid())
+  id                       String                  @id @default(uuid(7))
   code                     CompanySubscriptionPlan @unique
   name                     String
   price                    Decimal                 @db.Decimal(12, 2)
@@ -436,7 +437,7 @@ model CompanyPlan {
 }
 
 model CompanySubscription {
-  id                 String                    @id @default(uuid())
+  id                 String                    @id @default(uuid(7))
   companyId          String                    @unique @map("company_id")
   planId             String                    @map("plan_id")
   status             CompanySubscriptionStatus @default(TRIAL)
@@ -452,9 +453,11 @@ model CompanySubscription {
 }
 
 model CompanyCustomer {
-  id           String   @id @default(uuid())
+  id           String   @id @default(uuid(7))
   companyId    String   @map("company_id")
-  portalUserId String?  @unique @map("portal_user_id")
+  // A portal user can be a customer of MANY companies (one record per company),
+  // so the link is unique per-company, not globally. See [[multi-company portal]].
+  portalUserId String?  @map("portal_user_id")
   fullName     String   @map("full_name")
   phone        String
   email        String?
@@ -473,12 +476,13 @@ model CompanyCustomer {
   reviews       CompanyReview[]
   leads         CompanyLead[]
 
+  @@unique([companyId, portalUserId])
   @@index([companyId])
   @@map("company_customers")
 }
 
 model CompanyLead {
-  id           String            @id @default(uuid())
+  id           String            @id @default(uuid(7))
   companyId    String            @map("company_id")
   customerId   String?           @map("customer_id")
   contactName  String            @map("contact_name")
@@ -509,7 +513,7 @@ model CompanyLead {
 }
 
 model CompanyCustomerDocument {
-  id         String   @id @default(uuid())
+  id         String   @id @default(uuid(7))
   customerId String   @map("customer_id")
   fileKey    String   @map("file_key")
   type       String
@@ -521,7 +525,7 @@ model CompanyCustomerDocument {
 }
 
 model PortalInvitation {
-  id         String           @id @default(uuid())
+  id         String           @id @default(uuid(7))
   customerId String           @map("customer_id")
   token      String           @unique
   status     InvitationStatus @default(PENDING)
@@ -534,7 +538,7 @@ model PortalInvitation {
 }
 
 model Intervention {
-  id             String             @id @default(uuid())
+  id             String             @id @default(uuid(7))
   companyId      String             @map("company_id")
   customerId     String             @map("customer_id")
   /** Lead/primary assignee — back-compat cache. Source of truth is `assignments`. */
@@ -579,7 +583,7 @@ model Intervention {
 }
 
 model Crew {
-  id          String   @id @default(uuid())
+  id          String   @id @default(uuid(7))
   companyId   String   @map("company_id")
   name        String
   description String?
@@ -613,7 +617,7 @@ model CrewMember {
 }
 
 model InterventionAssignment {
-  id             String   @id @default(uuid())
+  id             String   @id @default(uuid(7))
   interventionId String   @map("intervention_id")
   memberId       String   @map("member_id")
   isLead         Boolean  @default(false) @map("is_lead")
@@ -628,7 +632,7 @@ model InterventionAssignment {
 }
 
 model InterventionStatusHistory {
-  id                String             @id @default(uuid())
+  id                String             @id @default(uuid(7))
   interventionId    String             @map("intervention_id")
   fromStatus        InterventionStatus? @map("from_status")
   toStatus          InterventionStatus @map("to_status")
@@ -644,7 +648,7 @@ model InterventionStatusHistory {
 }
 
 model InterventionNote {
-  id               String   @id @default(uuid())
+  id               String   @id @default(uuid(7))
   interventionId   String   @map("intervention_id")
   authorMemberId   String   @map("author_member_id")
   body             String
@@ -659,7 +663,7 @@ model InterventionNote {
 }
 
 model InterventionPhoto {
-  id             String   @id @default(uuid())
+  id             String   @id @default(uuid(7))
   interventionId String   @map("intervention_id")
   fileKey        String   @map("file_key")
   sortOrder      Int      @default(0) @map("sort_order")
@@ -673,7 +677,7 @@ model InterventionPhoto {
 }
 
 model Quote {
-  id             String      @id @default(uuid())
+  id             String      @id @default(uuid(7))
   companyId      String      @map("company_id")
   customerId     String      @map("customer_id")
   interventionId String?     @map("intervention_id")
@@ -696,7 +700,7 @@ model Quote {
 }
 
 model QuoteLine {
-  id               String   @id @default(uuid())
+  id               String   @id @default(uuid(7))
   quoteId          String   @map("quote_id")
   companyServiceId String?  @map("company_service_id")
   description      String
@@ -713,7 +717,7 @@ model QuoteLine {
 }
 
 model CompanyInvoice {
-  id                  String               @id @default(uuid())
+  id                  String               @id @default(uuid(7))
   companyId           String               @map("company_id")
   interventionId      String?              @unique @map("intervention_id")
   number              String               @unique
@@ -743,7 +747,7 @@ model CompanyInvoice {
 }
 
 model Badge {
-  id        String   @id @default(uuid())
+  id        String   @id @default(uuid(7))
   companyId String?  @map("company_id")
   code      String
   isActive  Boolean  @default(true) @map("is_active")
@@ -757,7 +761,7 @@ model Badge {
 }
 
 model Payment {
-  id          String             @id @default(uuid())
+  id          String             @id @default(uuid(7))
   companyId   String?            @map("company_id")
   productType PaymentProductType @map("product_type")
   amount      Decimal            @db.Decimal(12, 2)
@@ -770,7 +774,7 @@ model Payment {
 }
 
 model CompanyReview {
-  id             String       @id @default(uuid())
+  id             String       @id @default(uuid(7))
   companyId      String       @map("company_id")
   customerId     String       @map("customer_id")
   interventionId String       @unique @map("intervention_id")
@@ -793,7 +797,7 @@ model CompanyReview {
 }
 
 model EstimateTemplate {
-  id          String   @id @default(uuid())
+  id          String   @id @default(uuid(7))
   companyId   String   @map("company_id")
   name        String
   description String?
@@ -808,7 +812,7 @@ model EstimateTemplate {
 }
 
 model EstimateBlueprint {
-  id         String   @id @default(uuid())
+  id         String   @id @default(uuid(7))
   categoryId String   @unique @map("category_id")
   name       String
   version    Int      @default(1)
@@ -824,7 +828,7 @@ model EstimateBlueprint {
 }
 
 model EstimateProject {
-  id                String                @id @default(uuid())
+  id                String                @id @default(uuid(7))
   companyId         String                @map("company_id")
   customerId        String                @map("customer_id")
   categoryId        String                @map("category_id")
@@ -881,7 +885,7 @@ model EstimateProject {
 }
 
 model EstimateProjectPhoto {
-  id          String   @id @default(uuid())
+  id          String   @id @default(uuid(7))
   projectId   String   @map("project_id")
   fileKey     String   @map("file_key")
   caption     String?
@@ -896,7 +900,7 @@ model EstimateProjectPhoto {
 }
 
 model EstimateAppliedMutation {
-  id            String   @id @default(uuid())
+  id            String   @id @default(uuid(7))
   projectId     String   @map("project_id")
   mutationId    String   @map("mutation_id")
   kind          String
@@ -911,7 +915,7 @@ model EstimateAppliedMutation {
 }
 
 model EstimateSitePlan {
-  id        String   @id @default(uuid())
+  id        String   @id @default(uuid(7))
   projectId String   @unique @map("project_id")
   version   Int      @default(1)
   plan2d    Json     @map("plan_2d")
@@ -925,7 +929,7 @@ model EstimateSitePlan {
 }
 
 model EstimateStage {
-  id           String            @id @default(uuid())
+  id           String            @id @default(uuid(7))
   projectId    String            @map("project_id")
   sortOrder    Int               @map("sort_order")
   code         String
@@ -959,7 +963,7 @@ enum EstimateLineActualStatus {
 }
 
 model EstimateLine {
-  id             String   @id @default(uuid())
+  id             String   @id @default(uuid(7))
   stageId        String   @map("stage_id")
   description    String
   qty            Decimal  @db.Decimal(10, 2)
@@ -992,7 +996,7 @@ model EstimateLine {
 }
 
 model EstimateReceipt {
-  id                  String    @id @default(uuid())
+  id                  String    @id @default(uuid(7))
   companyId           String    @map("company_id")
   projectId           String    @map("project_id")
   fileKey             String?   @map("file_key")
@@ -1017,7 +1021,7 @@ model EstimateReceipt {
 }
 
 model EstimateMeasurement {
-  id        String   @id @default(uuid())
+  id        String   @id @default(uuid(7))
   projectId String   @map("project_id")
   roomKey   String?  @map("room_key")
   key       String
@@ -1033,7 +1037,7 @@ model EstimateMeasurement {
 }
 
 model EstimateVersion {
-  id          String   @id @default(uuid())
+  id          String   @id @default(uuid(7))
   projectId   String   @map("project_id")
   version     Int
   label       String?                                     
@@ -1050,7 +1054,7 @@ model EstimateVersion {
 }
 
 model EstimateComment {
-  id          String   @id @default(uuid())
+  id          String   @id @default(uuid(7))
   projectId   String   @map("project_id")
   authorId    String   @map("author_id")
   authorKind  String   @map("author_kind")                
@@ -1064,7 +1068,7 @@ model EstimateComment {
 }
 
 model PasswordResetToken {
-  id        String   @id @default(uuid())
+  id        String   @id @default(uuid(7))
   token     String   @unique
   userId    String   @map("user_id")
   expiresAt DateTime @map("expires_at")

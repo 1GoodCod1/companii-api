@@ -13,8 +13,7 @@ export class GetPortalEstimateUseCase {
   ) {}
 
   async execute(user: JwtPayload, projectId: string) {
-    const customer = await this.portalRepo.findCustomerByUserId(user.sub);
-    const project = await this.portalRepo.findProjectByIdAndCustomer(projectId, customer.id);
+    const project = await this.portalRepo.findProjectForUser(projectId, user.sub);
     if (!project) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
     return PortalEstimateTransformer.toClientView(project);
   }

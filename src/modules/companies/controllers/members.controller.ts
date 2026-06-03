@@ -131,7 +131,10 @@ export class MembersController {
   @Post('customers/:customerId/portal-invite')
   @UseGuards(CompanyGuard)
   @CompanyRoles('OWNER', 'MANAGER')
-  portalInvite(@Param('customerId') customerId: string) {
-    return this.portalInvitation.execute(customerId);
+  portalInvite(
+    @CurrentUser() user: JwtPayload,
+    @Param('customerId') customerId: string,
+  ) {
+    return this.portalInvitation.execute(user.activeCompanyId!, customerId);
   }
 }

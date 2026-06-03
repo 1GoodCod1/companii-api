@@ -21,14 +21,15 @@ import {
   winstonConfig,
 } from './config';
 
-process.on('warning', (warning) => {
-  const isPgClientQueryDeprecation =
-    warning.name === 'DeprecationWarning' &&
-    warning.message.includes('client.query') &&
-    warning.message.toLowerCase().includes('pg');
-  if (isPgClientQueryDeprecation) return;
-  console.warn(warning.stack ?? warning.message);
-});
+const originalEmitWarning = process.emitWarning.bind(process);
+process.emitWarning = ((warning: string | Error, ...rest: unknown[]) => {
+  const message = typeof warning === 'string' ? warning : (warning?.message ?? '');
+  if (message.includes('client.query') && message.includes('pg@9')) return;
+  return (originalEmitWarning as (w: string | Error, ...a: unknown[]) => void)(
+    warning,
+    ...rest,
+  );
+}) as typeof process.emitWarning;
 
 process.on('unhandledRejection', (reason) => {
   const logger = new Logger('UnhandledRejection');

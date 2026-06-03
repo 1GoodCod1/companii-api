@@ -38,6 +38,28 @@ services:
       timeout: 5s
       retries: 5
 
+  prisma-studio:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: companii-prisma-studio
+    ports:
+      - "5555:5555"
+    volumes:
+      - ./prisma:/app/prisma
+      - ./prisma.config.ts:/app/prisma.config.ts
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - companii-network
+    environment:
+      HOST: "0.0.0.0"
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-companii}@postgres:5432/${POSTGRES_DB:-companii}"
+    command: npx prisma studio --url="postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-companii}@postgres:5432/${POSTGRES_DB:-companii}" --port 5555 --browser none
+    restart: unless-stopped
+
   api:
     build:
       context: .

@@ -12,7 +12,7 @@ export class GetPortalDashboardUseCase {
 
   async execute(user: JwtPayload) {
     const customer = await this.portalRepo.findCustomerByUserId(user.sub);
-    const dashboardData = await this.portalRepo.getDashboardData(customer);
+    const dashboardData = await this.portalRepo.getDashboardData(user.sub);
 
     return {
       customer,

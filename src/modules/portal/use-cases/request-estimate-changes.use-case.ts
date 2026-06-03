@@ -23,9 +23,8 @@ export class RequestEstimateChangesUseCase {
       throw AppErrors.badRequest('Comentariul depășește 2000 de caractere');
     }
 
-    const customer = await this.portalRepo.findCustomerByUserId(user.sub);
     const { updatedProject, fullProject } = await this.portalRepo.requestEstimateChanges(
-      customer.id,
+      user.sub,
       projectId,
       trimmed,
       (currentFeedback) => appendClientFeedback(currentFeedback, {

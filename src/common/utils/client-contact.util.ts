@@ -27,7 +27,7 @@ export async function resolveClientContactFromUser(
       phone: true,
       firstName: true,
       lastName: true,
-      portalCustomer: { select: { fullName: true } },
+      portalCustomers: { select: { fullName: true }, take: 1 },
     },
   });
   if (!user) throw AppErrors.unauthorized(AppErrorMessages.AUTH_UNAUTHORIZED);
@@ -40,7 +40,7 @@ export async function resolveClientContactFromUser(
   const normalizedPhone = normalizePhone(phone) ?? phone;
   const profileName = [user.firstName, user.lastName].filter(Boolean).join(' ').trim();
   const contactName =
-    user.portalCustomer?.fullName?.trim() ||
+    user.portalCustomers[0]?.fullName?.trim() ||
     profileName ||
     user.email.split('@')[0] ||
     'Client';

@@ -31,9 +31,10 @@ export class AuthJwtPayloadService {
       }),
       async () => {
         if (base.accountKind === 'END_CLIENT') {
-          const customer = await this.prisma.companyCustomer.findUnique({
+          const customer = await this.prisma.companyCustomer.findFirst({
             where: { portalUserId: base.sub },
             select: { id: true, companyId: true },
+            orderBy: { createdAt: 'asc' },
           });
           if (customer) {
             return {

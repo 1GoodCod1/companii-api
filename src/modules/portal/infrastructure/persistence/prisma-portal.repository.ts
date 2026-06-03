@@ -38,9 +38,17 @@ const portalEstimateInclude = {
 export class PrismaPortalRepository implements PortalRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  // Portal scoping note: a portal user can be a customer of several companies,
+  // so every read/write is scoped by the user (`customer.portalUserId = userId`),
+  // i.e. "the resource belongs to ANY customer record owned by this user". This
+  // is the ownership boundary — keep it on every customer-bound query.
+
   async findCustomerByUserId(userId: string): Promise<CompanyCustomer> {
+    // Representative customer (for profile display / not-linked gate). Data is
+    // aggregated across all of the user's customers elsewhere.
     const customer = await this.prisma.companyCustomer.findFirst({
       where: { portalUserId: userId },
+      orderBy: { createdAt: 'asc' },
     });
     if (!customer) throw AppErrors.notFound(AppErrorMessages.PORTAL_NOT_LINKED);
     return customer;
@@ -50,10 +58,18 @@ export class PrismaPortalRepository implements PortalRepository {
     return findLeadsForEndClient(this.prisma, userId, take, cursor);
   }
 
-  findQuoteByIdAndCustomer(quoteId: string, customerId: string): Promise<Quote | null> {
+  findSentQuoteForUser(quoteId: string, userId: string): Promise<Quote | null> {
     return this.prisma.quote.findFirst({
-      where: { id: quoteId, customerId, status: 'SENT' },
+      where: { id: quoteId, status: 'SENT', customer: { portalUserId: userId } },
     });
+  }
+
+  async findOwnedInvoiceCustomerId(invoiceId: string, userId: string): Promise<string | null> {
+    const invoice = await this.prisma.companyInvoice.findFirst({
+      where: { id: invoiceId, intervention: { customer: { portalUserId: userId } } },
+      select: { intervention: { select: { customerId: true } } },
+    });
+    return invoice?.intervention?.customerId ?? null;
   }
 
   updateQuoteStatus(quoteId: string, status: QuoteStatus): Promise<Quote> {
@@ -63,11 +79,11 @@ export class PrismaPortalRepository implements PortalRepository {
     });
   }
 
-  findProjectByIdAndCustomer(projectId: string, customerId: string): Promise<EstimateProject | null> {
+  findProjectForUser(projectId: string, userId: string): Promise<EstimateProject | null> {
     return this.prisma.estimateProject.findFirst({
       where: {
         id: projectId,
-        customerId,
+        customer: { portalUserId: userId },
         status: {
           in: [
             EstimateProjectStatus.SENT,
@@ -82,11 +98,11 @@ export class PrismaPortalRepository implements PortalRepository {
     });
   }
 
-  async getDashboardData(customer: CompanyCustomer): Promise<PortalDashboardData> {
+  async getDashboardData(userId: string): Promise<PortalDashboardData> {
     const [interventions, quotes, invoices, reviews, estimates] = await this.prisma.inSerial([
       () =>
         this.prisma.intervention.findMany({
-          where: { customerId: customer.id },
+          where: { customer: { portalUserId: userId } },
           orderBy: { updatedAt: 'desc' },
           take: 20,
           include: {
@@ -105,17 +121,19 @@ export class PrismaPortalRepository implements PortalRepository {
         }),
       () =>
         this.prisma.quote.findMany({
-          where: { customerId: customer.id, status: { in: ['SENT', 'ACCEPTED', 'CONVERTED'] } },
+          where: { customer: { portalUserId: userId }, status: { in: ['SENT', 'ACCEPTED', 'CONVERTED'] } },
           orderBy: { createdAt: 'desc' },
+          include: { company: { select: { id: true, name: true, slug: true } } },
         }),
       () =>
         this.prisma.companyInvoice.findMany({
-          where: { intervention: { customerId: customer.id } },
+          where: { intervention: { customer: { portalUserId: userId } } },
           orderBy: { issuedAt: 'desc' },
+          include: { company: { select: { id: true, name: true, slug: true } } },
         }),
       () =>
         this.prisma.companyReview.findMany({
-          where: { customerId: customer.id },
+          where: { customer: { portalUserId: userId } },
           orderBy: { createdAt: 'desc' },
           select: {
             id: true,
@@ -133,7 +151,7 @@ export class PrismaPortalRepository implements PortalRepository {
       () =>
         this.prisma.estimateProject.findMany({
           where: {
-            customerId: customer.id,
+            customer: { portalUserId: userId },
             status: { in: ['SENT', 'ACCEPTED', 'IN_EXECUTION', 'DONE'] },
           },
           orderBy: { updatedAt: 'desc' },
@@ -165,7 +183,7 @@ export class PrismaPortalRepository implements PortalRepository {
   }
 
   async acceptOrRejectEstimate(
-    customerId: string,
+    userId: string,
     projectId: string,
     status: 'ACCEPTED' | 'REJECTED',
     appendFeedbackFn: FeedbackAppendFn,
@@ -179,8 +197,10 @@ export class PrismaPortalRepository implements PortalRepository {
         grandTotal: Prisma.Decimal | null;
       }>>`
         SELECT status, client_feedback as "clientFeedback", number, title, grand_total as "grandTotal"
-        FROM estimate_projects 
-        WHERE id = ${projectId} AND customer_id = ${customerId} FOR UPDATE
+        FROM estimate_projects
+        WHERE id = ${projectId}
+          AND customer_id IN (SELECT id FROM company_customers WHERE portal_user_id = ${userId})
+        FOR UPDATE
       `;
       const project = lockedProjects[0];
       if (!project) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
@@ -218,7 +238,7 @@ export class PrismaPortalRepository implements PortalRepository {
   }
 
   async requestEstimateChanges(
-    customerId: string,
+    userId: string,
     projectId: string,
     comment: string,
     appendFeedbackFn: FeedbackAppendFn,
@@ -231,7 +251,9 @@ export class PrismaPortalRepository implements PortalRepository {
         title: string;
       }>>`
         SELECT status, client_feedback as "clientFeedback", number, title FROM estimate_projects
-        WHERE id = ${projectId} AND customer_id = ${customerId} FOR UPDATE
+        WHERE id = ${projectId}
+          AND customer_id IN (SELECT id FROM company_customers WHERE portal_user_id = ${userId})
+        FOR UPDATE
       `;
       const project = lockedProjects[0];
       if (!project) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
@@ -276,11 +298,11 @@ export class PrismaPortalRepository implements PortalRepository {
     });
   }
 
-  getInvoicePdfData(invoiceId: string, customerId: string) {
+  getInvoicePdfData(invoiceId: string, userId: string) {
     return this.prisma.companyInvoice.findFirst({
       where: {
         id: invoiceId,
-        intervention: { customerId },
+        intervention: { customer: { portalUserId: userId } },
       },
       include: {
         company: {
@@ -300,9 +322,9 @@ export class PrismaPortalRepository implements PortalRepository {
     });
   }
 
-  getEstimatePdfData(projectId: string, customerId: string) {
+  getEstimatePdfData(projectId: string, userId: string) {
     return this.prisma.estimateProject.findFirst({
-      where: { id: projectId, customerId },
+      where: { id: projectId, customer: { portalUserId: userId } },
       include: {
         company: {
           select: {
@@ -342,13 +364,13 @@ export class PrismaPortalRepository implements PortalRepository {
     });
   }
 
-  async checkProjectOwnership(projectId: string, customerId: string): Promise<void> {
-    const project = await this.prisma.estimateProject.findUniqueOrThrow({
-      where: { id: projectId },
-      select: { customerId: true },
+  async checkProjectOwnership(projectId: string, userId: string): Promise<void> {
+    const project = await this.prisma.estimateProject.findFirst({
+      where: { id: projectId, customer: { portalUserId: userId } },
+      select: { id: true },
     });
-    if (project.customerId !== customerId) {
-      throw AppErrors.forbidden('');
+    if (!project) {
+      throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
     }
   }
 }

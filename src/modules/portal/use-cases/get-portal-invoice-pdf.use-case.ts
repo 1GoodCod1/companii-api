@@ -14,8 +14,7 @@ export class GetPortalInvoicePdfUseCase {
   ) {}
 
   async execute(user: JwtPayload, invoiceId: string) {
-    const customer = await this.portalRepo.findCustomerByUserId(user.sub);
-    const invoice = await this.portalRepo.getInvoicePdfData(invoiceId, customer.id);
+    const invoice = await this.portalRepo.getInvoicePdfData(invoiceId, user.sub);
     if (!invoice) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
 
     const buffer = await this.invoicePdf.build(invoice);

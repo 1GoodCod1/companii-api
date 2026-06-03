@@ -14,11 +14,16 @@ export class GetMeUseCase {
           where: { status: 'ACTIVE' },
           include: { company: true },
         },
-        portalCustomer: { include: { company: true } },
+        portalCustomers: {
+          include: { company: true },
+          orderBy: { createdAt: 'asc' },
+        },
         ownedCompanies: true,
       },
     });
     if (!user) throw AppErrors.unauthorized(AppErrorMessages.AUTH_UNAUTHORIZED);
-    return user;
+    // Backward-compatible shape: expose a single representative `portalCustomer`
+    // (the client may now be a customer of several companies — see portalCustomers).
+    return { ...user, portalCustomer: user.portalCustomers[0] ?? null };
   }
 }

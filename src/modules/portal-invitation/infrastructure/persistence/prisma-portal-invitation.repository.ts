@@ -6,6 +6,13 @@ import type { PortalInvitationRepository } from '../../domain/ports/portal-invit
 export class PrismaPortalInvitationRepository implements PortalInvitationRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  findCustomerForInvite(companyId: string, customerId: string) {
+    return this.prisma.companyCustomer.findFirst({
+      where: { id: customerId, companyId },
+      select: { portalUserId: true },
+    });
+  }
+
   createInvitationAndExpirePending(
     customerId: string,
     token: string,

@@ -48,8 +48,8 @@ export class PrismaAdminRepository implements AdminRepository {
     });
   }
 
-  listClients() {
-    return this.prisma.user.findMany({
+  async listClients() {
+    const rows = await this.prisma.user.findMany({
       where: { accountKind: 'END_CLIENT' },
       orderBy: { createdAt: 'desc' },
       take: 200,
@@ -61,15 +61,22 @@ export class PrismaAdminRepository implements AdminRepository {
         lastName: true,
         isActive: true,
         createdAt: true,
-        portalCustomer: {
+        portalCustomers: {
           select: {
             id: true,
             fullName: true,
             company: { select: { id: true, name: true } },
           },
+          take: 1,
+          orderBy: { createdAt: 'asc' },
         },
       },
     });
+    // Backward-compatible shape: surface a single representative portalCustomer.
+    return rows.map(({ portalCustomers, ...rest }) => ({
+      ...rest,
+      portalCustomer: portalCustomers[0] ?? null,
+    }));
   }
 
   findClientById(id: string) {
@@ -78,8 +85,8 @@ export class PrismaAdminRepository implements AdminRepository {
     });
   }
 
-  updateClient(id: string, data: Prisma.UserUncheckedUpdateInput) {
-    return this.prisma.user.update({
+  async updateClient(id: string, data: Prisma.UserUncheckedUpdateInput) {
+    const { portalCustomers, ...rest } = await this.prisma.user.update({
       where: { id },
       data,
       select: {
@@ -90,15 +97,18 @@ export class PrismaAdminRepository implements AdminRepository {
         lastName: true,
         isActive: true,
         createdAt: true,
-        portalCustomer: {
+        portalCustomers: {
           select: {
             id: true,
             fullName: true,
             company: { select: { id: true, name: true } },
           },
+          take: 1,
+          orderBy: { createdAt: 'asc' },
         },
       },
     });
+    return { ...rest, portalCustomer: portalCustomers[0] ?? null };
   }
 
   pendingCompanies() {

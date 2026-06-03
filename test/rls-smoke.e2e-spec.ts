@@ -180,4 +180,143 @@ describeE2e('Row-Level Security (RLS) SQL-Driver Smoke Test', () => {
       });
     });
   });
+
+  it('scopes END_CLIENT portal access per-customer across companies (multi-company + IDOR)', async () => {
+    const seed = await prisma.withRlsContext(
+      { userId: 'system', accountKind: 'PLATFORM_ADMIN' },
+      async (tx) => {
+        const city = await tx.city.findFirstOrThrow();
+        const category = await tx.category.findFirstOrThrow();
+        const admin = await tx.user.findFirstOrThrow({ where: { accountKind: 'PLATFORM_ADMIN' } });
+        const stamp = Date.now();
+
+        const mkCompany = (n: string, i: number) =>
+          tx.company.create({
+            data: {
+              slug: `rls-portal-${n}-${stamp}`,
+              name: `Portal ${n}`,
+              legalName: `Portal ${n} SRL`,
+              idno: String(stamp + i).padStart(13, '0').slice(-13),
+              legalAddress: 'Str. Test',
+              ownerUserId: admin.id,
+              cityId: city.id,
+            },
+          });
+        const companyA = await mkCompany('A', 1);
+        const companyB = await mkCompany('B', 2);
+
+        // userMine is a customer of BOTH companies; userOther only of company B.
+        const userMine = await tx.user.create({
+          data: { email: `rls-mine-${stamp}@test.local`, accountKind: 'END_CLIENT' },
+        });
+        const userOther = await tx.user.create({
+          data: { email: `rls-other-${stamp}@test.local`, accountKind: 'END_CLIENT' },
+        });
+
+        const mkCustomer = (companyId: string, portalUserId: string, p: string) =>
+          tx.companyCustomer.create({
+            data: { companyId, portalUserId, fullName: `C ${p}`, phone: `+3736800${p}`, address: 'MD' },
+          });
+        const custMineA = await mkCustomer(companyA.id, userMine.id, '11');
+        const custMineB = await mkCustomer(companyB.id, userMine.id, '12');
+        const custOtherB = await mkCustomer(companyB.id, userOther.id, '13');
+
+        const mkProject = (companyId: string, customerId: string, p: string) =>
+          tx.estimateProject.create({
+            data: {
+              companyId, customerId, categoryId: category.id,
+              number: `EP-${p}-${stamp}`, title: `P ${p}`, siteType: 'apartment', address: 'T',
+            },
+          });
+        const projMineA = await mkProject(companyA.id, custMineA.id, 'MA');
+        const projMineB = await mkProject(companyB.id, custMineB.id, 'MB');
+        const projOtherB = await mkProject(companyB.id, custOtherB.id, 'OB');
+
+        const mkQuote = (companyId: string, customerId: string, p: string) =>
+          tx.quote.create({
+            data: { companyId, customerId, number: `Q-${p}-${stamp}`, total: 100, status: 'SENT' },
+          });
+        const quoteMineA = await mkQuote(companyA.id, custMineA.id, 'QMA');
+        const quoteOtherB = await mkQuote(companyB.id, custOtherB.id, 'QOB');
+
+        const mkInterv = (companyId: string, customerId: string, p: string) =>
+          tx.intervention.create({
+            data: { companyId, customerId, number: `I-${p}-${stamp}`, type: 'repair', description: 'x', address: 'y' },
+          });
+        const intMineA = await mkInterv(companyA.id, custMineA.id, 'IMA');
+        const intOtherB = await mkInterv(companyB.id, custOtherB.id, 'IOB');
+
+        const mkInvoice = (companyId: string, interventionId: string, p: string) =>
+          tx.companyInvoice.create({
+            data: { companyId, interventionId, number: `INV-${p}-${stamp}`, amount: 100, tvaAmount: 20, tvaRate: 20 },
+          });
+        const invMineA = await mkInvoice(companyA.id, intMineA.id, 'NVA');
+        const invOtherB = await mkInvoice(companyB.id, intOtherB.id, 'NVB');
+
+        return {
+          companyA, companyB, userMine, userOther,
+          custMineA, custMineB, custOtherB, projMineA, projMineB, projOtherB,
+          quoteMineA, quoteOtherB, intMineA, intOtherB, invMineA, invOtherB,
+        };
+      },
+    );
+
+    // userMine (END_CLIENT, NO company context) sees their projects in BOTH companies...
+    const mineProjects = await prisma.withRlsContext(
+      { userId: seed.userMine.id, accountKind: 'END_CLIENT' },
+      (tx) =>
+        tx.estimateProject.findMany({
+          where: { id: { in: [seed.projMineA.id, seed.projMineB.id, seed.projOtherB.id] } },
+        }),
+    );
+    expect(mineProjects.map((p) => p.id).sort()).toEqual(
+      [seed.projMineA.id, seed.projMineB.id].sort(),
+    );
+    // ...and NOT the other client's project (IDOR boundary at the DB level).
+    expect(mineProjects.some((p) => p.id === seed.projOtherB.id)).toBe(false);
+
+    // userOther sees only their own.
+    const otherProjects = await prisma.withRlsContext(
+      { userId: seed.userOther.id, accountKind: 'END_CLIENT' },
+      (tx) =>
+        tx.estimateProject.findMany({
+          where: { id: { in: [seed.projMineA.id, seed.projMineB.id, seed.projOtherB.id] } },
+        }),
+    );
+    expect(otherProjects.map((p) => p.id)).toEqual([seed.projOtherB.id]);
+
+    // Quotes: app_owns_customer(customer_id) on a direct-customer table.
+    const mineQuotes = await prisma.withRlsContext(
+      { userId: seed.userMine.id, accountKind: 'END_CLIENT' },
+      (tx) => tx.quote.findMany({ where: { id: { in: [seed.quoteMineA.id, seed.quoteOtherB.id] } } }),
+    );
+    expect(mineQuotes.map((q) => q.id)).toEqual([seed.quoteMineA.id]);
+
+    // Invoices: ownership resolved through intervention.customer.
+    const mineInvoices = await prisma.withRlsContext(
+      { userId: seed.userMine.id, accountKind: 'END_CLIENT' },
+      (tx) => tx.companyInvoice.findMany({ where: { id: { in: [seed.invMineA.id, seed.invOtherB.id] } } }),
+    );
+    expect(mineInvoices.map((i) => i.id)).toEqual([seed.invMineA.id]);
+
+    await prisma.withRlsContext({ userId: 'system', accountKind: 'PLATFORM_ADMIN' }, async (tx) => {
+      await tx.companyInvoice.deleteMany({
+        where: { id: { in: [seed.invMineA.id, seed.invOtherB.id] } },
+      });
+      await tx.intervention.deleteMany({
+        where: { id: { in: [seed.intMineA.id, seed.intOtherB.id] } },
+      });
+      await tx.quote.deleteMany({
+        where: { id: { in: [seed.quoteMineA.id, seed.quoteOtherB.id] } },
+      });
+      await tx.estimateProject.deleteMany({
+        where: { id: { in: [seed.projMineA.id, seed.projMineB.id, seed.projOtherB.id] } },
+      });
+      await tx.companyCustomer.deleteMany({
+        where: { id: { in: [seed.custMineA.id, seed.custMineB.id, seed.custOtherB.id] } },
+      });
+      await tx.company.deleteMany({ where: { id: { in: [seed.companyA.id, seed.companyB.id] } } });
+      await tx.user.deleteMany({ where: { id: { in: [seed.userMine.id, seed.userOther.id] } } });
+    });
+  });
 });

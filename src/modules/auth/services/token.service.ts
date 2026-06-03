@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { AppErrors, AppErrorMessages } from '../../../common/errors';
 import {
+  AUTH_REFRESH_ROTATION_GRACE_MS,
   AUTH_REMEMBER_ME_DAYS,
   AUTH_SESSION_DAYS,
 } from '../../../common/constants';
@@ -66,7 +67,9 @@ export class TokenService {
       throw AppErrors.unauthorized(AppErrorMessages.AUTH_INVALID_REFRESH_TOKEN);
     }
 
-    if (record.expiresAt < new Date()) {
+    const now = new Date();
+
+    if (record.expiresAt < now) {
       await this.prisma.refreshToken.deleteMany({ where: { id: record.id } });
       throw AppErrors.unauthorized(AppErrorMessages.AUTH_REFRESH_TOKEN_EXPIRED);
     }
@@ -84,15 +87,35 @@ export class TokenService {
     const payload = await enrich(basePayload);
     const accessToken = this.signAccessToken(payload);
 
+    if (record.graceExpiresAt) {
+      if (record.graceExpiresAt >= now) {
+        return { accessToken, refreshToken: undefined, user: payload, rememberMe: false };
+      }
+      await this.prisma.refreshToken.deleteMany({ where: { id: record.id } });
+      throw AppErrors.unauthorized(AppErrorMessages.AUTH_INVALID_REFRESH_TOKEN);
+    }
+
+    const graceExpiresAt = new Date(now.getTime() + AUTH_REFRESH_ROTATION_GRACE_MS);
+    const claimed = await this.prisma.refreshToken.updateMany({
+      where: { id: record.id, graceExpiresAt: null },
+      data: { graceExpiresAt },
+    });
+    if (claimed.count === 0) {
+      return { accessToken, refreshToken: undefined, user: payload, rememberMe: false };
+    }
+
     const daysValid =
       (record.expiresAt.getTime() - record.createdAt.getTime()) / 86_400_000;
     const rememberMe = daysValid > AUTH_SESSION_DAYS + 0.5;
 
-    await this.prisma.refreshToken.deleteMany({ where: { id: record.id } });
     const newRefreshToken = await this.generateRefreshToken(
       record.user.id,
       rememberMe,
     );
+
+    await this.prisma.refreshToken.deleteMany({
+      where: { userId: record.user.id, graceExpiresAt: { lt: now } },
+    });
 
     return {
       accessToken,

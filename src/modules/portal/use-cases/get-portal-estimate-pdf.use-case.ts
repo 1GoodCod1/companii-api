@@ -14,8 +14,7 @@ export class GetPortalEstimatePdfUseCase {
   ) {}
 
   async execute(user: JwtPayload, projectId: string, lang?: 'ro' | 'ru') {
-    const customer = await this.portalRepo.findCustomerByUserId(user.sub);
-    const project = await this.portalRepo.getEstimatePdfData(projectId, customer.id);
+    const project = await this.portalRepo.getEstimatePdfData(projectId, user.sub);
     if (!project) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
 
     const buffer = await this.estimatePdf.build(project, { isClientView: true, locale: lang });

@@ -75,8 +75,7 @@ export class PortalService {
   }
 
   async updateQuoteStatus(user: JwtPayload, quoteId: string, status: 'ACCEPTED' | 'REJECTED') {
-    const customer = await this.portalRepo.findCustomerByUserId(user.sub);
-    const quote = await this.portalRepo.findQuoteByIdAndCustomer(quoteId, customer.id);
+    const quote = await this.portalRepo.findSentQuoteForUser(quoteId, user.sub);
     if (!quote) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
 
     return this.portalRepo.updateQuoteStatus(quoteId, status);
@@ -90,19 +89,17 @@ export class PortalService {
     return await this.submitInvoicePaymentProofUseCase.execute(user, invoiceId, fileId);
   }
 
-  async createInvite(customerId: string) {
-    return await this.createPortalInvitation.execute(customerId);
+  async createInvite(companyId: string, customerId: string) {
+    return await this.createPortalInvitation.execute(companyId, customerId);
   }
 
   async listEstimateComments(user: JwtPayload, projectId: string) {
-    const customer = await this.portalRepo.findCustomerByUserId(user.sub);
-    await this.portalRepo.checkProjectOwnership(projectId, customer.id);
+    await this.portalRepo.checkProjectOwnership(projectId, user.sub);
     return this.comments.listComments(projectId);
   }
 
   async addEstimateComment(user: JwtPayload, projectId: string, body: string) {
-    const customer = await this.portalRepo.findCustomerByUserId(user.sub);
-    await this.portalRepo.checkProjectOwnership(projectId, customer.id);
+    await this.portalRepo.checkProjectOwnership(projectId, user.sub);
     return this.comments.addComment(projectId, user.sub, 'CLIENT', body);
   }
 }

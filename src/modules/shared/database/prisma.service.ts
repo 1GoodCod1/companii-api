@@ -10,6 +10,7 @@ import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { rlsTxStorage } from '../../../common/rls/rls.storage';
 import { wrapSerialTransactionClient } from '../../../common/rls/rls-tx-serial.util';
+import { RLS_SYSTEM_CONTEXT } from '../../../common/rls/rls-system.util';
 import type { RlsContext } from '../../../common/types/rls-context';
 
 const SLOW_QUERY_THRESHOLD_MS = parseInt(
@@ -145,13 +146,21 @@ export class PrismaService
     const pool = createPgPool(connectionString);
     const nodeEnv = configService.get<string>('nodeEnv') ?? 'development';
     const isDev = nodeEnv === 'development';
-    const logLevels: Prisma.LogLevel[] = isDev
-      ? (['query', 'info', 'warn', 'error'] as Prisma.LogLevel[])
-      : (['warn', 'error'] as Prisma.LogLevel[]);
+    const log: Prisma.LogDefinition[] = isDev
+      ? [
+          { level: 'query', emit: 'event' },
+          { level: 'info', emit: 'stdout' },
+          { level: 'warn', emit: 'stdout' },
+          { level: 'error', emit: 'stdout' },
+        ]
+      : [
+          { level: 'warn', emit: 'stdout' },
+          { level: 'error', emit: 'stdout' },
+        ];
 
     super({
       adapter: new PrismaPg(pool),
-      log: logLevels,
+      log,
     });
     this.pool = pool;
     this.nodeEnv = nodeEnv;

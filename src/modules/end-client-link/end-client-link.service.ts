@@ -12,7 +12,8 @@ export class EndClientLinkService {
   constructor(private readonly prisma: PrismaService) {}
 
   async acceptInviteToken(token: string, userId: string) {
-    return await this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async () => {
+    return await this.prisma.runOutsideRlsContext(() =>
+      this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async () => {
       const invite = await this.prisma.portalInvitation.findUnique({
         where: { token },
         include: { customer: true },
@@ -27,10 +28,10 @@ export class EndClientLinkService {
         throw AppErrors.notFound(AppErrorMessages.PORTAL_INVITE_INVALID);
       }
 
-      const existingLink = await this.prisma.companyCustomer.findUnique({
-        where: { portalUserId: userId },
+      const existingInCompany = await this.prisma.companyCustomer.findFirst({
+        where: { portalUserId: userId, companyId: invite.customer.companyId },
       });
-      if (existingLink && existingLink.id !== invite.customerId) {
+      if (existingInCompany && existingInCompany.id !== invite.customerId) {
         throw AppErrors.conflict(AppErrorMessages.PORTAL_ALREADY_LINKED);
       }
 
@@ -46,7 +47,7 @@ export class EndClientLinkService {
       });
 
       return invite.customer;
-    });
+    }));
   }
 
   async previewInvite(token: string) {
@@ -133,8 +134,9 @@ export class EndClientLinkService {
         const normalizedPhone = normalizePhone(contact.phone);
         const email = contact.email?.trim().toLowerCase();
 
-        const existingLink = await this.prisma.companyCustomer.findUnique({
+        const existingLink = await this.prisma.companyCustomer.findFirst({
           where: { portalUserId: userId },
+          orderBy: { createdAt: 'asc' },
         });
         if (existingLink) return existingLink;
 

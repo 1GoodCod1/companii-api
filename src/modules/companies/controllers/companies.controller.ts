@@ -137,86 +137,80 @@ export class CompaniesController {
     return this.companies.create(user, dto);
   }
 
-  @Patch(':id')
+  @Patch('me')
   @UseGuards(CompanyGuard)
   @CompanyRoles('OWNER', 'MANAGER')
   update(
     @CurrentUser() user: JwtPayload,
-    @Param('id') id: string,
     @Body() dto: Partial<CreateCompanyDto>,
   ) {
-    return this.companies.update(user, id, dto);
+    return this.companies.update(user, user.activeCompanyId!, dto);
   }
 
-  @Patch(':id/publish')
+  @Patch('me/publish')
   @UseGuards(CompanyGuard)
   @CompanyRoles('OWNER')
-  publish(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
-    return this.companies.publish(user, id);
+  publish(@CurrentUser() user: JwtPayload) {
+    return this.companies.publish(user, user.activeCompanyId!);
   }
 
-  @Get(':id/pricing-modifiers')
+  @Get('me/pricing-modifiers')
   @UseGuards(CompanyGuard)
   @CompanyRoles('OWNER', 'MANAGER')
-  getPricingModifiers(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
-    return this.companies.getPricingModifiers(user, id);
+  getPricingModifiers(@CurrentUser() user: JwtPayload) {
+    return this.companies.getPricingModifiers(user, user.activeCompanyId!);
   }
 
-  @Patch(':id/pricing-modifiers')
+  @Patch('me/pricing-modifiers')
   @UseGuards(CompanyGuard)
   @CompanyRoles('OWNER', 'MANAGER')
   updatePricingModifiers(
     @CurrentUser() user: JwtPayload,
-    @Param('id') id: string,
     @Body() dto: UpdatePricingModifiersDto,
   ) {
-    return this.companies.updatePricingModifiers(user, id, dto.modifiers);
+    return this.companies.updatePricingModifiers(user, user.activeCompanyId!, dto.modifiers);
   }
 
-  @Post(':id/gallery')
+  @Post('me/gallery')
   @UseGuards(CompanyGuard)
   @CompanyRoles('OWNER', 'MANAGER')
   addGalleryImage(
     @CurrentUser() user: JwtPayload,
-    @Param('id') id: string,
     @Body() dto: AddGalleryImageDto,
   ) {
-    return this.companies.addGalleryImage(user, id, dto);
+    return this.companies.addGalleryImage(user, user.activeCompanyId!, dto);
   }
 
-  @Delete(':id/gallery/:imageId')
+  @Delete('me/gallery/:imageId')
   @UseGuards(CompanyGuard)
   @CompanyRoles('OWNER', 'MANAGER')
   removeGalleryImage(
     @CurrentUser() user: JwtPayload,
-    @Param('id') id: string,
     @Param('imageId') imageId: string,
   ) {
-    return this.companies.removeGalleryImage(user, id, imageId);
+    return this.companies.removeGalleryImage(user, user.activeCompanyId!, imageId);
   }
 
-  @Post(':id/transfer-ownership')
+  @Post('me/transfer-ownership')
   @UseGuards(CompanyGuard)
   @CompanyRoles('OWNER')
   transferOwnership(
     @CurrentUser() user: JwtPayload,
-    @Param('id') id: string,
     @Body() dto: TransferOwnershipDto,
   ) {
-    return this.teamMembers.transferOwnership(user, dto.newOwnerUserId, id);
+    return this.teamMembers.transferOwnership(user, dto.newOwnerUserId, user.activeCompanyId!);
   }
 
-  @Get(':id/audit')
+  @Get('me/audit')
   @UseGuards(CompanyGuard)
   @CompanyRoles('OWNER')
   getAuditLogs(
     @CurrentUser() user: JwtPayload,
-    @Param('id') id: string,
     @Query('action') action?: string,
     @Query('userId') userId?: string,
     @Query('limit') limit?: string,
   ) {
-    return this.companies.getAuditLogs(user, id, {
+    return this.companies.getAuditLogs(user, user.activeCompanyId!, {
       action,
       userId,
       limit: limit ? parseInt(limit, 10) : 50,

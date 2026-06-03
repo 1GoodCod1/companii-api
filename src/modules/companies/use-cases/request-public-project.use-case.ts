@@ -22,7 +22,8 @@ export class RequestPublicProjectUseCase {
       user.accountKind,
     );
 
-    return this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async () => {
+    return this.prisma.runOutsideRlsContext(() =>
+      this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async () => {
       const company = await this.prisma.company.findFirst({
         where: { slug: companySlug, isPublished: true, isVerified: true },
         select: { id: true, categoryId: true },
@@ -77,7 +78,7 @@ export class RequestPublicProjectUseCase {
           },
         },
       };
-    }).then(async ({ response, notification }) => {
+    })).then(async ({ response, notification }) => {
       await this.leadNotifier.safeNotifyManagersAboutPublicLead(
         notification.companyId,
         notification.lead,

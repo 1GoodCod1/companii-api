@@ -40,11 +40,13 @@ export async function ensureCompanyCustomerFromContact(
       updates.address = contact.address.trim();
     }
     if (options?.portalUserId && !existing.portalUserId) {
-      const linkedElsewhere = await tx.companyCustomer.findUnique({
-        where: { portalUserId: options.portalUserId },
+      const linkedInCompany = await tx.companyCustomer.findUnique({
+        where: {
+          companyId_portalUserId: { companyId, portalUserId: options.portalUserId },
+        },
         select: { id: true },
       });
-      if (!linkedElsewhere) {
+      if (!linkedInCompany) {
         updates.portalUser = { connect: { id: options.portalUserId } };
       }
     }
@@ -56,11 +58,13 @@ export async function ensureCompanyCustomerFromContact(
 
   let portalUserId: string | undefined;
   if (options?.portalUserId) {
-    const linkedElsewhere = await tx.companyCustomer.findUnique({
-      where: { portalUserId: options.portalUserId },
+    const linkedInCompany = await tx.companyCustomer.findUnique({
+      where: {
+        companyId_portalUserId: { companyId, portalUserId: options.portalUserId },
+      },
       select: { id: true },
     });
-    if (!linkedElsewhere) portalUserId = options.portalUserId;
+    if (!linkedInCompany) portalUserId = options.portalUserId;
   }
 
   const customer = await tx.companyCustomer.create({

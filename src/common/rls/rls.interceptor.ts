@@ -30,6 +30,12 @@ export class RlsInterceptor implements NestInterceptor {
     const ctx = rlsContextFromUser(user, {
       companyId: user.activeCompanyId,
     });
+    // An END_CLIENT is not a member of any company — they must not inherit a
+    // company-level grant. Their portal access is granted purely per-customer
+    // (app_owns_customer in RLS policies), spanning every company they belong to.
+    if (user.accountKind === 'END_CLIENT') {
+      ctx.companyId = undefined;
+    }
 
     return defer(() =>
       this.prisma.withRlsContext(ctx, () => lastValueFrom(next.handle())),
