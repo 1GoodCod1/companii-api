@@ -8,6 +8,7 @@ import type { JwtPayload } from '../../../auth/types/jwt-payload';
 import { assertPaymentTransition } from '../../utils/status-transitions';
 import { reconcileEstimateProjectLifecycle } from '../../../estimates/utils/project/estimate-lifecycle.util';
 import { InvoicePdfCacheService } from './invoice-pdf-cache.service';
+import { RLS_SYSTEM_CONTEXT } from '../../../../common/rls/rls-system.util';
 
 @Injectable()
 export class InvoiceLifecycleService {
@@ -84,7 +85,14 @@ export class InvoiceLifecycleService {
       let isUnique = false;
       let attempts = 0;
       while (!isUnique && attempts < 15) {
-        const existing = await tx.companyInvoice.findUnique({ where: { number } });
+        const existing = await this.prisma.runOutsideRlsContext(() =>
+          this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async (db) =>
+            db.companyInvoice.findUnique({
+              where: { number },
+              select: { id: true },
+            }),
+          ),
+        );
         if (!existing) isUnique = true;
         else {
           attempts++;

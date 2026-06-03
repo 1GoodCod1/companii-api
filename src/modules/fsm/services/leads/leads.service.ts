@@ -11,6 +11,7 @@ import { CompanyAuthorizationService } from '../../../companies/authorization/co
 import type { JwtPayload } from '../../../auth/types/jwt-payload';
 import { createEstimateProjectWithStages } from '../../../estimates/utils/project/create-estimate-project.util';
 import { nextCompanyNumber } from '../../../../common/utils/sequence-number.util';
+import { RLS_SYSTEM_CONTEXT } from '../../../../common/rls/rls-system.util';
 import type { EstimateBlueprintConfig } from '../../../../../prisma/estimate-blueprints';
 
 const leadInclude = {
@@ -208,7 +209,15 @@ export class LeadsService {
           prefix: 'INT',
           count: () => tx.intervention.count({ where: { companyId: cid } }),
           exists: async (n) =>
-            (await tx.intervention.findUnique({ where: { number: n }, select: { id: true } })) !== null,
+            this.prisma.runOutsideRlsContext(() =>
+              this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async (db) => {
+                const intv = await db.intervention.findUnique({
+                  where: { number: n },
+                  select: { id: true },
+                });
+                return intv !== null;
+              }),
+            ),
         });
 
         const intervention = await tx.intervention.create({
@@ -285,7 +294,15 @@ export class LeadsService {
         prefix: 'EST',
         count: () => tx.estimateProject.count({ where: { companyId: cid } }),
         exists: async (n) =>
-          (await tx.estimateProject.findUnique({ where: { number: n }, select: { id: true } })) !== null,
+          this.prisma.runOutsideRlsContext(() =>
+            this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async (db) => {
+              const project = await db.estimateProject.findUnique({
+                where: { number: n },
+                select: { id: true },
+              });
+              return project !== null;
+            }),
+          ),
       });
 
       const { id: projectId } = await createEstimateProjectWithStages(tx, {

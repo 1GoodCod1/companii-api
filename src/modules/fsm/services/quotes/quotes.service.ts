@@ -9,6 +9,7 @@ import { EmailService } from '../../../email/email.service';
 import { QuotePdfService } from '../../pdf/quote-pdf.service';
 import { FsmContextService } from '../../context/fsm-context.service';
 import { nextCompanyNumber } from '../../../../common/utils/sequence-number.util';
+import { RLS_SYSTEM_CONTEXT } from '../../../../common/rls/rls-system.util';
 
 @Injectable()
 export class QuotesService {
@@ -75,7 +76,15 @@ export class QuotesService {
         prefix: 'QTE',
         count: () => tx.quote.count({ where: { companyId: cid } }),
         exists: async (n) =>
-          (await tx.quote.findUnique({ where: { number: n }, select: { id: true } })) !== null,
+          this.prisma.runOutsideRlsContext(() =>
+            this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async (db) => {
+              const q = await db.quote.findUnique({
+                where: { number: n },
+                select: { id: true },
+              });
+              return q !== null;
+            }),
+          ),
       });
 
       const total = data.lines.reduce((acc, line) => acc + line.qty * line.unitPrice, 0);
@@ -183,7 +192,14 @@ export class QuotesService {
       let isUnique = false;
       let attempts = 0;
       while (!isUnique && attempts < 15) {
-        const existing = await tx.intervention.findUnique({ where: { number } });
+        const existing = await this.prisma.runOutsideRlsContext(() =>
+          this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async (db) =>
+            db.intervention.findUnique({
+              where: { number },
+              select: { id: true },
+            }),
+          ),
+        );
         if (!existing) isUnique = true;
         else {
           attempts++;

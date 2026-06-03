@@ -6,6 +6,7 @@ import type { JwtPayload } from '../../../auth/types/jwt-payload';
 import { projectInclude } from '../../estimate.constants';
 import { EstimatesContextService } from '../../context/estimates-context.service';
 import { nextCompanyNumber } from '../../../../common/utils/sequence-number.util';
+import { RLS_SYSTEM_CONTEXT } from '../../../../common/rls/rls-system.util';
 
 @Injectable()
 export class EstimateProjectAccessService {
@@ -55,7 +56,6 @@ export class EstimateProjectAccessService {
     return project;
   }
 
-  /** B7 — advisory-locked EST number issuance. Must run inside a transaction. */
   nextProjectNumber(tx: Prisma.TransactionClient, companyId: string) {
     return nextCompanyNumber(tx, {
       companyId,
@@ -63,11 +63,18 @@ export class EstimateProjectAccessService {
       prefix: 'EST',
       count: () => tx.estimateProject.count({ where: { companyId } }),
       exists: async (number) =>
-        (await tx.estimateProject.findUnique({ where: { number }, select: { id: true } })) !== null,
+        this.prisma.runOutsideRlsContext(() =>
+          this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async (db) => {
+            const project = await db.estimateProject.findUnique({
+              where: { number },
+              select: { id: true },
+            });
+            return project !== null;
+          }),
+        ),
     });
   }
 
-  /** B7 — advisory-locked INT number issuance. Must run inside a transaction. */
   nextInterventionNumber(tx: Prisma.TransactionClient, companyId: string) {
     return nextCompanyNumber(tx, {
       companyId,
@@ -75,7 +82,15 @@ export class EstimateProjectAccessService {
       prefix: 'INT',
       count: () => tx.intervention.count({ where: { companyId } }),
       exists: async (number) =>
-        (await tx.intervention.findUnique({ where: { number }, select: { id: true } })) !== null,
+        this.prisma.runOutsideRlsContext(() =>
+          this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async (db) => {
+            const intv = await db.intervention.findUnique({
+              where: { number },
+              select: { id: true },
+            });
+            return intv !== null;
+          }),
+        ),
     });
   }
 }

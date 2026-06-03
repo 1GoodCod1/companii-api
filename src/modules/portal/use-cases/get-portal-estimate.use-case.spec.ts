@@ -5,14 +5,12 @@ import { EstimateProjectStatus } from '@prisma/client';
 describe('GetPortalEstimateUseCase', () => {
   let useCase: GetPortalEstimateUseCase;
   let portalRepo: {
-    findCustomerByUserId: jest.Mock;
-    findProjectByIdAndCustomer: jest.Mock;
+    findProjectForUser: jest.Mock;
   };
 
   beforeEach(() => {
     portalRepo = {
-      findCustomerByUserId: jest.fn(),
-      findProjectByIdAndCustomer: jest.fn(),
+      findProjectForUser: jest.fn(),
     };
     useCase = new GetPortalEstimateUseCase(portalRepo as any);
   });
@@ -21,10 +19,6 @@ describe('GetPortalEstimateUseCase', () => {
     sub: 'user-123',
     email: 'client@test.com',
     accountKind: 'END_CLIENT',
-  };
-
-  const mockCustomer = {
-    id: 'customer-123',
   };
 
   const mockProject = {
@@ -56,24 +50,20 @@ describe('GetPortalEstimateUseCase', () => {
   };
 
   it('successfully fetches and sanitizes estimate details for end client', async () => {
-    portalRepo.findCustomerByUserId.mockResolvedValue(mockCustomer);
-    portalRepo.findProjectByIdAndCustomer.mockResolvedValue(mockProject);
+    portalRepo.findProjectForUser.mockResolvedValue(mockProject);
 
     const result = await useCase.execute(mockUser, 'project-123');
 
-    // Sensitive properties must be omitted at the top level
     expect(result.marginPct).toBeUndefined();
     expect(result.laborRate).toBeUndefined();
     expect(result.id).toBe('project-123');
 
-    // Sensitive properties must be omitted at the stage level
     const stage = result.stages[0];
     expect(stage.laborRate).toBeUndefined();
     expect(stage.marginPct).toBeUndefined();
     expect(stage.laborCost).toBeUndefined();
     expect(stage.materialCost).toBeUndefined();
 
-    // Sensitive properties must be omitted at the line level
     const line = stage.lines[0];
     expect(line.laborRate).toBeUndefined();
     expect(line.marginPct).toBeUndefined();
@@ -81,15 +71,14 @@ describe('GetPortalEstimateUseCase', () => {
     expect(line.materialCost).toBeUndefined();
     expect(line.name).toBe('Pipes');
 
-    expect(portalRepo.findProjectByIdAndCustomer).toHaveBeenCalledWith(
+    expect(portalRepo.findProjectForUser).toHaveBeenCalledWith(
       'project-123',
-      mockCustomer.id,
+      mockUser.sub,
     );
   });
 
   it('throws NotFound if the estimate does not exist or does not belong to client', async () => {
-    portalRepo.findCustomerByUserId.mockResolvedValue(mockCustomer);
-    portalRepo.findProjectByIdAndCustomer.mockResolvedValue(null);
+    portalRepo.findProjectForUser.mockResolvedValue(null);
 
     await expect(useCase.execute(mockUser, 'invalid-id')).rejects.toThrow();
   });

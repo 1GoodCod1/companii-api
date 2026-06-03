@@ -70,21 +70,23 @@ export class LeadNotificationService {
     const leadsUrl = `${frontendUrl}/company/cereri`;
     const sourceLabel = LEAD_SOURCE_LABELS[lead.source] ?? lead.source;
 
-    for (const to of uniqueRecipients) {
-      await this.email.sendNewLeadEmail({
-        to,
-        companyName: company.name,
-        sourceLabel,
-        contactName: lead.contactName,
-        contactPhone: lead.contactPhone,
-        contactEmail: lead.contactEmail,
-        serviceTitle: lead.serviceTitle,
-        message: lead.message,
-        address: lead.address,
-        estimatedBudget: lead.estimatedBudget,
-        customerCreated: lead.customerCreated,
-        leadsUrl,
-      });
-    }
+    await Promise.all(
+      uniqueRecipients.map((to) =>
+        this.email.sendNewLeadEmail({
+          to,
+          companyName: company.name,
+          sourceLabel,
+          contactName: lead.contactName,
+          contactPhone: lead.contactPhone,
+          contactEmail: lead.contactEmail,
+          serviceTitle: lead.serviceTitle,
+          message: lead.message,
+          address: lead.address,
+          estimatedBudget: lead.estimatedBudget,
+          customerCreated: lead.customerCreated,
+          leadsUrl,
+        }),
+      ),
+    );
   }
 }

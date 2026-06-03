@@ -78,8 +78,8 @@ export class RequestPublicProjectUseCase {
           },
         },
       };
-    })).then(async ({ response, notification }) => {
-      await this.leadNotifier.safeNotifyManagersAboutPublicLead(
+    })).then(({ response, notification }) => {
+      this.leadNotifier.safeNotifyManagersAboutPublicLead(
         notification.companyId,
         notification.lead,
       );

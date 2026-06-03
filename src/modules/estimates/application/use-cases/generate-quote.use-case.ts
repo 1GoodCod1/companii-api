@@ -9,6 +9,7 @@ import { EstimateStagesService } from '../../services/projects/estimate-stages.s
 import { projectInclude } from '../../estimate.constants';
 import { isEstimateRecalculable } from '../../utils/project/estimate-status-transitions.util';
 import { nextCompanyNumber } from '../../../../common/utils/sequence-number.util';
+import { RLS_SYSTEM_CONTEXT } from '../../../../common/rls/rls-system.util';
 
 @Injectable()
 export class GenerateQuoteUseCase {
@@ -44,7 +45,15 @@ export class GenerateQuoteUseCase {
         prefix: 'QTE',
         count: () => tx.quote.count({ where: { companyId: cid } }),
         exists: async (n) =>
-          (await tx.quote.findUnique({ where: { number: n }, select: { id: true } })) !== null,
+          this.prisma.runOutsideRlsContext(() =>
+            this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async (db) => {
+              const q = await db.quote.findUnique({
+                where: { number: n },
+                select: { id: true },
+              });
+              return q !== null;
+            }),
+          ),
       });
 
       const lines = project.stages.flatMap((stage) =>
