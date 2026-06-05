@@ -1,7 +1,3 @@
-/**
- * Допустимые единицы измерения для смет (задача A-04).
- * Синхронизировать с companii-web/src/constants/estimateMeasurementUnits.constants.ts
- */
 export const ESTIMATE_MEASUREMENT_UNITS = [
   'm²',
   'm³',

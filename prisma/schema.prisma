@@ -281,6 +281,7 @@ model Company {
   services         CompanyService[]
   quotes           Quote[]
   estimateProjects EstimateProject[]
+  estimateGroups   EstimateGroup[]
   estimateReceipts EstimateReceipt[]
   estimateTemplates EstimateTemplate[]
   invoices     CompanyInvoice[]
@@ -457,8 +458,6 @@ model CompanySubscription {
 model CompanyCustomer {
   id           String   @id @default(uuid(7))
   companyId    String   @map("company_id")
-  // A portal user can be a customer of MANY companies (one record per company),
-  // so the link is unique per-company, not globally. See [[multi-company portal]].
   portalUserId String?  @map("portal_user_id")
   fullName     String   @map("full_name")
   phone        String
@@ -474,6 +473,7 @@ model CompanyCustomer {
   interventions Intervention[]
   quotes            Quote[]
   estimateProjects  EstimateProject[]
+  estimateGroups    EstimateGroup[]
   portalInvites PortalInvitation[]
   reviews       CompanyReview[]
   leads         CompanyLead[]
@@ -543,9 +543,7 @@ model Intervention {
   id             String             @id @default(uuid(7))
   companyId      String             @map("company_id")
   customerId     String             @map("customer_id")
-  /** Lead/primary assignee — back-compat cache. Source of truth is `assignments`. */
   technicianId   String?            @map("technician_id")
-  /** Optional crew this work was assigned to (for badges/filters). */
   crewId         String?            @map("crew_id")
   number         String             @unique
   type           String
@@ -813,6 +811,23 @@ model EstimateTemplate {
   @@map("estimate_templates")
 }
 
+model EstimateGroup {
+  id         String   @id @default(uuid(7))
+  companyId  String   @map("company_id")
+  customerId String   @map("customer_id")
+  title      String?
+  address    String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  company  Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer CompanyCustomer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  projects EstimateProject[]
+
+  @@index([companyId, customerId])
+  @@map("estimate_groups")
+}
+
 model EstimateBlueprint {
   id         String   @id @default(uuid(7))
   categoryId String   @unique @map("category_id")
@@ -833,6 +848,7 @@ model EstimateProject {
   id                String                @id @default(uuid(7))
   companyId         String                @map("company_id")
   customerId        String                @map("customer_id")
+  groupId           String?               @map("group_id")
   categoryId        String                @map("category_id")
   blueprintId       String?               @map("blueprint_id")
   quoteId           String?               @unique @map("quote_id")
@@ -867,6 +883,7 @@ model EstimateProject {
 
   company      Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
   customer     CompanyCustomer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  group        EstimateGroup?          @relation(fields: [groupId], references: [id], onDelete: SetNull)
   category     Category                @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   blueprint    EstimateBlueprint?      @relation(fields: [blueprintId], references: [id], onDelete: SetNull)
   quote        Quote?                  @relation(fields: [quoteId], references: [id], onDelete: SetNull)
@@ -883,6 +900,7 @@ model EstimateProject {
 
   @@index([companyId, status, createdAt])
   @@index([categoryId])
+  @@index([groupId])
   @@map("estimate_projects")
 }
 

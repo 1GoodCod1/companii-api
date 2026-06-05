@@ -23,6 +23,13 @@ export class ListProjectsQuery {
         createdAt: true,
         grandTotal: true,
         grandTotalWithVat: true,
+        groupId: true,
+        group: {
+          select: {
+            id: true,
+            _count: { select: { projects: true } },
+          },
+        },
         customer: { select: { id: true, fullName: true, phone: true } },
         category: { select: { id: true, name: true, slug: true } },
         quote: { select: { id: true, number: true, status: true } },

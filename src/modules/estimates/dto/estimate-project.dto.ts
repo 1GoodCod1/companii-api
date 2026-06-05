@@ -40,6 +40,22 @@ export class CreateEstimateProjectDto {
   @IsString()
   @MaxLength(40)
   validUntil?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  groupId?: string;
+}
+
+export class CreateRelatedEstimateProjectDto {
+  @IsString()
+  @MaxLength(64)
+  categoryId!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  title?: string;
 }
 
 export class UpdateEstimateProjectDto {

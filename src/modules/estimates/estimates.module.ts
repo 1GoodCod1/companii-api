@@ -34,6 +34,7 @@ import { EstimateCalculateProcessor } from './processors/calculate.processor';
 import { EmailModule } from '../email/email.module';
 import { QueueModule } from '../shared/queue';
 import { CreateProjectCommandHandler } from './application/commands/create-project.command';
+import { CreateRelatedProjectCommandHandler } from './application/commands/create-related-project.command';
 import { DeleteProjectCommandHandler } from './application/commands/delete-project.command';
 import { SaveSitePlanCommandHandler } from './application/commands/save-site-plan.command';
 import { CalculateProjectCommandHandler } from './application/commands/calculate-project.command';
@@ -105,6 +106,7 @@ import { EstimateCommentModule } from './estimate-comment.module';
     SendEstimateToClientUseCase,
     ConvertToInterventionsUseCase,
     CreateProjectCommandHandler,
+    CreateRelatedProjectCommandHandler,
     DeleteProjectCommandHandler,
     SaveSitePlanCommandHandler,
     CalculateProjectCommandHandler,

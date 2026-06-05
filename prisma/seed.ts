@@ -216,7 +216,7 @@ const CATEGORIES: CategorySeed[] = [
   {
     name: 'Pavaj și amenajări exterioare',
     slug: 'pavaj',
-    translations: { ro: { name: 'Pavaj și amenajări exterioare' }, ru: { name: 'Мощение и благоустройство' } },
+    translations: { ro: { name: 'Pavaj și amenajări exterioare' }, ru: { name: 'Тротуарная плитка и наружное благоустройство' } },
   },
   {
     name: 'SMM și publicitate',

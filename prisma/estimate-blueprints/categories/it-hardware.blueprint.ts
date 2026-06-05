@@ -241,7 +241,7 @@ export const itHardwareBlueprint: EstimateBlueprintConfig = baseConfig({
   defaultStages: [
     { code: 'diagnostic', name: 'Diagnostic inițial', kind: 'LABOR', defaultLaborHours: 1, durationDays: 1, checklist: ['Verificare vizuală', 'Test componentă', 'Raport diagnostic'], moduleKey: 'diagnostic_hw' },
     { code: 'reparatie', name: 'Reparație componente', kind: 'LABOR', defaultLaborHours: 3, durationDays: 2, checklist: ['Reparație', 'Test funcționare'], optional: true, moduleKey: 'repair' },
-    { code: 'asamblare', name: 'Asamblare PC', kind: 'LABOR', defaultLaborHours: 2, durationDays: 1, checklist: ['Alegere componente', 'Asamblare', 'Testare'], optional: true, moduleKey: 'assembly' },
+    { code: 'asamblare', name: 'Asamblare PC', kind: 'MIXED', defaultLaborHours: 2, durationDays: 1, checklist: ['Alegere componente', 'Asamblare', 'Testare'], optional: true, moduleKey: 'assembly' },
     { code: 'upgrade', name: 'Upgrade componente', kind: 'MATERIAL', defaultLaborHours: 1, durationDays: 1, checklist: ['Înlocuire', 'Test compatibilitate'], optional: true, moduleKey: 'upgrade' },
     { code: 'mentenanta', name: 'Curățare & mentenanță', kind: 'LABOR', defaultLaborHours: 1, durationDays: 1, checklist: ['Curățare praf', 'Pastă termică', 'Verificare ventilație'], optional: true, moduleKey: 'cleaning_hw' },
     { code: 'instalare', name: 'Instalare SO & drivere', kind: 'LABOR', defaultLaborHours: 2, durationDays: 1, checklist: ['Backup date', 'Instalare SO', 'Drivere', 'Actualizări'], optional: true, moduleKey: 'os_install' },
@@ -260,6 +260,7 @@ export const itHardwareBlueprint: EstimateBlueprintConfig = baseConfig({
 
     // Asamblare
     { stageCode: 'asamblare', description: 'Asamblare PC (lucrări)', unit: 'buc', qtyKey: 'assemblyCount', unitPrice: 350, kind: 'labor', moduleKey: 'assembly', enabledWhen: { moduleEnabled: 'assembly', anyQtyKeys: ['assemblyCount'] } },
+    { stageCode: 'asamblare', description: 'Componente PC (material)', unit: 'buc', qtyKey: 'assemblyCount', unitPrice: 800, wastePct: 5, kind: 'material', moduleKey: 'assembly', enabledWhen: { moduleEnabled: 'assembly', anyQtyKeys: ['assemblyCount'] } },
 
     // Upgrade
     { stageCode: 'upgrade', description: 'Upgrade componentă (lucrări)', unit: 'buc', qtyKey: 'upgradeCount', unitPrice: 180, kind: 'labor', moduleKey: 'upgrade', enabledWhen: { moduleEnabled: 'upgrade', anyQtyKeys: ['upgradeCount'] } },

@@ -14,6 +14,7 @@ export type CreateEstimateProjectParams = {
   siteType?: string | null;
   validUntil?: Date | null;
   isTvaPayer?: boolean;
+  groupId?: string | null;
 };
 
 export async function createEstimateProjectWithStages(
@@ -34,6 +35,7 @@ export async function createEstimateProjectWithStages(
       siteType: params.siteType ?? undefined,
       address: params.address ?? undefined,
       validUntil: params.validUntil ?? undefined,
+      groupId: params.groupId ?? undefined,
       marginPct: config.defaultMarginPct,
       tvaRate: params.isTvaPayer ? new Prisma.Decimal(20) : null,
       tvaAmount: new Prisma.Decimal(0),

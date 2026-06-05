@@ -1,8 +1,3 @@
-/**
- * Единый контракт EstimateBlueprintConfig (backend source of truth).
- * Синхронизировать с companii-web/src/types/estimates.ts (задача A-02).
- */
-
 import type { EstimateMeasurementUnit } from './estimate-measurement-units';
 
 export type BlueprintWizardStep = 'object' | 'plan' | 'diagnostic' | 'stages' | 'review';

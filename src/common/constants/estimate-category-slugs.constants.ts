@@ -1,7 +1,3 @@
-/**
- * Category slugs with estimate blueprints (16 active) and excluded categories (6).
- * Keep in sync with companii-web/src/constants/estimateCategorySlugs.constants.ts (A-02).
- */
 export const ESTIMATE_BLUEPRINT_CATEGORY_SLUGS = [
   'santehnika',
   'elektrika',
@@ -44,11 +40,36 @@ export function isEstimateExcludedCategorySlug(slug: string): slug is EstimateEx
   return (ESTIMATE_EXCLUDED_CATEGORY_SLUGS as readonly string[]).includes(slug);
 }
 
-/** IT / service categories: hourly pricing, no physical-site object fields on step 1. */
 export const ESTIMATE_SERVICE_CATEGORY_SLUGS = ['it-networks', 'it-hardware', 'it-web'] as const;
 
 export type EstimateServiceCategorySlug = (typeof ESTIMATE_SERVICE_CATEGORY_SLUGS)[number];
 
 export function isEstimateServiceCategorySlug(slug: string): slug is EstimateServiceCategorySlug {
   return (ESTIMATE_SERVICE_CATEGORY_SLUGS as readonly string[]).includes(slug);
+}
+
+export const ESTIMATE_RELATED_GROUP_HOST_SLUGS = ['lucrari-finisaj'] as const;
+
+export type EstimateRelatedGroupHostSlug = (typeof ESTIMATE_RELATED_GROUP_HOST_SLUGS)[number];
+
+export const ESTIMATE_RELATED_GROUP_TARGET_SLUGS = [
+  'elektrika',
+  'santehnika',
+  'constructii',
+] as const;
+
+export type EstimateRelatedGroupTargetSlug = (typeof ESTIMATE_RELATED_GROUP_TARGET_SLUGS)[number];
+
+export function canHostEstimateRelatedProjects(slug: string): slug is EstimateRelatedGroupHostSlug {
+  return (ESTIMATE_RELATED_GROUP_HOST_SLUGS as readonly string[]).includes(slug);
+}
+
+export function canBeAddedAsRelatedEstimate(
+  slug: string,
+): slug is EstimateRelatedGroupTargetSlug {
+  return (ESTIMATE_RELATED_GROUP_TARGET_SLUGS as readonly string[]).includes(slug);
+}
+
+export function canLinkEstimateCategories(sourceSlug: string, targetSlug: string): boolean {
+  return canHostEstimateRelatedProjects(sourceSlug) && canBeAddedAsRelatedEstimate(targetSlug);
 }

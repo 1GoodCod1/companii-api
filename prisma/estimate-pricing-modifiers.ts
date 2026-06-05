@@ -1,23 +1,8 @@
-/**
- * Registry of company-configurable pricing-modifier percentages.
- *
- * Each entry is a "+X% surcharge" knob that used to be hard-coded inside a
- * category measurement util (e.g. finishLevel premium = +15%). A company may
- * override the percentage; the registry value is the default/fallback.
- *
- * Single source of truth for: (a) backend defaults, (b) the settings UI catalog,
- * (c) validation of incoming override keys. Frontend preview mirrors keep their
- * own literal fallbacks and only apply the sparse company overrides on top.
- */
-
 export type PricingModifierDef = {
-  /** Stable key, e.g. 'finishing.finishLevel.premium'. */
   key: string;
   categorySlug: string;
-  /** UI sub-group within the category (usually the driving field). */
   group: string;
   label: { ro: string; ru: string };
-  /** Default surcharge percent (premium = 15 → ×1.15). */
   defaultPct: number;
 };
 
@@ -108,10 +93,6 @@ export function getPricingModifierDefaultPct(key: string): number {
   return MODIFIER_BY_KEY.get(key)?.defaultPct ?? 0;
 }
 
-/**
- * Coerce the raw `company.pricingModifiers` JSON into a clean map: only known
- * registry keys with finite numeric values survive.
- */
 export function parseCompanyPricingModifiers(raw: unknown): CompanyPricingModifiers {
   if (!raw || typeof raw !== 'object') return {};
   const out: CompanyPricingModifiers = {};
@@ -123,7 +104,6 @@ export function parseCompanyPricingModifiers(raw: unknown): CompanyPricingModifi
   return out;
 }
 
-/** Effective surcharge percent for a key: company override (if any) else default. */
 export function resolvePricingModifierPct(
   key: string,
   overrides?: CompanyPricingModifiers | null,
@@ -133,7 +113,6 @@ export function resolvePricingModifierPct(
   return getPricingModifierDefaultPct(key);
 }
 
-/** Multiplicative factor for a key: 1 + pct/100 (premium 15 → 1.15). */
 export function resolvePricingModifierFactor(
   key: string,
   overrides?: CompanyPricingModifiers | null,

@@ -3,6 +3,16 @@ import type { EstimateMeasurementUnit } from '../../../prisma/estimate-measureme
 import type { EstimateFieldWarning } from './utils/blueprint/estimate-custom-fields-validation.util';
 import type { SanityWarning } from './utils/calculation/sanity-checks.util';
 
+export const estimateGroupProjectSummarySelect = {
+  id: true,
+  number: true,
+  title: true,
+  status: true,
+  grandTotal: true,
+  grandTotalWithVat: true,
+  category: { select: { id: true, name: true, slug: true } },
+} satisfies Prisma.EstimateProjectSelect;
+
 export const projectInclude = {
   customer: true,
   category: true,
@@ -10,6 +20,14 @@ export const projectInclude = {
   sitePlan: true,
   quote: true,
   sourceLead: true,
+  group: {
+    include: {
+      projects: {
+        select: estimateGroupProjectSummarySelect,
+        orderBy: { createdAt: 'asc' as const },
+      },
+    },
+  },
   measurements: { orderBy: { key: 'asc' as const } },
   photos: { orderBy: { sortOrder: 'asc' as const } },
   stages: {

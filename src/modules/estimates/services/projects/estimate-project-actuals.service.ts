@@ -98,7 +98,7 @@ export class EstimateProjectActualsService {
     this.ctx.assertManagement(user);
     const project = await this.access.findProjectOrThrow(user, id);
     if (project.actualsLockedAt) {
-      throw AppErrors.badRequest('Smeta a fost deja blocată ("lock-actuals").');
+      throw AppErrors.badRequest('Calculul de preț a fost deja blocat ("lock-actuals").');
     }
 
     const enriched = this.computeProjectActualsAndVariance(project);

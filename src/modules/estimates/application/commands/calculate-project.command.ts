@@ -50,7 +50,7 @@ export class CalculateProjectCommandHandler {
     const project = await this.access.findProjectOrThrow(user, id);
     if (!isEstimateRecalculable(project.status)) {
       throw AppErrors.badRequest(
-        'Smeta nu mai poate fi recalculată în starea curentă (trimisă / acceptată / în execuție).',
+        'Calculul de preț nu mai poate fi recalculat în starea curentă (trimis / acceptat / în execuție).',
       );
     }
     const cid = this.ctx.companyId(user);
@@ -259,7 +259,7 @@ export class CalculateProjectCommandHandler {
       });
 
       if (updateResult.count === 0) {
-        throw AppErrors.conflict('Smeta a fost modificată de un alt utilizator. Vă rugăm să reîncărcați pagina.');
+        throw AppErrors.conflict('Calculul de preț a fost modificat de un alt utilizator. Vă rugăm să reîncărcați pagina.');
       }
 
       const updatedProject = await tx.estimateProject.findUnique({

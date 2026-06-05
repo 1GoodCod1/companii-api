@@ -50,10 +50,23 @@ export function isEstimateLaborLine(line: {
   kind?: string;
   stageKind?: string;
 }): boolean {
-  if (line.kind === 'labor' || line.stageKind === 'LABOR') return true;
-  if (line.kind === 'material' || line.stageKind === 'MATERIAL') return false;
+  if (line.kind === 'labor') return true;
+  if (line.kind === 'material') return false;
+
   const description = line.description.toLowerCase();
-  return (
+  if (
+    description.includes('(material)') ||
+    description.includes('material') ||
+    description.includes('materiale') ||
+    description.includes('componente') ||
+    description.includes('component') ||
+    description.includes('piese') ||
+    description.includes('licen')
+  ) {
+    return false;
+  }
+
+  const laborByHeuristic =
     line.unit === 'ore' ||
     line.unit === 'h' ||
     description.includes('manoperă') ||
@@ -69,8 +82,15 @@ export function isEstimateLaborLine(line: {
     description.includes('suport') ||
     description.includes('migrare') ||
     description.includes('configurare') ||
-    description.includes('instalare')
-  );
+    description.includes('instalare') ||
+    description.includes('diagnostic') ||
+    description.includes('asamblare pc (lucrări)') ||
+    description.includes('asamblare pc (lucrari)');
+
+  if (laborByHeuristic) return true;
+  if (line.stageKind === 'MATERIAL') return false;
+
+  return false;
 }
 
 export function accumulateEstimateLineTotals(lines: LineCostInput[]): {

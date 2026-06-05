@@ -19,6 +19,7 @@ import { EstimateCommentService } from './services/history/estimate-comment.serv
 import { EstimateProjectActualsService } from './services/projects/estimate-project-actuals.service';
 import { EstimateProjectShoppingListService } from './services/projects/estimate-project-shopping-list.service';
 import { CreateProjectCommandHandler } from './application/commands/create-project.command';
+import { CreateRelatedProjectCommandHandler } from './application/commands/create-related-project.command';
 import { DeleteProjectCommandHandler } from './application/commands/delete-project.command';
 import { SaveSitePlanCommandHandler } from './application/commands/save-site-plan.command';
 import { CalculateProjectCommandHandler } from './application/commands/calculate-project.command';
@@ -49,6 +50,7 @@ export class EstimatesService {
     private readonly shoppingList: EstimateProjectShoppingListService,
     private readonly lines: EstimateLinesService,
     private readonly createProjectHandler: CreateProjectCommandHandler,
+    private readonly createRelatedProjectHandler: CreateRelatedProjectCommandHandler,
     private readonly deleteProjectHandler: DeleteProjectCommandHandler,
     private readonly saveSitePlanHandler: SaveSitePlanCommandHandler,
     private readonly calculateProjectHandler: CalculateProjectCommandHandler,
@@ -142,9 +144,18 @@ export class EstimatesService {
       siteType?: string;
       address?: string;
       validUntil?: string;
+      groupId?: string;
     },
   ) {
     return this.createProjectHandler.execute({ user, data });
+  }
+
+  createRelatedProject(
+    user: JwtPayload,
+    sourceProjectId: string,
+    data: { categoryId: string; title?: string },
+  ) {
+    return this.createRelatedProjectHandler.execute({ user, sourceProjectId, data });
   }
 
   updateProject(

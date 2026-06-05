@@ -49,5 +49,5 @@ export function buildBlueprintConfig(category: {
 }
 
 export function buildBlueprintName(categoryName: string): string {
-  return `Smetă inteligentă — ${categoryName}`;
+  return `Calcul de preț — ${categoryName}`;
 }

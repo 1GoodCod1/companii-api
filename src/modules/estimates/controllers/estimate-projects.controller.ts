@@ -9,6 +9,7 @@ import type { JwtPayload } from '../../auth/types/jwt-payload';
 import { EstimatesService } from '../estimates.service';
 import {
   CreateEstimateProjectDto,
+  CreateRelatedEstimateProjectDto,
   SaveSitePlanDto,
   UpdateEstimateProjectDto,
 } from '../dto/estimate-project.dto';
@@ -47,6 +48,18 @@ export class EstimateProjectsController {
     @Body() body: CreateEstimateProjectDto,
   ) {
     return this.estimates.createProject(user, body);
+  }
+
+  @Post('projects/:id/related')
+  @UseGuards(CompanyGuard, SubscriptionGuard)
+  @RequiresFeature('estimates')
+  @CompanyRoles('OWNER', 'MANAGER')
+  createRelatedProject(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() body: CreateRelatedEstimateProjectDto,
+  ) {
+    return this.estimates.createRelatedProject(user, id, body);
   }
 
   @Patch('projects/:id')

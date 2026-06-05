@@ -12,8 +12,10 @@ describe('estimate-line-recalculate.util (E-03)', () => {
   it('detects labor lines with IT keywords and stageKind', () => {
     expect(isEstimateLaborLine({ unit: 'buc', description: 'Dezvoltare frontend per pagină' })).toBe(true);
     expect(isEstimateLaborLine({ unit: 'buc', description: 'Design UI/UX Premium' })).toBe(true);
-    expect(isEstimateLaborLine({ unit: 'buc', description: 'Random item', stageKind: 'LABOR' })).toBe(true);
-    expect(isEstimateLaborLine({ unit: 'ore', description: 'lucrări', stageKind: 'MATERIAL' })).toBe(false);
+    expect(isEstimateLaborLine({ unit: 'buc', description: 'Random item', stageKind: 'LABOR' })).toBe(false);
+    expect(isEstimateLaborLine({ unit: 'buc', description: 'Componente PC (material)', stageKind: 'LABOR' })).toBe(false);
+    expect(isEstimateLaborLine({ unit: 'buc', description: 'Asamblare PC (lucrări)', stageKind: 'LABOR' })).toBe(true);
+    expect(isEstimateLaborLine({ unit: 'ore', description: 'lucrări', stageKind: 'MATERIAL' })).toBe(true);
   });
 
   it('defines recalculated line sources', () => {
