@@ -114,6 +114,7 @@ export class InterventionLifecycleService {
             const isLabor = isEstimateLaborLine({
               unit: line.unit,
               description: line.description,
+              stageKind: stage.kind,
             });
             if (!isLabor) {
               pendingCount++;

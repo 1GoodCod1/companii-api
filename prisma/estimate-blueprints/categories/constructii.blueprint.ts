@@ -2,6 +2,7 @@ import type { EstimateBlueprintConfig } from '../../estimate-blueprint-config.ty
 import { baseConfig } from '../base';
 
 export const constructiiBlueprint: EstimateBlueprintConfig = baseConfig({
+  wizardSteps: ['object', 'diagnostic', 'stages', 'review'],
   accessDifficultyImpact: { easy: 1.0, medium: 1.15, difficult: 1.3 },
   urgencyImpact: { urgent: 1.15, emergency: 1.3 },
   siteTypes: [
@@ -10,12 +11,7 @@ export const constructiiBlueprint: EstimateBlueprintConfig = baseConfig({
     { value: 'commercial', label: 'Clădire comercială' },
     { value: 'annex', label: 'Anexă / depozit' },
   ],
-  planPointTypes: [
-    { type: 'foundation', label: 'Fundație beton', color: '#4b5563' },
-    { type: 'brick_wall', label: 'Zidărie cărămidă', color: '#991b1b' },
-    { type: 'slab', label: 'Placă beton armat', color: '#374151' },
-    { type: 'column', label: 'Stâlp susținere', color: '#1f2937' },
-  ],
+  planPointTypes: [],
   workModules: [
     {
       key: 'constructii_project',
@@ -37,7 +33,7 @@ export const constructiiBlueprint: EstimateBlueprintConfig = baseConfig({
       label: 'Fundație & beton',
       defaultEnabled: true,
       stageCodes: ['fundatie'],
-      fieldKeys: ['foundationType', 'concreteVolumeM3', 'rebarKg'],
+      fieldKeys: ['foundationType', 'foundationConcreteM3', 'rebarKg'],
       requiresQtyKeys: ['foundationConcreteM3'],
     },
     {
@@ -119,6 +115,16 @@ export const constructiiBlueprint: EstimateBlueprintConfig = baseConfig({
       required: false,
       defaultValue: 'strip',
       warningRules: [{ when: "foundationType === 'pile'", message: 'Fundație pe piloți — estimare preliminară, necesită studiu geotehnic.' }],
+      section: 'Fundație',
+    },
+    {
+      key: 'foundationConcreteM3',
+      label: 'Volum beton fundație',
+      type: 'number',
+      unit: 'm³',
+      required: false,
+      defaultValue: 0,
+      helpText: 'Opțional — volum beton fundație. Altfel: slab (0.18×S), pile (0.06×S), isolated (0.1×S), strip (0.14×S).',
       section: 'Fundație',
     },
     {

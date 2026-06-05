@@ -17,6 +17,7 @@ import { SubscriptionGuard } from '@/modules/auth/guards/subscription.guard';
 import { RequiresFeature } from '../../../common/decorators/requires-feature.decorator';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../../auth/types/jwt-payload';
+import { ConvertLeadDto, CreateLeadDto, UpdateLeadDto } from '../dto/lead.dto';
 
 @Controller(`${CONTROLLER_PATH.fsm}/leads`)
 export class FsmLeadsController {
@@ -50,17 +51,7 @@ export class FsmLeadsController {
   @CompanyRoles('OWNER', 'MANAGER')
   createLead(
     @CurrentUser() user: JwtPayload,
-    @Body() body: {
-      contactName: string;
-      contactPhone: string;
-      contactEmail?: string;
-      message?: string;
-      address?: string;
-      source?: 'SERVICE_REQUEST' | 'PROJECT_REQUEST' | 'MANUAL' | 'PHONE' | 'WEBSITE';
-      categoryId?: string;
-      scheduledAt?: string;
-      notes?: string;
-    },
+    @Body() body: CreateLeadDto,
   ) {
     return this.leads.createLead(user, body);
   }
@@ -72,15 +63,7 @@ export class FsmLeadsController {
   updateLead(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body() body: {
-      status?: CompanyLeadStatus;
-      notes?: string | null;
-      contactName?: string;
-      contactPhone?: string;
-      contactEmail?: string | null;
-      address?: string | null;
-      scheduledAt?: string | null;
-    },
+    @Body() body: UpdateLeadDto,
   ) {
     return this.leads.updateLead(user, id, body);
   }
@@ -92,7 +75,7 @@ export class FsmLeadsController {
   convertLead(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body() body: { mode: 'customer' | 'intervention' | 'estimate'; categoryId?: string; title?: string },
+    @Body() body: ConvertLeadDto,
   ) {
     return this.leads.convertLead(user, id, body.mode, body);
   }

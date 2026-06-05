@@ -82,7 +82,7 @@ const CHECKS_BY_SLUG: Record<string, Check[]> = {
         if (!enabled.includes('route')) missing.push('Traseu frigorific');
         if (!enabled.includes('indoor_outdoor_units')) missing.push('Unități interior/exterior');
         if (missing.length) {
-          return `Module de bază dezactivate (${missing.join(', ')}). Smeta poate fi incompletă — activați-le pentru montaj AC standard.`;
+          return `Module de bază dezactivate (${missing.join(', ')}). Calculul de preț poate fi incomplet — activați-le pentru montaj AC standard.`;
         }
         return null;
       },
@@ -97,7 +97,7 @@ const CHECKS_BY_SLUG: Record<string, Check[]> = {
         if (manual === 0) {
           return 'Număr unități split = 0 — completați câmpul „Număr unități split" în secțiunea General.';
         }
-        return 'Număr unități split lipsește — smeta poate fi incompletă.';
+        return 'Număr unități split lipsește — calculul de preț poate fi incomplet.';
       },
     },
     {
@@ -393,7 +393,7 @@ const UNIVERSAL_CHECKS: Check[] = [
     severity: 'warning',
     test: (m) =>
       (m.requiresManualReview ?? 0) > 0
-        ? 'Smeta necesită verificare manuală (parametri în afara intervalului standard).'
+        ? 'Calculul de preț necesită verificare manuală (parametri în afara intervalului standard).'
         : null,
   },
 ];

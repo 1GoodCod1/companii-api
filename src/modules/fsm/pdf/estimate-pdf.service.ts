@@ -73,7 +73,7 @@ const STATUS_LABELS: Record<string, { ro: string; ru: string }> = {
 };
 
 const I18N = {
-  title: { ro: 'SMETĂ / DEVIZ', ru: 'СМЕТА / ДЕВИЗ' },
+  title: { ro: 'CALCUL DE PREȚ / DEVIZ', ru: 'РАСЧЕТ СТОИМОСТИ / ДЕВИЗ' },
   emitter: { ro: 'EMITENT', ru: 'ОТПРАВИТЕЛЬ' },
   client: { ro: 'CLIENT', ru: 'КЛИЕНТ' },
   projectDetails: { ro: 'Detalii proiect', ru: 'Детали проекта' },

@@ -38,18 +38,39 @@ import type { CustomPricingOverrideResult } from '../../pricing/pricing-engine.s
 import { EstimateProjectAccessService } from './estimate-project-access.service';
 import type { EstimateBlueprintConfig } from '../../../../../prisma/estimate-blueprints';
 
+export function resolveStageModuleKey(
+  stageCode: string | undefined,
+  defaultModuleKey: string | undefined,
+  config: EstimateBlueprintConfig | null | undefined,
+  enabledModules: string[],
+): string | undefined {
+  if (!defaultModuleKey || enabledModules.includes(defaultModuleKey)) {
+    return defaultModuleKey;
+  }
+  if (!stageCode) {
+    return defaultModuleKey;
+  }
+  const alternateModule = config?.workModules?.find(
+    (m) => enabledModules.includes(m.key) && m.stageCodes.includes(stageCode),
+  );
+  return alternateModule ? alternateModule.key : defaultModuleKey;
+}
+
 export function isStageDefaultLaborChargeable(
-  def: { optional?: boolean; moduleKey?: string } | undefined,
+  def: { code?: string; optional?: boolean; moduleKey?: string } | undefined,
   enabledModules: string[],
   config: EstimateBlueprintConfig,
   measurements: Record<string, number>,
 ): boolean {
-  if (def?.moduleKey && !enabledModules.includes(def.moduleKey)) {
+  const stageCode = def?.code;
+  const resolvedModuleKey = resolveStageModuleKey(stageCode, def?.moduleKey, config, enabledModules);
+
+  if (resolvedModuleKey && !enabledModules.includes(resolvedModuleKey)) {
     return false;
   }
 
-  const requiresQtyKeys = def?.moduleKey
-    ? config.workModules?.find((m) => m.key === def.moduleKey)?.requiresQtyKeys
+  const requiresQtyKeys = resolvedModuleKey
+    ? config.workModules?.find((m) => m.key === resolvedModuleKey)?.requiresQtyKeys
     : undefined;
   if (requiresQtyKeys?.length && requiresQtyKeys.every((key) => (measurements[key] ?? 0) <= 0)) {
     return false;
@@ -89,7 +110,7 @@ export class EstimateStagesService {
     const project = await this.access.findProjectOrThrow(user, id);
     if (!isEstimateRecalculable(project.status)) {
       throw AppErrors.badRequest(
-        'Smeta nu mai poate fi recalculată în starea curentă (trimisă / acceptată / în execuție).',
+        'Calculul de preț nu mai poate fi recalculat în starea curentă (trimis / acceptat / în execuție).',
       );
     }
     const cid = this.ctx.companyId(user);
@@ -193,7 +214,14 @@ export class EstimateStagesService {
         });
 
         const stageLines = ruleLines.filter((line) => line.stageCode === stage.code);
-        let { laborCost, materialCost } = accumulateEstimateLineTotals(manualLines);
+        let { laborCost, materialCost } = accumulateEstimateLineTotals(
+          manualLines.map((line) => ({
+            unit: line.unit,
+            description: line.description,
+            lineTotal: line.lineTotal,
+            stageKind: stage.kind,
+          })),
+        );
         let sortOrder = nextRuleLineSortOrder(manualLines);
 
         if (customPricing.customLaborTotal && chargeableStageCount > 0) {
@@ -363,7 +391,7 @@ export class EstimateStagesService {
       });
 
       if (updateResult.count === 0) {
-        throw AppErrors.conflict('Smeta a fost modificată de un alt utilizator. Vă rugăm să reîncărcați pagina.');
+        throw AppErrors.conflict('Calculul de preț a fost modificat de un alt utilizator. Vă rugăm să reîncărcați pagina.');
       }
 
       const updatedProject = await tx.estimateProject.findUnique({

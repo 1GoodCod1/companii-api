@@ -128,7 +128,19 @@ export function readEnabledWorkModulesForCategory(
   if (categorySlug === 'cleaning') {
     return readCleaningEnabledWorkModules(diagnostic, config);
   }
-  return readEnabledWorkModules(diagnostic, config);
+  const enabled = readEnabledWorkModules(diagnostic, config);
+  if (categorySlug === 'okna-dveri') {
+    const installationType = String(diagnostic?.installationType ?? '').toLowerCase();
+    if (
+      (installationType === 'warm_installation' ||
+        installationType === 'warm-installation' ||
+        installationType === 'warm') &&
+      !enabled.includes('warm_installation')
+    ) {
+      return [...enabled, 'warm_installation'];
+    }
+  }
+  return enabled;
 }
 
 export function validateEnabledWorkModules(

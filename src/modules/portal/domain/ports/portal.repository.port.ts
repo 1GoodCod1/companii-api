@@ -6,7 +6,6 @@ import type {
   Company,
   Category,
   Quote,
-  QuoteStatus,
   EstimateProject,
   EstimateProjectStatus,
   Intervention,
@@ -86,8 +85,14 @@ export interface PortalRepository {
   // a customer of several companies); ownership = customer.portalUserId === userId.
   findCustomerByUserId(userId: string): Promise<CompanyCustomer>;
   listMyLeads(userId: string, take: number, cursor?: string): Promise<PortalLead[]>;
-  findSentQuoteForUser(quoteId: string, userId: string): Promise<Quote | null>;
-  updateQuoteStatus(quoteId: string, status: QuoteStatus): Promise<Quote>;
+  // Atomically accept/reject a quote the user owns. Locks the row, asserts it is
+  // still SENT, and maps the action to the concrete QuoteStatus — the client can
+  // never write an arbitrary status (security #3).
+  acceptOrRejectQuote(
+    userId: string,
+    quoteId: string,
+    action: 'ACCEPTED' | 'REJECTED',
+  ): Promise<Quote>;
   findProjectForUser(projectId: string, userId: string): Promise<EstimateProject | null>;
   findOwnedInvoiceCustomerId(invoiceId: string, userId: string): Promise<string | null>;
 

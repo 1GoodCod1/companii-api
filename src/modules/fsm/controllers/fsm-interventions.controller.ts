@@ -18,6 +18,14 @@ import { SubscriptionGuard } from '@/modules/auth/guards/subscription.guard';
 import { RequiresFeature } from '../../../common/decorators/requires-feature.decorator';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../../auth/types/jwt-payload';
+import {
+  AddInterventionPhotosDto,
+  CreateInterventionDto,
+  CreateInterventionNoteDto,
+  UpdateChecklistDto,
+  UpdateInterventionDto,
+  UpdateInterventionStatusDto,
+} from '../dto/intervention.dto';
 
 @Controller(`${CONTROLLER_PATH.fsm}/interventions`)
 export class FsmInterventionsController {
@@ -51,18 +59,7 @@ export class FsmInterventionsController {
   @CompanyRoles('OWNER', 'MANAGER')
   createIntervention(
     @CurrentUser() user: JwtPayload,
-    @Body() body: {
-      customerId: string;
-      type: string;
-      description: string;
-      address: string;
-      technicianId?: string;
-      assigneeMemberIds?: string[];
-      crewId?: string;
-      scheduledAt?: string;
-      estimatedPrice?: number;
-      internalNotes?: string;
-    },
+    @Body() body: CreateInterventionDto,
   ) {
     return this.fsm.createIntervention(user, body);
   }
@@ -73,18 +70,7 @@ export class FsmInterventionsController {
   updateIntervention(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body() body: {
-      type?: string;
-      description?: string;
-      address?: string;
-      technicianId?: string | null;
-      assigneeMemberIds?: string[];
-      crewId?: string | null;
-      scheduledAt?: string | null;
-      estimatedPrice?: number | null;
-      finalPrice?: number | null;
-      internalNotes?: string | null;
-    },
+    @Body() body: UpdateInterventionDto,
   ) {
     return this.fsm.updateIntervention(user, id, body);
   }
@@ -95,7 +81,7 @@ export class FsmInterventionsController {
   status(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body() body: { status: InterventionStatus; note?: string },
+    @Body() body: UpdateInterventionStatusDto,
   ) {
     return this.fsm.updateInterventionStatus(user, id, body.status, body.note);
   }
@@ -114,7 +100,7 @@ export class FsmInterventionsController {
   createNote(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body() body: { body: string; isInternal?: boolean },
+    @Body() body: CreateInterventionNoteDto,
   ) {
     return this.fsm.createInterventionNote(user, id, body);
   }
@@ -136,7 +122,7 @@ export class FsmInterventionsController {
   addPhotos(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body() body: { fileKeys: string[] },
+    @Body() body: AddInterventionPhotosDto,
   ) {
     return this.fsm.addInterventionPhotos(user, id, body.fileKeys);
   }
@@ -158,7 +144,7 @@ export class FsmInterventionsController {
   updateChecklist(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body() body: { progress: Record<string, boolean> },
+    @Body() body: UpdateChecklistDto,
   ) {
     return this.fsm.updateChecklistProgress(user, id, body.progress);
   }

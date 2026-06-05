@@ -41,19 +41,35 @@ type LineCostInput = {
   description: string;
   lineTotal: number | { toString(): string };
   kind?: 'labor' | 'material';
+  stageKind?: string;
 };
 
-export function isEstimateLaborLine(line: Pick<LineCostInput, 'unit' | 'description' | 'kind'>): boolean {
-  if (line.kind === 'labor') return true;
-  if (line.kind === 'material') return false;
+export function isEstimateLaborLine(line: {
+  unit: string;
+  description: string;
+  kind?: string;
+  stageKind?: string;
+}): boolean {
+  if (line.kind === 'labor' || line.stageKind === 'LABOR') return true;
+  if (line.kind === 'material' || line.stageKind === 'MATERIAL') return false;
   const description = line.description.toLowerCase();
   return (
     line.unit === 'ore' ||
+    line.unit === 'h' ||
     description.includes('manoperă') ||
     description.includes('manopera') ||
     description.includes('lucrări') ||
     description.includes('lucrari') ||
-    description.includes('labor')
+    description.includes('labor') ||
+    description.includes('dezvoltare') ||
+    description.includes('design') ||
+    description.includes('audit') ||
+    description.includes('testare') ||
+    description.includes('instruire') ||
+    description.includes('suport') ||
+    description.includes('migrare') ||
+    description.includes('configurare') ||
+    description.includes('instalare')
   );
 }
 

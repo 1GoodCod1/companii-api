@@ -51,16 +51,16 @@ describe('intervention description util', () => {
       'client',
     );
 
-    expect(description).toBe('Lucrare din smetă EST-00001:\n• Montaj aparataj');
+    expect(description).toBe('Lucrare din calculul de preț EST-00001:\n• Montaj aparataj');
     expect(description).not.toContain('Fișă execuție');
     expect(description).not.toContain('MDL');
   });
 
   it('strips legacy price suffixes for technicians', () => {
     const sanitized = sanitizeInterventionDescriptionForTechnician(
-      'Din smetă EST-00001:\n• Proiect & traseu (0 MDL)\n• Montaj aparataj (6238 MDL)',
+      'Din calculul de preț EST-00001:\n• Proiect & traseu (0 MDL)\n• Montaj aparataj (6238 MDL)',
     );
 
-    expect(sanitized).toBe('Din smetă EST-00001:\n• Montaj aparataj');
+    expect(sanitized).toBe('Din calculul de preț EST-00001:\n• Montaj aparataj');
   });
 });

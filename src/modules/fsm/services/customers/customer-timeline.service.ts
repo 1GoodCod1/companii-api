@@ -110,7 +110,7 @@ export class CustomerTimelineService {
       items.push({
         id: e.id,
         type: 'estimate',
-        title: `Smetă ${e.number} — ${e.title}`,
+        title: `Calcul de preț ${e.number} — ${e.title}`,
         subtitle: `${Number(e.grandTotal).toLocaleString('ro-MD')} MDL`,
         status: e.status,
         at: e.updatedAt.toISOString(),

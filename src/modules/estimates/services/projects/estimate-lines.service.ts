@@ -52,7 +52,14 @@ export class EstimateLinesService {
     const nextDescription = data.description?.trim() ?? line.description;
     const unit =
       data.unit !== undefined
-        ? this.requireValidUnit(data.unit, 'estimate line', project, line, nextDescription)
+        ? this.requireValidUnit(
+            data.unit,
+            'estimate line',
+            project,
+            line,
+            nextDescription,
+            stage.kind,
+          )
         : line.unit;
     const lineTotal = round2(qty * unitPrice);
     const source = shouldPromoteRecalculatedLineToManual(line.source, data) ? 'manual' : line.source;
@@ -91,7 +98,7 @@ export class EstimateLinesService {
     },
   ) {
     this.ctx.assertManagement(user);
-    await this.access.findProjectOrThrow(user, projectId);
+    const project = await this.access.findProjectOrThrow(user, projectId);
     const stage = await this.prisma.estimateStage.findFirst({
       where: { id: stageId, projectId },
     });
@@ -102,7 +109,14 @@ export class EstimateLinesService {
       orderBy: { sortOrder: 'desc' },
     });
     const sortOrder = (lastLine?.sortOrder ?? 0) + 1;
-    const unit = this.requireValidUnit(data.unit, 'estimate line');
+    const unit = this.requireValidUnit(
+      data.unit,
+      'estimate line',
+      project,
+      { unit: data.unit, description: data.description },
+      data.description,
+      stage.kind,
+    );
     const lineTotal = round2(data.qty * data.unitPrice);
 
     return this.prisma.$transaction(async (tx) => {
@@ -161,12 +175,14 @@ export class EstimateLinesService {
     await tx.$executeRaw`SELECT id FROM estimate_projects WHERE id = ${projectId} FOR UPDATE`;
     await tx.$executeRaw`SELECT id FROM estimate_stages WHERE id = ${stageId} FOR UPDATE`;
 
+    const stage = await tx.estimateStage.findUniqueOrThrow({ where: { id: stageId } });
     const allLines = await tx.estimateLine.findMany({ where: { stageId } });
     const { laborCost, materialCost } = accumulateEstimateLineTotals(
       allLines.map((line) => ({
         unit: line.unit,
         description: line.description,
         lineTotal: line.lineTotal,
+        stageKind: stage.kind,
       })),
     );
     const stageTotal = round2(laborCost + materialCost);
@@ -221,6 +237,7 @@ export class EstimateLinesService {
     project?: { blueprint?: { config: unknown } | null },
     line?: { unit: string; description: string },
     description?: string,
+    stageKind?: string,
   ): string {
     const normalized = normalizeEstimateUnit(raw);
     if (!normalized) {
@@ -233,6 +250,7 @@ export class EstimateLinesService {
       ? isEstimateLaborLine({
           unit: normalized,
           description: description ?? line.description,
+          stageKind,
         })
       : false;
 

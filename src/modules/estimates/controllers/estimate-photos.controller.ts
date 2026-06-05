@@ -7,6 +7,10 @@ import { RequiresFeature } from '../../../common/decorators/requires-feature.dec
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../../auth/types/jwt-payload';
 import { EstimatesService } from '../estimates.service';
+import {
+  AddProjectPhotosDto,
+  UpdatePhotoCaptionDto,
+} from '../dto/estimate-photo.dto';
 
 @Controller(CONTROLLER_PATH.estimates)
 export class EstimatePhotosController {
@@ -27,7 +31,7 @@ export class EstimatePhotosController {
   addPhotos(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body() body: { fileKeys: string[]; caption?: string },
+    @Body() body: AddProjectPhotosDto,
   ) {
     return this.estimates.addProjectPhotos(user, id, body.fileKeys, body.caption);
   }
@@ -40,7 +44,7 @@ export class EstimatePhotosController {
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
     @Param('photoId') photoId: string,
-    @Body() body: { caption: string | null },
+    @Body() body: UpdatePhotoCaptionDto,
   ) {
     return this.estimates.updateProjectPhotoCaption(user, id, photoId, body.caption);
   }

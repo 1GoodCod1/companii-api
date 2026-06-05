@@ -6,6 +6,8 @@ import { CompanyRoles } from '../companies/decorators/company-roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../auth/types/jwt-payload';
 import { PaymentsService } from './payments.service';
+import { PaymentWebhookDto, SubscriptionCheckoutDto } from './dto/payments.dto';
+import { WebhookSignatureGuard } from './guards/webhook-signature.guard';
 
 @Controller(CONTROLLER_PATH.payments)
 export class PaymentsController {
@@ -16,18 +18,18 @@ export class PaymentsController {
   @CompanyRoles('OWNER')
   async subscriptionCheckout(
     @CurrentUser() user: JwtPayload,
-    @Body() body: { planCode: string; amount: number },
+    @Body() body: SubscriptionCheckoutDto,
   ) {
     return this.payments.createSubscriptionCheckout(
       user.activeCompanyId!,
       body.planCode,
-      body.amount,
     );
   }
 
   @Public()
+  @UseGuards(WebhookSignatureGuard)
   @Post('webhook')
-  webhook(@Body() body: { externalId: string; status: string }) {
+  webhook(@Body() body: PaymentWebhookDto) {
     return this.payments.handleWebhook(body.externalId, body.status);
   }
 }

@@ -8,6 +8,7 @@ import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../../auth/types/jwt-payload';
 import { EstimatesService } from '../estimates.service';
 import { QueueService, QUEUE_SMALL_THRESHOLD } from '../../shared/queue';
+import { AddLineDto, UpdateLineDto, UpdateStageDto } from '../dto/estimate-stage.dto';
 
 @Controller(CONTROLLER_PATH.estimates)
 export class EstimateStagesController {
@@ -48,15 +49,7 @@ export class EstimateStagesController {
     @CurrentUser() user: JwtPayload,
     @Param('projectId') projectId: string,
     @Param('stageId') stageId: string,
-    @Body()
-    body: {
-      name?: string;
-      description?: string;
-      laborHours?: number;
-      laborRate?: number;
-      durationDays?: number;
-      checklist?: string[];
-    },
+    @Body() body: UpdateStageDto,
   ) {
     return this.estimates.updateStage(user, projectId, stageId, body);
   }
@@ -70,15 +63,7 @@ export class EstimateStagesController {
     @Param('projectId') projectId: string,
     @Param('stageId') stageId: string,
     @Param('lineId') lineId: string,
-    @Body()
-    body: {
-      description?: string;
-      qty?: number;
-      unit?: string;
-      unitPrice?: number;
-      materialStore?: string | null;
-      receiptFileKey?: string | null;
-    },
+    @Body() body: UpdateLineDto,
   ) {
     return this.estimates.updateLine(user, projectId, stageId, lineId, body);
   }
@@ -91,13 +76,7 @@ export class EstimateStagesController {
     @CurrentUser() user: JwtPayload,
     @Param('projectId') projectId: string,
     @Param('stageId') stageId: string,
-    @Body()
-    body: {
-      description: string;
-      qty: number;
-      unit: string;
-      unitPrice: number;
-    },
+    @Body() body: AddLineDto,
   ) {
     return this.estimates.addLine(user, projectId, stageId, body);
   }

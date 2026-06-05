@@ -16,6 +16,7 @@ import { SubscriptionGuard } from '@/modules/auth/guards/subscription.guard';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../../auth/types/jwt-payload';
 import { CrewsService } from '../services/interventions/crews.service';
+import { CreateCrewDto, UpdateCrewDto } from '../dto/crew.dto';
 
 @Controller(`${CONTROLLER_PATH.fsm}/crews`)
 @UseGuards(CompanyGuard, SubscriptionGuard)
@@ -43,14 +44,7 @@ export class FsmCrewsController {
   @CompanyRoles('OWNER', 'MANAGER')
   create(
     @CurrentUser() user: JwtPayload,
-    @Body()
-    body: {
-      name: string;
-      description?: string;
-      color?: string;
-      memberIds?: string[];
-      leadMemberId?: string;
-    },
+    @Body() body: CreateCrewDto,
   ) {
     return this.crews.create(user, body);
   }
@@ -60,15 +54,7 @@ export class FsmCrewsController {
   update(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body()
-    body: {
-      name?: string;
-      description?: string | null;
-      color?: string | null;
-      isActive?: boolean;
-      memberIds?: string[];
-      leadMemberId?: string;
-    },
+    @Body() body: UpdateCrewDto,
   ) {
     return this.crews.update(user, id, body);
   }

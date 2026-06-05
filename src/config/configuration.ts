@@ -42,6 +42,11 @@ export default () => ({
   files: {
     uploadDir: process.env.FILES_UPLOAD_DIR || './uploads',
   },
+  payments: {
+    // HMAC-SHA256 shared secret used to verify the payment provider webhook.
+    // Required in production (the guard fails closed when unset).
+    webhookSecret: process.env.PAYMENTS_WEBHOOK_SECRET || '',
+  },
   b2: {
     applicationKeyId: process.env.B2_APPLICATION_KEY_ID || '',
     applicationKey: process.env.B2_APPLICATION_KEY || '',

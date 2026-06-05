@@ -41,7 +41,7 @@ export class EstimatePortalService {
       const project = lockedProjects[0];
       if (!project) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
       if (project.status !== EstimateProjectStatus.SENT) {
-        throw AppErrors.conflict('Smeta a fost deja procesată.');
+        throw AppErrors.conflict('Calculul de preț a fost deja procesat.');
       }
 
       const fullProject = await tx.estimateProject.findUniqueOrThrow({
@@ -114,7 +114,7 @@ export class EstimatePortalService {
         throw AppErrors.badRequest(AppErrorMessages.STATUS_LOCKED);
       }
       if (project.status !== EstimateProjectStatus.SENT) {
-        throw AppErrors.badRequest('Smeta nu este trimisă spre revizuire');
+        throw AppErrors.badRequest('Calculul de preț nu este trimis spre revizuire');
       }
 
       const fullProject = await tx.estimateProject.findUniqueOrThrow({

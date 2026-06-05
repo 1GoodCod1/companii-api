@@ -74,13 +74,21 @@ export function deriveSantehnikaMeasurements(
 
   const explicitPipeLength = readNumber(diagnostic, 'pipeLengthM');
   measurements.pipeLengthM =
-    explicitPipeLength ?? Math.max(8, roomCount * 6) + (replacePipes ? 15 : 0);
+    explicitPipeLength && explicitPipeLength > 0
+      ? explicitPipeLength
+      : Math.max(8, roomCount * 6) + (replacePipes ? 15 : 0);
 
   measurements.drainLengthM = Math.max(4, bathroomCount * 3 + kitchenPoints * 2);
   measurements.drainReplaceLengthM = drainReplacement ? Math.max(3, bathroomCount * 2 + kitchenPoints) : 0;
-  measurements.waterHeaterCount = waterHeater ? 1 : 0;
-  measurements.filterSystemCount = filterSystem ? 1 : 0;
-  measurements.riserReplacementCount = riserReplacement ? 1 : 0;
+
+  const explicitWaterHeaterCount = readNumber(diagnostic, 'waterHeaterCount');
+  measurements.waterHeaterCount = explicitWaterHeaterCount ?? (waterHeater ? 1 : 0);
+
+  const explicitFilterSystemCount = readNumber(diagnostic, 'filterSystemCount');
+  measurements.filterSystemCount = explicitFilterSystemCount ?? (filterSystem ? 1 : 0);
+
+  const explicitRiserReplacementCount = readNumber(diagnostic, 'riserReplacementCount');
+  measurements.riserReplacementCount = explicitRiserReplacementCount ?? (riserReplacement ? 1 : 0);
   measurements.wallChasingM = wallChasingM > 0 ? wallChasingM : 0;
   measurements.fittingsQty = Math.ceil(measurements.pipeLengthM * 0.8);
   measurements.demolitionHours = replacePipes

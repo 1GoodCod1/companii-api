@@ -149,4 +149,49 @@ export class TokenService {
       this.logger.warn('revokeAllForUser: Redis blacklist write failed', err);
     }
   }
+
+  async revokeOthersAndReissue(
+    payload: JwtPayload,
+    currentRefreshToken?: string,
+  ): Promise<{
+    accessToken: string;
+    refreshToken: string;
+    user: JwtPayload;
+    rememberMe: boolean;
+  }> {
+    const userId = payload.sub;
+    const rememberMe = await this.resolveRememberMe(currentRefreshToken);
+
+    await this.prisma.refreshToken.deleteMany({ where: { userId } });
+
+    const cutoffMs = Math.floor(Date.now() / 1000) * 1000;
+    try {
+      const client = this.redis.getClient();
+      await client.set(
+        LOGOUT_SINCE_KEY(userId),
+        String(cutoffMs),
+        'EX',
+        LOGOUT_SINCE_TTL_SEC,
+      );
+      await client.del(ACTIVE_CACHE_KEY(userId));
+    } catch (err) {
+      this.logger.warn('revokeOthersAndReissue: Redis blacklist write failed', err);
+    }
+
+    const accessToken = this.signAccessToken(payload);
+    const refreshToken = await this.generateRefreshToken(userId, rememberMe);
+    return { accessToken, refreshToken, user: payload, rememberMe };
+  }
+
+  private async resolveRememberMe(currentRefreshToken?: string): Promise<boolean> {
+    if (!currentRefreshToken) return false;
+    const record = await this.prisma.refreshToken.findFirst({
+      where: { tokenHash: this.hashToken(currentRefreshToken) },
+      select: { createdAt: true, expiresAt: true },
+    });
+    if (!record) return false;
+    const daysValid =
+      (record.expiresAt.getTime() - record.createdAt.getTime()) / 86_400_000;
+    return daysValid > AUTH_SESSION_DAYS + 0.5;
+  }
 }

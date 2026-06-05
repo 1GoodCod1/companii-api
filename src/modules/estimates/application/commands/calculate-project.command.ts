@@ -131,7 +131,14 @@ export class CalculateProjectCommandHandler {
         });
 
         const stageLines = ruleLines.filter((line) => line.stageCode === stage.code);
-        let { laborCost, materialCost } = accumulateEstimateLineTotals(manualLines);
+        let { laborCost, materialCost } = accumulateEstimateLineTotals(
+          manualLines.map((line) => ({
+            unit: line.unit,
+            description: line.description,
+            lineTotal: line.lineTotal,
+            stageKind: stage.kind,
+          })),
+        );
         let sortOrder = nextRuleLineSortOrder(manualLines);
 
         if (customPricing.customLaborTotal && chargeableStageCount > 0) {

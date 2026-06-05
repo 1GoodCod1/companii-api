@@ -20,6 +20,14 @@ import { SubscriptionGuard } from '@/modules/auth/guards/subscription.guard';
 import { RequiresFeature } from '../../../common/decorators/requires-feature.decorator';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../../auth/types/jwt-payload';
+import {
+  CancelInvoiceDto,
+  CreateInvoiceDto,
+  RecordInvoicePaymentDto,
+  RejectInvoicePaymentDto,
+  SendInvoiceEmailDto,
+  UpdateInvoiceDto,
+} from '../dto/invoice.dto';
 
 @Controller(`${CONTROLLER_PATH.fsm}/invoices`)
 export class FsmInvoicesController {
@@ -76,11 +84,7 @@ export class FsmInvoicesController {
   @CompanyRoles('OWNER', 'MANAGER')
   createInvoice(
     @CurrentUser() user: JwtPayload,
-    @Body() body: {
-      interventionId: string;
-      tvaRate?: number;
-      dueDate?: string;
-    },
+    @Body() body: CreateInvoiceDto,
   ) {
     return this.fsm.createInvoice(user, body);
   }
@@ -92,11 +96,7 @@ export class FsmInvoicesController {
   updateInvoice(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body() body: {
-      paymentStatus?: InvoicePaymentStatus;
-      dueDate?: string | null;
-      paymentReversalReason?: string;
-    },
+    @Body() body: UpdateInvoiceDto,
   ) {
     return this.fsm.updateInvoice(user, id, body);
   }
@@ -116,7 +116,7 @@ export class FsmInvoicesController {
   cancelInvoice(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body() body: { reason: string },
+    @Body() body: CancelInvoiceDto,
   ) {
     return this.fsm.cancelInvoice(user, id, body.reason);
   }
@@ -128,7 +128,7 @@ export class FsmInvoicesController {
   recordPayment(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body() body: { amount: number; note?: string },
+    @Body() body: RecordInvoicePaymentDto,
   ) {
     return this.fsm.recordInvoicePayment(user, id, body);
   }
@@ -148,7 +148,7 @@ export class FsmInvoicesController {
   rejectPayment(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body() body: { reason: string },
+    @Body() body: RejectInvoicePaymentDto,
   ) {
     return this.fsm.rejectInvoicePaymentProof(user, id, body.reason);
   }
@@ -160,7 +160,7 @@ export class FsmInvoicesController {
   sendInvoiceEmail(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body() body: { customMessage?: string },
+    @Body() body: SendInvoiceEmailDto,
   ) {
     return this.fsm.sendInvoiceEmail(user, id, body.customMessage);
   }

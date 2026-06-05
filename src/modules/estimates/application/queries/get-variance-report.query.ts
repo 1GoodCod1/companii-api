@@ -32,7 +32,11 @@ export class GetVarianceReportQuery {
 
         if (stage.lines) {
           for (const line of stage.lines) {
-            const isLabor = isEstimateLaborLine({ unit: line.unit, description: line.description });
+            const isLabor = isEstimateLaborLine({
+              unit: line.unit,
+              description: line.description,
+              stageKind: stage.kind,
+            });
             const lineBudget = Number(line.lineTotal);
             const lineVariance = line.actualLineTotal !== null ? Number(line.actualLineTotal) - lineBudget : null;
             const lineVariancePct = (lineVariance !== null && lineBudget > 0)

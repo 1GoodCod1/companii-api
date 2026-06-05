@@ -10,6 +10,7 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { RefreshCookieService } from './services/refresh-cookie.service';
 import { TokenService } from './services/token.service';
+import { EmailVerificationService } from './services/email-verification.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { AuthLockoutService } from './services/auth-lockout.service';
 import { AuthJwtPayloadService } from './services/auth-jwt-payload.service';
@@ -43,6 +44,7 @@ import { AUTH_USE_CASE_PROVIDERS } from './use-cases/auth-use-cases.providers';
     TokenService,
     RefreshCookieService,
     AuthLockoutService,
+    EmailVerificationService,
     JwtStrategy,
     SubscriptionGuard,
     ...AUTH_USE_CASE_PROVIDERS,

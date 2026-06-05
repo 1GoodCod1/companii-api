@@ -22,7 +22,7 @@ export class LockActualsCommandHandler {
   async execute(user: JwtPayload, id: string) {
     this.ctx.assertManagement(user);
     const project = await this.access.findProjectOrThrow(user, id);
-    if (project.actualsLockedAt) throw AppErrors.badRequest('Smeta a fost deja blocată ("lock-actuals").');
+    if (project.actualsLockedAt) throw AppErrors.badRequest('Calculul de preț a fost deja blocat ("lock-actuals").');
 
     const enriched = this.actuals.computeProjectActualsAndVariance(project);
     const shouldAlert = enriched.materialVariancePct > 15;

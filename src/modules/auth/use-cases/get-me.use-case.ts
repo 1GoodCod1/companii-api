@@ -24,6 +24,10 @@ export class GetMeUseCase {
     if (!user) throw AppErrors.unauthorized(AppErrorMessages.AUTH_UNAUTHORIZED);
     // Backward-compatible shape: expose a single representative `portalCustomer`
     // (the client may now be a customer of several companies — see portalCustomers).
-    return { ...user, portalCustomer: user.portalCustomers[0] ?? null };
+    return {
+      ...user,
+      portalCustomer: user.portalCustomers[0] ?? null,
+      emailVerified: !!user.emailVerifiedAt,
+    };
   }
 }

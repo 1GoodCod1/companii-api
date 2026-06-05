@@ -17,6 +17,7 @@ import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../../auth/types/jwt-payload';
 import { EstimateTemplatesService } from '../services/blueprints/estimate-templates.service';
 import { CreateTemplateDto, UpdateTemplateDto } from '@/modules/estimates/dto/template.dto';
+import { ApplyTemplateDto } from '../dto/estimate-actions.dto';
 
 @Controller(`${CONTROLLER_PATH.estimates}/templates`)
 @UseGuards(CompanyGuard, SubscriptionGuard)
@@ -67,7 +68,7 @@ export class EstimateTemplatesController {
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
     @Param('projectId') projectId: string,
-    @Body() body?: { mode?: 'overwrite' | 'append' | 'pricing' },
+    @Body() body?: ApplyTemplateDto,
   ) {
     return this.service.applyTemplate(user, projectId, id, {
       mode: body?.mode,

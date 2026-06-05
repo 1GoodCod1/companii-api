@@ -1,5 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { PaymentProductType } from '@prisma/client';
+import { randomBytes } from 'crypto';
+import { CompanySubscriptionPlan, PaymentProductType } from '@prisma/client';
+import { AppErrorMessages, AppErrors } from '../../common/errors';
 import { PAYMENTS_REPOSITORY } from './domain/ports/payments.repository.port';
 import type { PrismaPaymentsRepository } from './infrastructure/persistence/prisma-payments.repository';
 
@@ -10,13 +12,23 @@ export class PaymentsService {
     private readonly paymentsRepo: PrismaPaymentsRepository,
   ) {}
 
-  createSubscriptionCheckout(companyId: string, planCode: string, amount: number) {
+  async createSubscriptionCheckout(
+    companyId: string,
+    planCode: CompanySubscriptionPlan,
+  ) {
+    if (planCode === CompanySubscriptionPlan.FREE) {
+      throw AppErrors.badRequest(AppErrorMessages.SUBSCRIPTION_PLAN_REQUIRED);
+    }
+    const plan = await this.paymentsRepo.findPlanByCode(planCode);
+    if (!plan) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
+
     return this.paymentsRepo.create({
       companyId,
       productType: PaymentProductType.COMPANY_SUBSCRIPTION,
-      amount,
+      amount: plan.price,
+      currency: plan.currency,
       status: 'PENDING',
-      externalId: `sub_${Date.now()}`,
+      externalId: `sub_${randomBytes(24).toString('hex')}`,
     });
   }
 

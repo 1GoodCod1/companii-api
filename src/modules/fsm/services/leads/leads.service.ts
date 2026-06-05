@@ -264,12 +264,12 @@ export class LeadsService {
       }
 
       if (lead.estimateProjectId) {
-        throw AppErrors.badRequest('Cererea are deja o smetă asociată.');
+        throw AppErrors.badRequest('Cererea are deja un calcul de preț asociat.');
       }
 
       const categoryId = body?.categoryId ?? lead.categoryId;
       if (!categoryId) {
-        throw AppErrors.badRequest('Selectați categoria pentru smetă.');
+        throw AppErrors.badRequest('Selectați categoria pentru calculul de preț.');
       }
 
       const [customer, category, blueprint, company] = await Promise.all([
@@ -281,11 +281,8 @@ export class LeadsService {
       if (!customer || !category) {
         throw AppErrors.badRequest('Client sau categorie invalidă.');
       }
-      // B3 — require a blueprint so a lead-converted smeta is identical to a
-      // wizard-created one (margin, VAT, site plan, stages with labor hours),
-      // instead of the previous half-initialized project.
       if (!blueprint) {
-        throw AppErrors.badRequest('Nu există o smetă inteligentă pentru această categorie.');
+        throw AppErrors.badRequest('Nu există un calcul de preț pentru această categorie.');
       }
 
       const estNumber = await nextCompanyNumber(tx, {
@@ -312,7 +309,7 @@ export class LeadsService {
         blueprintId: blueprint.id,
         config: blueprint.config as unknown as EstimateBlueprintConfig,
         number: estNumber,
-        title: body?.title ?? lead.serviceTitle ?? `Smetă ${category.name}`,
+        title: body?.title ?? lead.serviceTitle ?? `Calcul de preț ${category.name}`,
         address: lead.address ?? customer.address,
         isTvaPayer: company?.isTvaPayer ?? false,
       });

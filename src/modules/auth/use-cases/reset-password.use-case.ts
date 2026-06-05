@@ -7,12 +7,14 @@ import { AuditEntityType } from '../../audit/audit-entity-type.enum';
 import { AuditService } from '../../audit/audit.service';
 import { timingSafeStringEquals } from '../../../common/utils/timing-safe.util';
 import { ResetPasswordDto } from '@/modules/auth/dto/reset-password.dto';
+import { TokenService } from '../services/token.service';
 
 @Injectable()
 export class ResetPasswordUseCase {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly tokens: TokenService,
   ) {}
 
   async execute(dto: ResetPasswordDto) {
@@ -60,6 +62,8 @@ export class ResetPasswordUseCase {
         used: false,
       },
     });
+
+    await this.tokens.revokeAllForUser(resetToken.userId);
 
     void this.audit.log({
       userId: resetToken.userId,

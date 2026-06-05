@@ -10,6 +10,7 @@ import {
   buildNewLeadEmail,
   buildOwnershipTransferredEmail,
   buildPasswordResetEmail,
+  buildEmailVerificationEmail,
   buildQuoteEmail,
   buildTeamInviteEmail,
   buildTeamMemberDeactivatedEmail,
@@ -188,6 +189,15 @@ export class EmailService implements OnModuleInit {
     resetUrl: string;
   }): Promise<boolean> {
     const tpl = buildPasswordResetEmail(params);
+    return await this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
+  }
+
+  async sendEmailVerificationEmail(params: {
+    to: string;
+    verifyUrl: string;
+    name?: string;
+  }): Promise<boolean> {
+    const tpl = buildEmailVerificationEmail(params);
     return await this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
   }
 

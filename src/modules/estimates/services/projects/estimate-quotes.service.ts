@@ -41,7 +41,7 @@ export class EstimateQuotesService {
       project.status !== EstimateProjectStatus.APPROVED
     ) {
       if (!isEstimateRecalculable(project.status)) {
-        throw AppErrors.badRequest('Calculați smeta înainte de a genera oferta.');
+        throw AppErrors.badRequest('Calculați calculul de preț înainte de a genera oferta.');
       }
       project = await this.stages.calculate(user, id);
     }
@@ -106,7 +106,7 @@ export class EstimateQuotesService {
       project.status !== EstimateProjectStatus.APPROVED &&
       project.status !== EstimateProjectStatus.SENT
     ) {
-      throw AppErrors.badRequest('Calculați smeta înainte de trimitere.');
+      throw AppErrors.badRequest('Calculați calculul de preț înainte de trimitere.');
     }
 
     const updated = await this.prisma.$transaction(async (tx) => {

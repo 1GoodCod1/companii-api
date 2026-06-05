@@ -52,6 +52,7 @@ async function bootstrap() {
     logger: false,
     bufferLogs: true,
     cors: false,
+    rawBody: true,
   });
 
   const expressInstance = app.getHttpAdapter().getInstance() as {

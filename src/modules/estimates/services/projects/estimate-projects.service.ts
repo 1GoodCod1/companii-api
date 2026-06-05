@@ -121,7 +121,7 @@ export class EstimateProjectsService {
         blueprintId: blueprint.id,
         config,
         number,
-        title: data.title?.trim() || `Smetă ${category.name}`,
+        title: data.title?.trim() || `Calcul de preț ${category.name}`,
         siteType: data.siteType,
         address: data.address?.trim() || customer.address,
         validUntil: data.validUntil ? new Date(data.validUntil) : undefined,

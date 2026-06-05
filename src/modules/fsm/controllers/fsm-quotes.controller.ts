@@ -11,7 +11,6 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Response } from 'express';
-import { QuoteStatus } from '@prisma/client';
 import { FsmService } from '../fsm.service';
 import { CONTROLLER_PATH } from '../../../common/constants';
 import { CompanyGuard } from '@/modules/companies/guards/company.guard';
@@ -20,6 +19,7 @@ import { SubscriptionGuard } from '@/modules/auth/guards/subscription.guard';
 import { RequiresFeature } from '../../../common/decorators/requires-feature.decorator';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../../auth/types/jwt-payload';
+import { CreateQuoteDto, UpdateQuoteDto } from '../dto/quote.dto';
 
 @Controller(`${CONTROLLER_PATH.fsm}/quotes`)
 export class FsmQuotesController {
@@ -52,12 +52,7 @@ export class FsmQuotesController {
   @CompanyRoles('OWNER', 'MANAGER')
   createQuote(
     @CurrentUser() user: JwtPayload,
-    @Body() body: {
-      customerId: string;
-      interventionId?: string;
-      validUntil?: string;
-      lines: { description: string; qty: number; unitPrice: number; vatRate?: number; companyServiceId?: string }[];
-    },
+    @Body() body: CreateQuoteDto,
   ) {
     return this.fsm.createQuote(user, body);
   }
@@ -69,11 +64,7 @@ export class FsmQuotesController {
   updateQuote(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body() body: {
-      status?: QuoteStatus;
-      validUntil?: string | null;
-      lines?: { description: string; qty: number; unitPrice: number; vatRate?: number; companyServiceId?: string }[];
-    },
+    @Body() body: UpdateQuoteDto,
   ) {
     return this.fsm.updateQuote(user, id, body);
   }

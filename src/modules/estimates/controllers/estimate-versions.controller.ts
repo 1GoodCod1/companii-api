@@ -8,6 +8,7 @@ import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../../auth/types/jwt-payload';
 import { EstimatesService } from '../estimates.service';
 import { EstimateProjectAccessService } from '../services/projects/estimate-project-access.service';
+import { AddContractorCommentDto } from '../dto/estimate-actions.dto';
 
 @Controller(CONTROLLER_PATH.estimates)
 export class EstimateVersionsController {
@@ -61,7 +62,7 @@ export class EstimateVersionsController {
   async addComment(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body() body: { body: string },
+    @Body() body: AddContractorCommentDto,
   ) {
     await this.projectAccess.findProjectOrThrow(user, id);
     return this.estimates.addComment(user.sub, 'CONTRACTOR', id, body.body);

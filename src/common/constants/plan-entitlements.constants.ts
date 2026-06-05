@@ -95,7 +95,7 @@ export const PLAN_MARKETING_FEATURES: Record<CompanySubscriptionPlan, string[]> 
   ],
   BUSINESS: [
     'Tot ce include Pro',
-    'Smete inteligente (blueprints)',
+    'Calcule de preț',
     'Oferte comerciale + PDF',
     'Facturi fiscale TVA + export CSV',
     'Angajați nelimitați',

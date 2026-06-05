@@ -17,6 +17,7 @@ import type { Response } from 'express';
 import { FsmService } from '../fsm.service';
 import { CustomerImportService } from '../customer-import/customer-import.service';
 import { ConfirmCustomerImportDto } from '@/modules/fsm/dto/confirm-customer-import.dto';
+import { CreateCustomerDto, UpdateCustomerDto } from '../dto/customer.dto';
 import { CONTROLLER_PATH } from '../../../common/constants';
 import { AppErrorMessages, AppErrors } from '../../../common/errors';
 import { CompanyGuard } from '@/modules/companies/guards/company.guard';
@@ -115,7 +116,7 @@ export class FsmCustomersController {
   @UseGuards(CompanyGuard, SubscriptionGuard)
   @RequiresFeature('customers')
   @CompanyRoles('OWNER', 'MANAGER')
-  createCustomer(@CurrentUser() user: JwtPayload, @Body() body: { fullName: string; phone: string; email?: string; address: string; notes?: string }) {
+  createCustomer(@CurrentUser() user: JwtPayload, @Body() body: CreateCustomerDto) {
     return this.fsm.createCustomer(user, body);
   }
 
@@ -126,7 +127,7 @@ export class FsmCustomersController {
   updateCustomer(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body() body: { fullName?: string; phone?: string; email?: string; address?: string; notes?: string },
+    @Body() body: UpdateCustomerDto,
   ) {
     return this.fsm.updateCustomer(user, id, body);
   }

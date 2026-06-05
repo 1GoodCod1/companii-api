@@ -5,6 +5,7 @@ import { PaymentsService } from './payments.service';
 
 import { PAYMENTS_REPOSITORY } from './domain/ports/payments.repository.port';
 import { PrismaPaymentsRepository } from './infrastructure/persistence/prisma-payments.repository';
+import { WebhookSignatureGuard } from './guards/webhook-signature.guard';
 
 @Module({
   imports: [CompaniesModule],
@@ -12,6 +13,7 @@ import { PrismaPaymentsRepository } from './infrastructure/persistence/prisma-pa
   providers: [
     PaymentsService,
     PrismaPaymentsRepository,
+    WebhookSignatureGuard,
     {
       provide: PAYMENTS_REPOSITORY,
       useExisting: PrismaPaymentsRepository,

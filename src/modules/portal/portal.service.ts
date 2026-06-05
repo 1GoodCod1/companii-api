@@ -1,5 +1,4 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { AppErrorMessages, AppErrors } from '../../common/errors';
 import type { JwtPayload } from '../auth/types/jwt-payload';
 import { EstimateCommentService } from '../estimates/services/history/estimate-comment.service';
 import { GetPortalDashboardUseCase } from './use-cases/get-portal-dashboard.use-case';
@@ -75,10 +74,7 @@ export class PortalService {
   }
 
   async updateQuoteStatus(user: JwtPayload, quoteId: string, status: 'ACCEPTED' | 'REJECTED') {
-    const quote = await this.portalRepo.findSentQuoteForUser(quoteId, user.sub);
-    if (!quote) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
-
-    return this.portalRepo.updateQuoteStatus(quoteId, status);
+    return this.portalRepo.acceptOrRejectQuote(user.sub, quoteId, status);
   }
 
   async getInvoicePdf(user: JwtPayload, invoiceId: string) {

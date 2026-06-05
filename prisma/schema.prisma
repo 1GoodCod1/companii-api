@@ -139,6 +139,7 @@ model User {
   termsAcceptedAt DateTime?   @map("terms_accepted_at")
   termsVersion    String?     @map("terms_version")
   isActive        Boolean     @default(true) @map("is_active")
+  emailVerifiedAt DateTime?   @map("email_verified_at")
   createdAt       DateTime    @default(now()) @map("created_at")
   updatedAt       DateTime    @updatedAt @map("updated_at")
 
@@ -150,6 +151,7 @@ model User {
   uploadedFiles      File[]
   companyReviews     CompanyReview[] @relation("ReviewAuthor")
   passwordResetTokens PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
 
   @@map("users")
 }
@@ -1081,4 +1083,20 @@ model PasswordResetToken {
   @@index([token])
   @@index([expiresAt])
   @@map("password_reset_tokens")
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(uuid(7))
+  token     String   @unique
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+  @@map("email_verification_tokens")
 }

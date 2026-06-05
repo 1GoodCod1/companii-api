@@ -3,7 +3,7 @@ import {
   Equals,
   IsBoolean,
   IsEmail,
-  IsEnum,
+  IsIn,
   IsOptional,
   IsString,
   MinLength,
@@ -18,7 +18,7 @@ export class RegisterDto {
   @IsStrongPassword()
   password!: string;
 
-  @IsEnum(AccountKind)
+  @IsIn([AccountKind.COMPANY_STAFF, AccountKind.END_CLIENT])
   accountKind!: AccountKind;
 
   @IsOptional()

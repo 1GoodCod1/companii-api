@@ -25,6 +25,7 @@ export class EstimateProjectShoppingListService {
         stage: { projectId: id },
         actualStatus: 'PENDING',
       },
+      include: { stage: true },
       orderBy: { sortOrder: 'asc' },
     });
 
@@ -34,6 +35,7 @@ export class EstimateProjectShoppingListService {
       const isLabor = isEstimateLaborLine({
         unit: line.unit,
         description: line.description,
+        stageKind: line.stage.kind,
       });
 
       if (!isLabor) {

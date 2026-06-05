@@ -16,6 +16,8 @@ import { GetMeUseCase } from './use-cases/get-me.use-case';
 import { ForgotPasswordUseCase } from './use-cases/forgot-password.use-case';
 import { ResetPasswordUseCase } from './use-cases/reset-password.use-case';
 import { ChangePasswordUseCase } from './use-cases/change-password.use-case';
+import { EmailVerificationService } from './services/email-verification.service';
+import type { JwtPayload } from './types/jwt-payload';
 
 @Injectable()
 export class AuthService {
@@ -31,6 +33,7 @@ export class AuthService {
     private readonly forgotPasswordUc: ForgotPasswordUseCase,
     private readonly resetPasswordUc: ResetPasswordUseCase,
     private readonly changePasswordUc: ChangePasswordUseCase,
+    private readonly emailVerification: EmailVerificationService,
   ) {}
 
   register(dto: RegisterDto, rememberMe?: boolean) {
@@ -73,7 +76,19 @@ export class AuthService {
     return this.resetPasswordUc.execute(dto);
   }
 
-  changePassword(userId: string, dto: ChangePasswordDto) {
-    return this.changePasswordUc.execute(userId, dto);
+  changePassword(
+    user: JwtPayload,
+    dto: ChangePasswordDto,
+    currentRefreshToken?: string,
+  ) {
+    return this.changePasswordUc.execute(user, dto, currentRefreshToken);
+  }
+
+  verifyEmail(token: string) {
+    return this.emailVerification.verify(token);
+  }
+
+  resendEmailVerification(userId: string) {
+    return this.emailVerification.resend(userId);
   }
 }

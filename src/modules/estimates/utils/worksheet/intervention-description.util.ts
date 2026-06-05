@@ -64,17 +64,17 @@ export function buildSingleInterventionDescription(
   const activeStages = filterWorksheetStages(project.stages, config, diagnostic);
   if (activeStages.length === 0) {
     return audience === 'client'
-      ? `Lucrare asociată smetei ${estimateNumber}.`
-      : `Lucrare din smetă ${estimateNumber}. Detalii tehnice: Fișă execuție.`;
+      ? `Lucrare asociată calculului de preț ${estimateNumber}.`
+      : `Lucrare din calculul de preț ${estimateNumber}. Detalii tehnice: Fișă execuție.`;
   }
 
   const bullets = activeStages.map((stage) => `• ${stage.name}`).join('\n');
   if (audience === 'client') {
-    return [`Lucrare din smetă ${estimateNumber}:`, bullets].join('\n');
+    return [`Lucrare din calculul de preț ${estimateNumber}:`, bullets].join('\n');
   }
 
   return [
-    `Etape de execuție (smetă ${estimateNumber}):`,
+    `Etape de execuție (calcul de preț ${estimateNumber}):`,
     bullets,
     '',
     'Detalii tehnice, materiale și checklist: Fișă execuție.',

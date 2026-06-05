@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { AccountKind } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { AppErrors, AppErrorMessages } from '../../../common/errors';
 import { PrismaService } from '../../shared/database/prisma.service';
@@ -13,6 +14,7 @@ import {
   EndClientLinkService,
 } from '../../end-client-link/end-client-link.service';
 import { TeamInviteService } from '../../companies/team/team-invite.service';
+import { EmailVerificationService } from '../services/email-verification.service';
 import { normalizePhone, phoneVariants } from '../../../common/utils/phone.util';
 
 @Injectable()
@@ -24,11 +26,16 @@ export class RegisterUseCase {
     private readonly session: AuthSessionService,
     private readonly endClientLink: EndClientLinkService,
     private readonly teamInvite: TeamInviteService,
+    private readonly emailVerification: EmailVerificationService,
   ) {}
 
   async execute(dto: RegisterDto, rememberMe?: boolean) {
     if (!dto.acceptTerms) {
       throw AppErrors.badRequest(AppErrorMessages.AUTH_TERMS_REQUIRED);
+    }
+
+    if (dto.accountKind === AccountKind.PLATFORM_ADMIN) {
+      throw AppErrors.forbidden(AppErrorMessages.AUTH_REGISTRATION_ROLE_NOT_ALLOWED);
     }
 
     let email = dto.email.toLowerCase().trim();
@@ -63,10 +70,6 @@ export class RegisterUseCase {
       throw AppErrors.badRequest(AppErrorMessages.VALIDATION_FAILED);
     }
 
-    // Anti-enumeration: when the request is anonymous (no invite token), do NOT
-    // leak whether email vs phone is already registered. Return a single generic
-    // conflict response. When the user is coming via a portal/team invite the
-    // specific mismatch is still surfaced because it is required for UX.
     const isAnonymousRegistration = !portalInviteToken && !teamInviteToken;
 
     const existingEmail = await this.prisma.user.findUnique({ where: { email } });
@@ -112,6 +115,8 @@ export class RegisterUseCase {
           email,
         });
       }
+      // Send the email-confirmation link. Best-effort: never blocks registration.
+      await this.emailVerification.issueAndSend(user);
     }
 
     if (user.accountKind === 'COMPANY_STAFF' && teamInviteToken) {

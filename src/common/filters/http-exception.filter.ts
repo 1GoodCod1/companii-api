@@ -69,7 +69,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
       typeof request.url === 'string' &&
       (request.url.includes('/auth/me') ||
        request.url.includes('/companies/me') ||
-       request.url.includes('/subscriptions/me'));
+       request.url.includes('/subscriptions/me') ||
+       request.url.includes('/portal/dashboard'));
 
     const logSuffix = requestId ? ` requestId=${requestId}` : '';
     if (isRefreshClientError || isExpectedGuestAuthCheck) {

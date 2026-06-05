@@ -8,6 +8,13 @@ import { Public } from '../../common/decorators/public.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '@/common/guards/roles.guard';
 import type { JwtPayload } from '../auth/types/jwt-payload';
+import {
+  AcceptInvitationDto,
+  AddEstimateCommentDto,
+  PortalStatusDto,
+  RequestEstimateChangesDto,
+  SubmitPaymentProofDto,
+} from './dto/portal.dto';
 
 @Controller(CONTROLLER_PATH.portal)
 export class PortalController {
@@ -47,7 +54,7 @@ export class PortalController {
   updateQuoteStatus(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body() body: { status: 'ACCEPTED' | 'REJECTED' },
+    @Body() body: PortalStatusDto,
   ) {
     return this.portal.updateQuoteStatus(user, id, body.status);
   }
@@ -58,7 +65,7 @@ export class PortalController {
   updateEstimateStatus(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body() body: { status: 'ACCEPTED' | 'REJECTED' },
+    @Body() body: PortalStatusDto,
   ) {
     return this.portal.updateEstimateStatus(user, id, body.status);
   }
@@ -69,7 +76,7 @@ export class PortalController {
   requestEstimateChanges(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body() body: { comment: string },
+    @Body() body: RequestEstimateChangesDto,
   ) {
     return this.portal.requestEstimateChanges(user, id, body.comment);
   }
@@ -106,7 +113,7 @@ export class PortalController {
   submitInvoicePaymentProof(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body() body: { fileId: string },
+    @Body() body: SubmitPaymentProofDto,
   ) {
     return this.portal.submitInvoicePaymentProof(user, id, body.fileId);
   }
@@ -131,7 +138,7 @@ export class PortalController {
   @UseGuards(RolesGuard)
   @Roles('END_CLIENT')
   @Post('invitations/accept')
-  accept(@CurrentUser() user: JwtPayload, @Body() body: { token: string }) {
+  accept(@CurrentUser() user: JwtPayload, @Body() body: AcceptInvitationDto) {
     return this.endClientLink.acceptInviteToken(body.token, user.sub);
   }
 
@@ -152,7 +159,7 @@ export class PortalController {
   addEstimateComment(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body() body: { body: string },
+    @Body() body: AddEstimateCommentDto,
   ) {
     return this.portal.addEstimateComment(user, id, body.body);
   }

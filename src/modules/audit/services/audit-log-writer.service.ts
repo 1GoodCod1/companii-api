@@ -155,10 +155,9 @@ export class AuditLogWriterService implements OnModuleInit, OnModuleDestroy {
     });
     await this.publishStreamBatch([data]);
     if (SECURITY_ACTION_SET.has(data.action)) {
-      this.logger.warn(`[SECURITY] ${data.action}`, {
-        userId: data.userId ?? null,
-        ipAddress: data.ipAddress,
-      });
+      this.logger.warn(
+        `[SECURITY] ${data.action} userId=${data.userId ?? 'null'} ip=${data.ipAddress ?? 'unknown'}`,
+      );
     }
   }
 

@@ -15,9 +15,9 @@ const ACTIVE_CACHE_KEY = (userId: string): string =>
 
 function resolveJwtSecret(config: ConfigService): string {
   const secret = config.get<string>('jwt.secret');
-  if (!secret || secret.trim().length === 0 || secret === 'dev-secret-change-me') {
+  if (!secret || secret.trim().length === 0 || secret === 'dev-secret') {
     throw new Error(
-      'JWT_SECRET is required and must not be the default placeholder. Set JWT_SECRET env variable.',
+      'JWT_SECRET is required. Set JWT_SECRET ',
     );
   }
   return secret;
@@ -49,7 +49,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     return payload;
   }
 
-  /** Token issued before logoutAll cutoff → revoked. */
   private async isRevokedByLogoutAll(payload: JwtPayload): Promise<boolean> {
     if (!payload.iat) return false;
     try {

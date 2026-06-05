@@ -7,6 +7,11 @@ import { RequiresFeature } from '../../../common/decorators/requires-feature.dec
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../../auth/types/jwt-payload';
 import { EstimatesService } from '../estimates.service';
+import {
+  CreateReceiptDto,
+  SetLinesActualStatusDto,
+  UpdateReceiptDto,
+} from '../dto/receipt.dto';
 
 @Controller(CONTROLLER_PATH.estimates)
 export class EstimateReceiptsController {
@@ -19,19 +24,7 @@ export class EstimateReceiptsController {
   createReceipt(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body()
-    body: {
-      fileKey?: string | null;
-      store: string;
-      totalAmount: number;
-      purchaseDate: string;
-      lineUpdates: Array<{
-        lineId: string;
-        actualUnitPrice: number;
-        actualQty?: number;
-        actualNotes?: string;
-      }>;
-    },
+    @Body() body: CreateReceiptDto,
   ) {
     return this.estimates.createReceipt(user, id, body);
   }
@@ -44,19 +37,7 @@ export class EstimateReceiptsController {
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
     @Param('receiptId') receiptId: string,
-    @Body()
-    body: {
-      fileKey?: string | null;
-      store?: string;
-      totalAmount?: number;
-      purchaseDate?: string;
-      lineUpdates?: Array<{
-        lineId: string;
-        actualUnitPrice: number;
-        actualQty?: number;
-        actualNotes?: string;
-      }>;
-    },
+    @Body() body: UpdateReceiptDto,
   ) {
     return this.estimates.updateReceipt(user, id, receiptId, body);
   }
@@ -102,7 +83,7 @@ export class EstimateReceiptsController {
   setLinesActualStatus(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body() body: { lineIds: string[]; status: 'NO_RECEIPT' | 'SKIPPED' },
+    @Body() body: SetLinesActualStatusDto,
   ) {
     return this.estimates.setLinesActualStatus(user, id, body);
   }

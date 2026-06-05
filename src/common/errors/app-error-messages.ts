@@ -9,7 +9,10 @@ export const AppErrorMessages = {
   AUTH_EMAIL_ALREADY_REGISTERED: 'Email already registered',
   AUTH_REGISTRATION_CONFLICT:
     'We could not complete the registration with the provided details. If you already have an account, please sign in or reset your password.',
+  AUTH_REGISTRATION_ROLE_NOT_ALLOWED:
+    'This account type cannot be self-registered.',
   GUARD_INVALID_ORIGIN: 'Invalid request origin',
+  WEBHOOK_SIGNATURE_INVALID: 'Invalid or missing webhook signature',
   GUARD_USER_NOT_AUTHENTICATED: 'Authentication required',
   GUARD_ACCESS_DENIED: 'Access denied',
   COMPANY_NOT_FOUND: 'Company not found',
@@ -69,6 +72,9 @@ export const AppErrorMessages = {
   RESET_TOKEN_INVALID: 'Token invalid sau inexistent',
   RESET_TOKEN_USED: 'Acest token a fost deja folosit',
   RESET_TOKEN_EXPIRED: 'Tokenul a expirat',
+  EMAIL_VERIFICATION_TOKEN_INVALID: 'Link de confirmare invalid sau deja folosit',
+  EMAIL_VERIFICATION_TOKEN_EXPIRED: 'Linkul de confirmare a expirat',
+  EMAIL_ALREADY_VERIFIED: 'Adresa de email este deja confirmată',
 } as const;
 
 export const AppErrorTemplates = {

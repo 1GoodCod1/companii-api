@@ -29,7 +29,7 @@ export class ConvertToInterventionsUseCase {
     const cid = this.ctx.companyId(user);
 
     if (project.status !== EstimateProjectStatus.ACCEPTED) {
-      throw AppErrors.badRequest('Smeta trebuie acceptată de client înainte de convertire.');
+      throw AppErrors.badRequest('Calculul de preț trebuie acceptat de client înainte de convertire.');
     }
 
     const additional = mode === 'by-stage' ? project.stages.length : 1;
@@ -52,7 +52,7 @@ export class ConvertToInterventionsUseCase {
         const currentStatus = lockedProjects[0]?.status;
         if (!currentStatus) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
         if (currentStatus !== EstimateProjectStatus.ACCEPTED) {
-          throw AppErrors.conflict('Smeta a fost deja convertită sau are alt status.');
+          throw AppErrors.conflict('Calculul de preț a fost deja convertit sau are alt status.');
         }
 
         const interventions: Awaited<ReturnType<typeof tx.intervention.create>>[] = [];
@@ -112,7 +112,7 @@ export class ConvertToInterventionsUseCase {
       const currentStatus = lockedProjects[0]?.status;
       if (!currentStatus) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
       if (currentStatus !== EstimateProjectStatus.ACCEPTED) {
-        throw AppErrors.conflict('Smeta a fost deja convertită sau are alt status.');
+        throw AppErrors.conflict('Calculul de preț a fost deja convertit sau are alt status.');
       }
 
       const intNumber = await this.access.nextInterventionNumber(tx, cid);

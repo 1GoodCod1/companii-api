@@ -1,5 +1,4 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
-import { EstimateProjectStatus } from '@prisma/client';
 import { CONTROLLER_PATH } from '../../../common/constants';
 import { CompanyGuard } from '@/modules/companies/guards/company.guard';
 import { CompanyRoles } from '../../companies/decorators/company-roles.decorator';
@@ -8,7 +7,11 @@ import { RequiresFeature } from '../../../common/decorators/requires-feature.dec
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../../auth/types/jwt-payload';
 import { EstimatesService } from '../estimates.service';
-import type { Plan2dData } from '../pricing/plan2d.types';
+import {
+  CreateEstimateProjectDto,
+  SaveSitePlanDto,
+  UpdateEstimateProjectDto,
+} from '../dto/estimate-project.dto';
 
 @Controller(CONTROLLER_PATH.estimates)
 export class EstimateProjectsController {
@@ -41,15 +44,7 @@ export class EstimateProjectsController {
   @CompanyRoles('OWNER', 'MANAGER')
   createProject(
     @CurrentUser() user: JwtPayload,
-    @Body()
-    body: {
-      customerId: string;
-      categoryId: string;
-      title?: string;
-      siteType?: string;
-      address?: string;
-      validUntil?: string;
-    },
+    @Body() body: CreateEstimateProjectDto,
   ) {
     return this.estimates.createProject(user, body);
   }
@@ -61,24 +56,7 @@ export class EstimateProjectsController {
   updateProject(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body()
-    body: {
-      title?: string;
-      siteType?: string;
-      address?: string;
-      validUntil?: string | null;
-      marginPct?: number;
-      riskReservePct?: number;
-      siteFloor?: number | null;
-      accessDifficulty?: string | null;
-      urgency?: string | null;
-      diagnosticAnswers?: Record<string, unknown>;
-      notes?: string | null;
-      status?: EstimateProjectStatus;
-      expectedVersion?: number;
-      clientMutationId?: string;
-      clientDraftId?: string;
-    },
+    @Body() body: UpdateEstimateProjectDto,
   ) {
     return this.estimates.updateProject(user, id, body);
   }
@@ -98,13 +76,7 @@ export class EstimateProjectsController {
   saveSitePlan(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body()
-    body: {
-      plan2d: Plan2dData;
-      expectedVersion?: number;
-      clientMutationId?: string;
-      clientDraftId?: string;
-    },
+    @Body() body: SaveSitePlanDto,
   ) {
     return this.estimates.saveSitePlan(user, id, body.plan2d, {
       expectedVersion: body.expectedVersion,

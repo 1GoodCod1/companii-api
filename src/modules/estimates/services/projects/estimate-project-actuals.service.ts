@@ -35,6 +35,7 @@ export class EstimateProjectActualsService {
             const isLabor = isEstimateLaborLine({
               unit: line.unit,
               description: line.description,
+              stageKind: stage.kind,
             });
 
             if (!isLabor) {
@@ -138,6 +139,7 @@ export class EstimateProjectActualsService {
             unit: line.unit,
             description: line.description,
             lineTotal: line.lineTotal,
+            stageKind: stage.kind,
           })),
         );
         const stageTotal = round2(laborCost + materialCost);
@@ -299,6 +301,7 @@ export class EstimateProjectActualsService {
             const isLabor = isEstimateLaborLine({
               unit: line.unit,
               description: line.description,
+              stageKind: stage.kind,
             });
 
             const lineBudget = Number(line.lineTotal);

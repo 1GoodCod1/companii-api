@@ -31,7 +31,7 @@ export class SendEstimateToClientUseCase {
       project.status !== EstimateProjectStatus.APPROVED &&
       project.status !== EstimateProjectStatus.SENT
     ) {
-      throw AppErrors.badRequest('Calculați smeta înainte de trimitere.');
+      throw AppErrors.badRequest('Calculați calculul de preț înainte de trimitere.');
     }
 
     const updated = await this.prisma.$transaction(async (tx) => {

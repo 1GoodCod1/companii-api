@@ -36,11 +36,11 @@ export class CreateReceiptCommandHandler {
   async execute(user: JwtPayload, projectId: string, body: CreateReceiptInput) {
     const project = await this.access.findProjectOrThrow(user, projectId);
     if (!RECEIPT_ALLOWED_STATUSES.has(project.status)) {
-      throw AppErrors.badRequest('Chitanțele se pot adăuga doar la smete calculate, aprobate sau în execuție.');
+      throw AppErrors.badRequest('Chitanțele se pot adăuga doar la calcule de preț calculate, aprobate sau în execuție.');
     }
     if (!user.memberId) throw AppErrors.forbidden(AppErrorMessages.COMPANY_ACCESS_DENIED);
     const memberId: string = user.memberId;
-    if (project.actualsLockedAt) throw AppErrors.badRequest('Smeta a fost deja blocată ("lock-actuals"). Nu se mai pot adăuga chitanțe noi.');
+    if (project.actualsLockedAt) throw AppErrors.badRequest('Calculul de preț a fost deja blocat ("lock-actuals"). Nu se mai pot adăuga chitanțe noi.');
 
     const parsingRequired = !body.lineUpdates?.length || body.totalAmount <= 0;
     const lineUpdates = body.lineUpdates ?? [];

@@ -8,6 +8,7 @@ import { RequiresFeature } from '../../../common/decorators/requires-feature.dec
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../../auth/types/jwt-payload';
 import { EstimatesService } from '../estimates.service';
+import { ConvertEstimateDto } from '../dto/estimate-actions.dto';
 
 @Controller(CONTROLLER_PATH.estimates)
 export class EstimateQuotesController {
@@ -36,7 +37,7 @@ export class EstimateQuotesController {
   convert(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body() body?: { mode?: 'single' | 'by-stage' },
+    @Body() body?: ConvertEstimateDto,
   ) {
     return this.estimates.convertToInterventions(user, id, body?.mode ?? 'single');
   }

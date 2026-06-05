@@ -28,6 +28,7 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
 import type { JwtPayload } from './types/jwt-payload';
 
 @UseGuards(JwtAuthGuard)
@@ -132,8 +133,27 @@ export class AuthController {
   async changePassword(
     @CurrentUser() user: JwtPayload,
     @Body() dto: ChangePasswordDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
   ) {
-    return this.auth.changePassword(user.sub, dto);
+    const currentRefreshToken = this.refreshCookie.getToken(req);
+    const result = await this.auth.changePassword(user, dto, currentRefreshToken);
+    return this.refreshCookie.handleAuthSuccess(result, res);
+  }
+
+  @Public()
+  @Post('verify-email')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  verifyEmail(@Body() dto: VerifyEmailDto) {
+    return this.auth.verifyEmail(dto.token);
+  }
+
+  @Post('resend-verification')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 3, ttl: 300_000 } })
+  resendVerification(@CurrentUser() user: JwtPayload) {
+    return this.auth.resendEmailVerification(user.sub);
   }
 
   @Get('me')

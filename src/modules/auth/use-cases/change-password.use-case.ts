@@ -3,13 +3,26 @@ import * as argon2 from 'argon2';
 import { AppErrors, AppErrorMessages } from '../../../common/errors';
 import { PrismaService } from '../../shared/database/prisma.service';
 import { ChangePasswordDto } from '@/modules/auth/dto/change-password.dto';
+import type { JwtPayload } from '../types/jwt-payload';
+import { AuthJwtPayloadService } from '../services/auth-jwt-payload.service';
+import { TokenService } from '../services/token.service';
 
 @Injectable()
 export class ChangePasswordUseCase {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly jwtPayload: AuthJwtPayloadService,
+    private readonly tokens: TokenService,
+  ) {}
 
-  async execute(userId: string, dto: ChangePasswordDto) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+  async execute(
+    currentUser: JwtPayload,
+    dto: ChangePasswordDto,
+    currentRefreshToken?: string,
+  ) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: currentUser.sub },
+    });
     if (!user || !user.passwordHash) {
       throw AppErrors.unauthorized(AppErrorMessages.AUTH_UNAUTHORIZED);
     }
@@ -21,10 +34,14 @@ export class ChangePasswordUseCase {
 
     const passwordHash = await argon2.hash(dto.newPassword);
     await this.prisma.user.update({
-      where: { id: userId },
+      where: { id: user.id },
       data: { passwordHash },
     });
 
-    return { message: 'Parola a fost modificată cu succes.' };
+    const payload = await this.jwtPayload.enrichPayload(
+      this.jwtPayload.buildPayload(user),
+      { preferredCompanyId: currentUser.activeCompanyId },
+    );
+    return this.tokens.revokeOthersAndReissue(payload, currentRefreshToken);
   }
 }

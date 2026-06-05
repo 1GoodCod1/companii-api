@@ -24,7 +24,7 @@ export const lucrariFinisajBlueprint: EstimateBlueprintConfig = baseConfig({
       helpText: 'Curățare strat suport și aplicare amorsă pe pereți (tavanul se finisează prin modulele dedicate). Suprafața se calculează automat.',
       defaultEnabled: false,
       stageCodes: ['pregatire'],
-      fieldKeys: [],
+      fieldKeys: ['preparationArea'],
       section: 'Pregătire',
     },
     {
@@ -53,7 +53,7 @@ export const lucrariFinisajBlueprint: EstimateBlueprintConfig = baseConfig({
       helpText: 'Glet de finisare (start + finiș) și șlefuire pe pereți (tavanul se finisează prin modulele dedicate). Suprafața se calculează automat.',
       defaultEnabled: false,
       stageCodes: ['glet'],
-      fieldKeys: [],
+      fieldKeys: ['puttyArea'],
       section: 'Pereți',
     },
     {
@@ -92,7 +92,7 @@ export const lucrariFinisajBlueprint: EstimateBlueprintConfig = baseConfig({
       helpText: 'Finisarea tavanului existent (glet + vopsire). Pentru tavan suspendat folosiți „Gips-carton” sau „Tavan tensionat”.',
       defaultEnabled: false,
       stageCodes: ['tavane'],
-      fieldKeys: [],
+      fieldKeys: ['ceilingArea'],
       section: 'Tavane',
     },
     {
@@ -266,7 +266,27 @@ export const lucrariFinisajBlueprint: EstimateBlueprintConfig = baseConfig({
       required: false,
       defaultValue: 0,
       helpText: 'Suprafața finisajelor vechi de înlăturat.',
-      section: 'Avansat',
+      section: 'Pregătire',
+    },
+    {
+      key: 'preparationArea',
+      label: 'Suprafață pregătire / Площадь грунтовки',
+      type: 'number',
+      unit: 'm²',
+      required: false,
+      defaultValue: 0,
+      helpText: 'Gol = se folosește suprafața pereților calculată automat.',
+      section: 'Pregătire',
+    },
+    {
+      key: 'puttyArea',
+      label: 'Suprafață gletuită / Площадь шпаклевки',
+      type: 'number',
+      unit: 'm²',
+      required: false,
+      defaultValue: 0,
+      helpText: 'Gol = se folosește suprafața pereților calculată automat.',
+      section: 'Pereți',
     },
     {
       key: 'plasterArea',
@@ -276,7 +296,7 @@ export const lucrariFinisajBlueprint: EstimateBlueprintConfig = baseConfig({
       required: false,
       defaultValue: 0,
       helpText: 'Gol = se folosește suprafața pereților calculată automat.',
-      section: 'Avansat',
+      section: 'Pregătire',
     },
     {
       key: 'partitionArea',
@@ -286,7 +306,7 @@ export const lucrariFinisajBlueprint: EstimateBlueprintConfig = baseConfig({
       required: false,
       defaultValue: 0,
       helpText: 'Lungime × înălțime pentru fiecare perete nou.',
-      section: 'Avansat',
+      section: 'Pereți',
     },
     {
       key: 'ceilingArea',
@@ -296,7 +316,7 @@ export const lucrariFinisajBlueprint: EstimateBlueprintConfig = baseConfig({
       required: false,
       defaultValue: 0,
       helpText: 'Gol = egală cu suprafața podelei. Folosită la glet, vopsire și tavane.',
-      section: 'Avansat',
+      section: 'Tavane',
     },
     {
       key: 'drywallArea',
@@ -306,7 +326,7 @@ export const lucrariFinisajBlueprint: EstimateBlueprintConfig = baseConfig({
       required: false,
       defaultValue: 0,
       helpText: 'Suprafața placată cu gips-carton.',
-      section: 'Avansat',
+      section: 'Tavane',
     },
     {
       key: 'stretchCeilingArea',
@@ -316,7 +336,7 @@ export const lucrariFinisajBlueprint: EstimateBlueprintConfig = baseConfig({
       required: false,
       defaultValue: 0,
       helpText: 'Gol = egală cu suprafața podelei.',
-      section: 'Avansat',
+      section: 'Tavane',
     },
     {
       key: 'decorativePlasterArea',
@@ -326,7 +346,7 @@ export const lucrariFinisajBlueprint: EstimateBlueprintConfig = baseConfig({
       required: false,
       defaultValue: 0,
       helpText: 'Suprafața pereților de accent cu finisaj decorativ.',
-      section: 'Avansat',
+      section: 'Pereți',
     },
     {
       key: 'wallpaperArea',
@@ -336,7 +356,7 @@ export const lucrariFinisajBlueprint: EstimateBlueprintConfig = baseConfig({
       required: false,
       defaultValue: 0,
       helpText: 'Suprafața pereților de tapetat.',
-      section: 'Avansat',
+      section: 'Pereți',
     },
     {
       key: 'paintArea',
@@ -346,7 +366,7 @@ export const lucrariFinisajBlueprint: EstimateBlueprintConfig = baseConfig({
       required: false,
       defaultValue: 0,
       helpText: 'Gol = pereți + tavan, minus suprafața de tapet / decorativă, calculate automat.',
-      section: 'Avansat',
+      section: 'Pereți',
     },
     {
       key: 'waterproofingArea',
@@ -356,7 +376,7 @@ export const lucrariFinisajBlueprint: EstimateBlueprintConfig = baseConfig({
       required: false,
       defaultValue: 0,
       helpText: 'Suprafața din zonele umede (de obicei podeaua băii + 30 cm pe pereți).',
-      section: 'Avansat',
+      section: 'Pardoseală',
     },
     {
       key: 'tileArea',
@@ -366,7 +386,7 @@ export const lucrariFinisajBlueprint: EstimateBlueprintConfig = baseConfig({
       required: false,
       defaultValue: 0,
       helpText: 'Suprafața totală de placat (pardoseală + pereți).',
-      section: 'Avansat',
+      section: 'Pardoseală',
     },
     {
       key: 'screedArea',
@@ -376,7 +396,7 @@ export const lucrariFinisajBlueprint: EstimateBlueprintConfig = baseConfig({
       required: false,
       defaultValue: 0,
       helpText: 'Suprafața de egalizat înainte de pardoseală.',
-      section: 'Avansat',
+      section: 'Pardoseală',
     },
     {
       key: 'flooringArea',
@@ -386,7 +406,7 @@ export const lucrariFinisajBlueprint: EstimateBlueprintConfig = baseConfig({
       required: false,
       defaultValue: 0,
       helpText: 'Suprafața de pardoseală laminat/vinil/linoleum.',
-      section: 'Avansat',
+      section: 'Pardoseală',
     },
     {
       key: 'parquetArea',
@@ -396,7 +416,7 @@ export const lucrariFinisajBlueprint: EstimateBlueprintConfig = baseConfig({
       required: false,
       defaultValue: 0,
       helpText: 'Suprafața de parchet din lemn / triplustratificat.',
-      section: 'Avansat',
+      section: 'Pardoseală',
     },
     {
       key: 'baseboardLengthM',
@@ -406,7 +426,7 @@ export const lucrariFinisajBlueprint: EstimateBlueprintConfig = baseConfig({
       required: false,
       defaultValue: 0,
       helpText: 'Gol = perimetrul camerei estimat automat.',
-      section: 'Avansat',
+      section: 'Detalii',
     },
     {
       key: 'doorSlopeLengthM',
@@ -416,7 +436,7 @@ export const lucrariFinisajBlueprint: EstimateBlueprintConfig = baseConfig({
       required: false,
       defaultValue: 0,
       helpText: 'Lungimea totală a spaleților de finisat.',
-      section: 'Avansat',
+      section: 'Detalii',
     },
   ],
   diagnosticQuestions: [],

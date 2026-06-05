@@ -206,6 +206,7 @@ export class EstimateTemplatesService {
             unit: line.unit,
             description: line.description,
             lineTotal: line.lineTotal,
+            stageKind: stage.kind,
           })),
         );
         const stageTotal = round2(laborCost + materialCost);
@@ -327,6 +328,7 @@ export class EstimateTemplatesService {
             unit: line.unit,
             description: line.description,
             lineTotal: line.lineTotal,
+            stageKind: stage.kind,
           })),
         );
         const stageTotal = round2(laborCost + materialCost);

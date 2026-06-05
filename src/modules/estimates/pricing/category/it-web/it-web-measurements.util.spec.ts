@@ -15,16 +15,17 @@ describe('IT web measurements (it-web)', () => {
         documentationRequired: true,
         slaRequired: true,
         projectScope: 'Mediu (6-20 pagini / 1-2 săptămâni)',
+        customDesign: true,
       },
       {},
     );
 
     expect(result.pagesCount).toBe(10);
-    expect(result.hasBackendCount).toBe(1);
+    expect(result.hasBackendCount).toBe(2);
     expect(result.hasCmsCount).toBe(1);
     expect(result.hasEcommerceCount).toBe(0);
     expect(result.analysisHours).toBe(16);
-    expect(result.testingHours).toBe(8); // Max(8, 10 * 0.5)
+    expect(result.testingHours).toBe(8);
     expect(result.trainingHours).toBe(6);
     expect(result.slaUnits).toBe(1);
   });
@@ -36,6 +37,7 @@ describe('IT web measurements (it-web)', () => {
       {
         pagesCount: 5,
         projectScope: 'Mic (1-5 pagini / 1-2 zile)',
+        customDesign: true,
       },
       {},
     );

@@ -170,7 +170,11 @@ export class EstimateProject {
     const lines: EstimateLine[] = [];
     for (const stage of this.stages) {
       for (const line of stage.lines) {
-        if (!isEstimateLaborLine(line)) {
+        if (!isEstimateLaborLine({
+          unit: line.unit,
+          description: line.description,
+          stageKind: stage.kind,
+        })) {
           lines.push(line);
         }
       }

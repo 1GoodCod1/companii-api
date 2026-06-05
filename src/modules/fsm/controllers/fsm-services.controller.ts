@@ -16,6 +16,10 @@ import { SubscriptionGuard } from '@/modules/auth/guards/subscription.guard';
 import { RequiresFeature } from '../../../common/decorators/requires-feature.decorator';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../../auth/types/jwt-payload';
+import {
+  CreateCompanyServiceDto,
+  UpdateCompanyServiceDto,
+} from '../dto/company-service.dto';
 
 @Controller(`${CONTROLLER_PATH.fsm}/services`)
 export class FsmServicesController {
@@ -35,17 +39,7 @@ export class FsmServicesController {
   @CompanyRoles('OWNER', 'MANAGER')
   createService(
     @CurrentUser() user: JwtPayload,
-    @Body() body: {
-      name: string;
-      defaultPrice: number;
-      description?: string;
-      categoryId?: string;
-      durationMinutes?: number;
-      isPublished?: boolean;
-      materialsCost?: number;
-      vatRate?: number;
-      sortOrder?: number;
-    },
+    @Body() body: CreateCompanyServiceDto,
   ) {
     return this.fsm.createCompanyService(user, body);
   }
@@ -57,17 +51,7 @@ export class FsmServicesController {
   updateService(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body() body: {
-      name?: string;
-      defaultPrice?: number;
-      description?: string;
-      categoryId?: string | null;
-      durationMinutes?: number | null;
-      isPublished?: boolean;
-      materialsCost?: number | null;
-      vatRate?: number | null;
-      sortOrder?: number;
-    },
+    @Body() body: UpdateCompanyServiceDto,
   ) {
     return this.fsm.updateCompanyService(user, id, body);
   }

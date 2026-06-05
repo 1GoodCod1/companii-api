@@ -37,15 +37,7 @@ const portalEstimateInclude = {
 @Injectable()
 export class PrismaPortalRepository implements PortalRepository {
   constructor(private readonly prisma: PrismaService) {}
-
-  // Portal scoping note: a portal user can be a customer of several companies,
-  // so every read/write is scoped by the user (`customer.portalUserId = userId`),
-  // i.e. "the resource belongs to ANY customer record owned by this user". This
-  // is the ownership boundary — keep it on every customer-bound query.
-
   async findCustomerByUserId(userId: string): Promise<CompanyCustomer> {
-    // Representative customer (for profile display / not-linked gate). Data is
-    // aggregated across all of the user's customers elsewhere.
     const customer = await this.prisma.companyCustomer.findFirst({
       where: { portalUserId: userId },
       orderBy: { createdAt: 'asc' },
@@ -58,9 +50,32 @@ export class PrismaPortalRepository implements PortalRepository {
     return findLeadsForEndClient(this.prisma, userId, take, cursor);
   }
 
-  findSentQuoteForUser(quoteId: string, userId: string): Promise<Quote | null> {
-    return this.prisma.quote.findFirst({
-      where: { id: quoteId, status: 'SENT', customer: { portalUserId: userId } },
+  async acceptOrRejectQuote(
+    userId: string,
+    quoteId: string,
+    action: 'ACCEPTED' | 'REJECTED',
+  ): Promise<Quote> {
+    return await this.prisma.$transaction(async (tx) => {
+      const locked = await tx.$queryRaw<Array<{ status: QuoteStatus }>>`
+        SELECT status FROM quotes
+        WHERE id = ${quoteId}
+          AND customer_id IN (
+            SELECT id FROM company_customers WHERE portal_user_id = ${userId}
+          )
+        FOR UPDATE
+      `;
+      const quote = locked[0];
+      if (!quote) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
+      if (quote.status !== QuoteStatus.SENT) {
+        throw AppErrors.conflict('Oferta a fost deja procesată.');
+      }
+      const nextStatus =
+        action === 'ACCEPTED' ? QuoteStatus.ACCEPTED : QuoteStatus.REJECTED;
+
+      return tx.quote.update({
+        where: { id: quoteId },
+        data: { status: nextStatus },
+      });
     });
   }
 
@@ -70,13 +85,6 @@ export class PrismaPortalRepository implements PortalRepository {
       select: { intervention: { select: { customerId: true } } },
     });
     return invoice?.intervention?.customerId ?? null;
-  }
-
-  updateQuoteStatus(quoteId: string, status: QuoteStatus): Promise<Quote> {
-    return this.prisma.quote.update({
-      where: { id: quoteId },
-      data: { status },
-    });
   }
 
   findProjectForUser(projectId: string, userId: string): Promise<EstimateProject | null> {
@@ -205,7 +213,7 @@ export class PrismaPortalRepository implements PortalRepository {
       const project = lockedProjects[0];
       if (!project) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
       if (project.status !== EstimateProjectStatus.SENT) {
-        throw AppErrors.conflict('Smeta a fost deja procesată.');
+        throw AppErrors.conflict('Calculul de preț a fost deja procesat.');
       }
 
       const fullProject = await tx.estimateProject.findUniqueOrThrow({
@@ -262,7 +270,7 @@ export class PrismaPortalRepository implements PortalRepository {
         throw AppErrors.badRequest(AppErrorMessages.STATUS_LOCKED);
       }
       if (project.status !== EstimateProjectStatus.SENT) {
-        throw AppErrors.badRequest('Smeta nu este trimisă spre revizuire');
+        throw AppErrors.badRequest('Calculul de preț nu este trimis spre revizuire');
       }
 
       const fullProject = await tx.estimateProject.findUniqueOrThrow({

@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@/modules/shared/database/prisma.service';
-import type { Prisma, Payment } from '@prisma/client';
+import type {
+  Prisma,
+  Payment,
+  CompanyPlan,
+  CompanySubscriptionPlan,
+} from '@prisma/client';
 import type { PaymentsRepository } from '../../domain/ports/payments.repository.port';
 
 @Injectable()
@@ -9,6 +14,10 @@ export class PrismaPaymentsRepository implements PaymentsRepository {
 
   create(data: Prisma.PaymentCreateInput): Promise<Payment> {
     return this.prisma.payment.create({ data });
+  }
+
+  findPlanByCode(code: CompanySubscriptionPlan): Promise<CompanyPlan | null> {
+    return this.prisma.companyPlan.findUnique({ where: { code } });
   }
 
   updateStatus(externalId: string, status: string): Promise<Prisma.BatchPayload> {
