@@ -4,6 +4,7 @@ import { InterventionStatus, Prisma } from '@prisma/client';
 import { AppErrorMessages, AppErrors } from '../../../../common/errors';
 import { CompanyAuthorizationService } from '../../../companies/authorization/company-authorization.service';
 import { PrismaService } from '../../../shared/database/prisma.service';
+import { CacheService } from '../../../shared/cache/cache.service';
 import type { JwtPayload } from '../../../auth/types/jwt-payload';
 import { FsmContextService } from '../../context/fsm-context.service';
 import { technicianWithUser } from '../../fsm.constants';
@@ -40,6 +41,7 @@ export class InterventionsService {
     private readonly email: EmailService,
     private readonly crews: CrewsService,
     private readonly config: ConfigService,
+    private readonly cache: CacheService,
   ) {}
 
   private async notifyAssignedMembers(
@@ -301,6 +303,11 @@ export class InterventionsService {
       void this.notifyAssignedMembers(cid, created, assignment.memberIds);
     }
 
+    await Promise.all([
+      this.cache.invalidateSubscriptionUsage(cid),
+      this.cache.invalidateAnalytics(cid),
+    ]);
+
     return created;
   }
 
@@ -426,14 +433,17 @@ export class InterventionsService {
       }
     }
 
+    await this.cache.invalidateAnalytics(cid);
+
     return updated;
   }
 
 
 
   async delete(user: JwtPayload, id: string) {
+    const companyId = this.ctx.companyId(user);
     const existing = await this.prisma.intervention.findFirst({
-      where: { id, companyId: this.ctx.companyId(user) },
+      where: { id, companyId },
       include: { invoice: true },
     });
     if (!existing) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
@@ -443,6 +453,10 @@ export class InterventionsService {
     }
 
     await this.prisma.intervention.delete({ where: { id } });
+    await Promise.all([
+      this.cache.invalidateSubscriptionUsage(companyId),
+      this.cache.invalidateAnalytics(companyId),
+    ]);
     return { success: true };
   }
 

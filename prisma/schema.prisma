@@ -152,6 +152,7 @@ model User {
   companyReviews     CompanyReview[] @relation("ReviewAuthor")
   passwordResetTokens PasswordResetToken[]
   emailVerificationTokens EmailVerificationToken[]
+  estimateFeedbacks   EstimateFeedback[]
 
   @@map("users")
 }
@@ -290,6 +291,7 @@ model Company {
   galleryImages CompanyGalleryImage[]
   reviews          CompanyReview[]
   crews            Crew[]
+  estimateFeedbacks EstimateFeedback[]
 
   @@index([cityId])
   @@index([isPublished, isVerified])
@@ -897,6 +899,7 @@ model EstimateProject {
   appliedMutations EstimateAppliedMutation[]
   receipts     EstimateReceipt[]
   photos       EstimateProjectPhoto[]
+  feedbacks    EstimateFeedback[]
 
   @@index([companyId, status, createdAt])
   @@index([categoryId])
@@ -1118,3 +1121,22 @@ model EmailVerificationToken {
   @@index([expiresAt])
   @@map("email_verification_tokens")
 }
+
+model EstimateFeedback {
+  id          String   @id @default(uuid(7))
+  userId      String   @map("user_id")
+  companyId   String?  @map("company_id")
+  projectId   String?  @map("project_id")
+  category    String
+  details     String
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company?         @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  project EstimateProject? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("estimate_feedbacks")
+}
+

@@ -9,6 +9,7 @@ import { timingSafeStringEquals } from '../../../common/utils/timing-safe.util';
 import { EmailService } from '../../email/email.service';
 import { PrismaService } from '../../shared/database/prisma.service';
 import { CompanyAuthorizationService } from '../authorization/company-authorization.service';
+import { CacheService } from '../../shared/cache/cache.service';
 
 const TEAM_INVITE_TTL_MS = 2 * 60 * 60 * 1000;
 
@@ -19,6 +20,7 @@ export class TeamInviteService {
     private readonly email: EmailService,
     private readonly config: ConfigService,
     private readonly companyAuth: CompanyAuthorizationService,
+    private readonly cache: CacheService,
   ) {}
 
   async createLinkInvite(
@@ -70,6 +72,8 @@ export class TeamInviteService {
         expiresAt: invite.expiresAt,
       });
     }
+
+    await this.cache.invalidateSubscriptionUsage(companyId);
 
     return { ...invite, inviteUrl, emailSent };
   }
@@ -165,6 +169,8 @@ export class TeamInviteService {
       },
       data: { status: 'ACCEPTED', respondedAt: new Date(), invitedUserId: user.id },
     });
+
+    await this.cache.invalidateSubscriptionUsage(companyId);
 
     return member;
   }
@@ -287,6 +293,8 @@ export class TeamInviteService {
         });
         return savedMember;
       });
+
+      await this.cache.invalidateSubscriptionUsage(invite.companyId);
 
       return { member, company: invite.company };
     }));

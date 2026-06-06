@@ -4,6 +4,7 @@ import { CompaniesModule } from '../companies/companies.module';
 import { FilesModule } from '../files/files.module';
 import { FsmService } from './fsm.service';
 import {
+  FsmAnalyticsController,
   FsmCalendarController,
   FsmCrewsController,
   FsmCustomersController,
@@ -13,6 +14,7 @@ import {
   FsmLeadsController,
   FsmQuotesController,
   FsmServicesController,
+  FsmPipelineController,
 } from './controllers';
 import { LeadsService } from './services/leads/leads.service';
 import { InvoicePdfModule } from './pdf/invoice-pdf.module';
@@ -32,6 +34,8 @@ import { QuotesService } from './services/quotes/quotes.service';
 import { InvoiceQueriesService } from './services/invoices/invoice-queries.service';
 import { InvoicePdfCacheService } from './services/invoices/invoice-pdf-cache.service';
 import { InvoiceLifecycleService } from './services/invoices/invoice-lifecycle.service';
+import { FsmAnalyticsService } from './services/analytics/fsm-analytics.service';
+import { PipelineService } from './services/pipeline/pipeline.service';
 
 @Module({
   imports: [forwardRef(() => AuthModule), CompaniesModule, InvoicePdfModule, FilesModule],
@@ -45,6 +49,8 @@ import { InvoiceLifecycleService } from './services/invoices/invoice-lifecycle.s
     FsmInvoicesController,
     FsmExportController,
     FsmCrewsController,
+    FsmAnalyticsController,
+    FsmPipelineController,
   ],
   providers: [
     FsmContextService,
@@ -65,6 +71,8 @@ import { InvoiceLifecycleService } from './services/invoices/invoice-lifecycle.s
     FsmService,
     LeadsService,
     CustomerImportService,
+    FsmAnalyticsService,
+    PipelineService,
   ],
   exports: [InvoiceLifecycleService],
 })

@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InvoicePaymentStatus, Prisma } from '@prisma/client';
 import { AppErrorMessages, AppErrors } from '../../../../common/errors';
 import { PrismaService } from '../../../shared/database/prisma.service';
+import { CacheService } from '../../../shared/cache/cache.service';
 import { StorageService } from '../../../files/services/storage.service';
 import { FsmContextService } from '../../context/fsm-context.service';
 import type { JwtPayload } from '../../../auth/types/jwt-payload';
@@ -19,6 +20,7 @@ export class InvoiceLifecycleService {
     private readonly ctx: FsmContextService,
     private readonly pdfCache: InvoicePdfCacheService,
     private readonly storage: StorageService,
+    private readonly cache: CacheService,
   ) {}
 
   async create(
@@ -76,7 +78,7 @@ export class InvoiceLifecycleService {
       resolvedTvaRate > 0 ? Number(price) * (resolvedTvaRate / 100) : 0,
     );
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(${this.pdfCache.companyInvoiceLockKey(cid)}::bigint)`;
 
       const count = await tx.companyInvoice.count({ where: { companyId: cid } });
@@ -131,6 +133,10 @@ export class InvoiceLifecycleService {
 
       return invoice;
     });
+
+    await this.cache.invalidateAnalytics(cid);
+
+    return result;
   }
 
   async update(
@@ -246,6 +252,8 @@ export class InvoiceLifecycleService {
       }
     }
 
+    await this.cache.invalidateAnalytics(this.ctx.companyId(user));
+
     return updated;
   }
 
@@ -276,7 +284,7 @@ export class InvoiceLifecycleService {
         );
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.companyInvoice.update({
         where: { id },
         data: {
@@ -312,6 +320,10 @@ export class InvoiceLifecycleService {
 
       return updated;
     });
+
+    await this.cache.invalidateAnalytics(this.ctx.companyId(user));
+
+    return result;
   }
 
   async recordPayment(
@@ -344,7 +356,7 @@ export class InvoiceLifecycleService {
     const newPaid = Math.min(total, previousPaid + data.amount);
     const isFullyPaid = newPaid + 0.005 >= total;
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.companyInvoice.update({
         where: { id },
         data: {
@@ -397,6 +409,10 @@ export class InvoiceLifecycleService {
 
       return updated;
     });
+
+    await this.cache.invalidateAnalytics(this.ctx.companyId(user));
+
+    return result;
   }
 
   async delete(user: JwtPayload, id: string) {
@@ -445,6 +461,9 @@ export class InvoiceLifecycleService {
         }
       }
     });
+
+    await this.cache.invalidateAnalytics(this.ctx.companyId(user));
+
     return { success: true };
   }
 
@@ -478,7 +497,7 @@ export class InvoiceLifecycleService {
       throw AppErrors.badRequest(AppErrorMessages.STATUS_TRANSITION_INVALID);
     }
 
-    return this.prisma.companyInvoice.update({
+    const updated = await this.prisma.companyInvoice.update({
       where: { id: existing.id },
       data: {
         paymentStatus: 'PENDING_CONFIRMATION',
@@ -489,6 +508,10 @@ export class InvoiceLifecycleService {
         pdfFileKey: null,
       },
     });
+
+    await this.cache.invalidateAnalytics(existing.companyId);
+
+    return updated;
   }
 
   async confirmPaymentProof(user: JwtPayload, id: string) {
@@ -541,6 +564,8 @@ export class InvoiceLifecycleService {
         );
     }
 
+    await this.cache.invalidateAnalytics(existing.companyId);
+
     return updated;
   }
 
@@ -560,7 +585,7 @@ export class InvoiceLifecycleService {
 
     const nextStatus = this.resolveStatusAfterRejection(existing);
 
-    return this.prisma.companyInvoice.update({
+    const updated = await this.prisma.companyInvoice.update({
       where: { id },
       data: {
         paymentStatus: nextStatus,
@@ -571,6 +596,10 @@ export class InvoiceLifecycleService {
         pdfFileKey: null,
       },
     });
+
+    await this.cache.invalidateAnalytics(existing.companyId);
+
+    return updated;
   }
 
   private resolveStatusAfterRejection(invoice: {

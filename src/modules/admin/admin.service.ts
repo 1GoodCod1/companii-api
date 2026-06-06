@@ -13,6 +13,7 @@ import { AdminModerationService } from './services/admin-moderation.service';
 import { AdminReferenceDataService } from './services/admin-reference-data.service';
 import { AdminStatsService } from './services/admin-stats.service';
 import { AdminBlueprintsService } from './services/admin-blueprints.service';
+import { PrismaService } from '@/modules/shared/database/prisma.service';
 
 @Injectable()
 export class AdminService {
@@ -23,6 +24,7 @@ export class AdminService {
     private readonly statsService: AdminStatsService,
     private readonly clients: AdminClientsService,
     private readonly blueprints: AdminBlueprintsService,
+    private readonly prisma: PrismaService,
   ) {}
 
   assertAdmin(user: JwtPayload): void {
@@ -129,5 +131,17 @@ export class AdminService {
 
   deleteBlueprint(id: string) {
     return this.blueprints.delete(id);
+  }
+
+  listFeedback() {
+    return this.prisma.estimateFeedback.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+      include: {
+        user: { select: { id: true, email: true, firstName: true, lastName: true } },
+        company: { select: { id: true, name: true } },
+        project: { select: { id: true, number: true, title: true } },
+      },
+    });
   }
 }

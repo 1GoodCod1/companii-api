@@ -8,6 +8,7 @@ import type { JwtPayload } from '../../../auth/types/jwt-payload';
 import { EmailService } from '../../../email/email.service';
 import { QuotePdfService } from '../../pdf/quote-pdf.service';
 import { FsmContextService } from '../../context/fsm-context.service';
+import { CacheService } from '../../../shared/cache/cache.service';
 import { nextCompanyNumber } from '../../../../common/utils/sequence-number.util';
 import { RLS_SYSTEM_CONTEXT } from '../../../../common/rls/rls-system.util';
 
@@ -20,6 +21,7 @@ export class QuotesService {
     private readonly quotePdf: QuotePdfService,
     private readonly email: EmailService,
     private readonly config: ConfigService,
+    private readonly cache: CacheService,
   ) {}
 
   list(user: JwtPayload, cursor?: string, limit = 25) {
@@ -69,7 +71,7 @@ export class QuotesService {
     },
   ) {
     const cid = this.ctx.companyId(user);
-    return await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const number = await nextCompanyNumber(tx, {
         companyId: cid,
         namespace: 'quote-number',
@@ -112,6 +114,10 @@ export class QuotesService {
 
       return quote;
     });
+
+    await this.cache.invalidateAnalytics(cid);
+
+    return result;
   }
 
   async update(
@@ -128,7 +134,7 @@ export class QuotesService {
     });
     if (!existing) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       let total = existing.total;
 
       if (data.lines) {
@@ -158,6 +164,10 @@ export class QuotesService {
         include: { lines: true },
       });
     });
+
+    await this.cache.invalidateAnalytics(this.ctx.companyId(user));
+
+    return result;
   }
 
   async delete(user: JwtPayload, id: string) {
@@ -171,6 +181,7 @@ export class QuotesService {
     }
 
     await this.prisma.quote.delete({ where: { id } });
+    await this.cache.invalidateAnalytics(this.ctx.companyId(user));
     return { success: true };
   }
 
@@ -186,7 +197,7 @@ export class QuotesService {
 
     await this.companyAuth.assertInterventionMonthlyLimit(quote.companyId);
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const count = await tx.intervention.count({ where: { companyId: quote.companyId } });
       let number = `INT-${String(count + 1).padStart(5, '0')}`;
       let isUnique = false;
@@ -237,6 +248,10 @@ export class QuotesService {
 
       return intervention;
     });
+
+    await this.cache.invalidateAnalytics(quote.companyId);
+
+    return result;
   }
 
   async send(user: JwtPayload, id: string) {
@@ -274,6 +289,8 @@ export class QuotesService {
         portalUrl,
       });
     }
+
+    await this.cache.invalidateAnalytics(this.ctx.companyId(user));
 
     return { quote: updated, emailSent: !!quote.customer.email };
   }

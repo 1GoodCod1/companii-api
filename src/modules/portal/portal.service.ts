@@ -11,6 +11,7 @@ import { GetPortalInvoicePdfUseCase } from './use-cases/get-portal-invoice-pdf.u
 import { SubmitInvoicePaymentProofUseCase } from './use-cases/submit-invoice-payment-proof.use-case';
 import { PORTAL_REPOSITORY } from './domain/ports/portal.repository.port';
 import type { PrismaPortalRepository } from './infrastructure/persistence/prisma-portal.repository';
+import { CacheService } from '../shared/cache/cache.service';
 
 @Injectable()
 export class PortalService {
@@ -26,10 +27,15 @@ export class PortalService {
     private readonly getPortalEstimatePdf: GetPortalEstimatePdfUseCase,
     private readonly getPortalInvoicePdf: GetPortalInvoicePdfUseCase,
     private readonly submitInvoicePaymentProofUseCase: SubmitInvoicePaymentProofUseCase,
+    private readonly cache: CacheService,
   ) {}
 
   async dashboard(user: JwtPayload) {
-    return await this.getPortalDashboard.execute(user);
+    return this.cache.getOrSet(
+      this.cache.keys.portalDashboard(user.sub),
+      () => this.getPortalDashboard.execute(user),
+      this.cache.ttl.portalDashboard,
+    );
   }
 
   async listMyLeads(user: JwtPayload, cursor?: string, limit = 25) {
@@ -58,11 +64,15 @@ export class PortalService {
   }
 
   async updateEstimateStatus(user: JwtPayload, projectId: string, status: 'ACCEPTED' | 'REJECTED') {
-    return await this.acceptOrRejectEstimate.execute(user, projectId, status);
+    const res = await this.acceptOrRejectEstimate.execute(user, projectId, status);
+    await this.cache.invalidatePortalDashboard(user.sub);
+    return res;
   }
 
   async requestEstimateChanges(user: JwtPayload, projectId: string, comment: string) {
-    return await this.requestEstimateChangesUseCase.execute(user, projectId, comment);
+    const res = await this.requestEstimateChangesUseCase.execute(user, projectId, comment);
+    await this.cache.invalidatePortalDashboard(user.sub);
+    return res;
   }
 
   async getEstimate(user: JwtPayload, projectId: string) {
@@ -74,7 +84,9 @@ export class PortalService {
   }
 
   async updateQuoteStatus(user: JwtPayload, quoteId: string, status: 'ACCEPTED' | 'REJECTED') {
-    return this.portalRepo.acceptOrRejectQuote(user.sub, quoteId, status);
+    const res = await this.portalRepo.acceptOrRejectQuote(user.sub, quoteId, status);
+    await this.cache.invalidatePortalDashboard(user.sub);
+    return res;
   }
 
   async getInvoicePdf(user: JwtPayload, invoiceId: string) {
@@ -82,7 +94,9 @@ export class PortalService {
   }
 
   async submitInvoicePaymentProof(user: JwtPayload, invoiceId: string, fileId: string) {
-    return await this.submitInvoicePaymentProofUseCase.execute(user, invoiceId, fileId);
+    const res = await this.submitInvoicePaymentProofUseCase.execute(user, invoiceId, fileId);
+    await this.cache.invalidatePortalDashboard(user.sub);
+    return res;
   }
 
   async createInvite(companyId: string, customerId: string) {

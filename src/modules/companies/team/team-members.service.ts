@@ -8,6 +8,7 @@ import { EmailService } from '../../email/email.service';
 import { PrismaService } from '../../shared/database/prisma.service';
 import type { JwtPayload } from '../../auth/types/jwt-payload';
 import { CompanyAuthorizationService } from '../authorization/company-authorization.service';
+import { CacheService } from '../../shared/cache/cache.service';
 
 const ACTIVE_TECHNICIAN_STATUSES: InterventionStatus[] = [
   'NEW',
@@ -30,6 +31,7 @@ export class TeamMembersService {
     private readonly companyAuth: CompanyAuthorizationService,
     private readonly audit: AuditService,
     private readonly email: EmailService,
+    private readonly cache: CacheService,
   ) {}
 
   async updateMemberRole(user: JwtPayload, memberId: string, role: CompanyRole) {
@@ -64,6 +66,8 @@ export class TeamMembersService {
       entityId: user.activeCompanyId!,
       newData: { memberId, role, targetUserId: target.userId },
     });
+
+    await this.cache.invalidateSubscriptionUsage(user.activeCompanyId!);
 
     return updated;
   }
@@ -111,6 +115,8 @@ export class TeamMembersService {
       companyName: company?.name ?? 'Companie',
       actorName: this.displayName(actor),
     });
+
+    await this.cache.invalidateSubscriptionUsage(user.activeCompanyId!);
 
     return { ...updated, emailSent };
   }
@@ -177,6 +183,8 @@ export class TeamMembersService {
       emailSent = emailSent || sent;
     }
 
+    await this.cache.invalidateSubscriptionUsage(user.activeCompanyId);
+
     return { success: true, emailSent };
   }
 
@@ -206,6 +214,8 @@ export class TeamMembersService {
       entityId: user.activeCompanyId!,
       newData: { invitationId },
     });
+
+    await this.cache.invalidateSubscriptionUsage(user.activeCompanyId!);
 
     return updated;
   }

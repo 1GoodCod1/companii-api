@@ -15,4 +15,9 @@ export type CompaniiCacheKeyBuilders = {
   blueprintsAll: () => string;
   blueprintByCategorySlug: (slug: string) => string;
   categoriesList: () => string;
+  citiesList: () => string;
+  analyticsOverview: (companyId: string, period: string) => string;
+  subscriptionUsage: (companyId: string) => string;
+  portalDashboard: (userId: string) => string;
+  fsmServicesList: (companyId: string) => string;
 };

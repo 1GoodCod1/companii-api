@@ -187,6 +187,16 @@ export class CacheService {
       ]),
     categoriesList: () =>
       this.buildKey(['cache', 'companii', 'categories', 'list']),
+    citiesList: () =>
+      this.buildKey(['cache', 'companii', 'cities', 'list']),
+    analyticsOverview: (companyId: string, period: string) =>
+      this.buildKey(['cache', 'companii', 'fsm', 'analytics', companyId, period]),
+    subscriptionUsage: (companyId: string) =>
+      this.buildKey(['cache', 'companii', 'subscription', 'usage', companyId]),
+    portalDashboard: (userId: string) =>
+      this.buildKey(['cache', 'companii', 'portal', 'dashboard', userId]),
+    fsmServicesList: (companyId: string) =>
+      this.buildKey(['cache', 'companii', 'fsm', 'services', 'list', companyId]),
   };
 
   readonly ttl = {
@@ -197,6 +207,11 @@ export class CacheService {
     blueprintsAll: 300,
     blueprintByCategorySlug: 300,
     categoriesList: 300,
+    citiesList: 3600,
+    analyticsOverview: 300,
+    subscriptionUsage: 60,
+    portalDashboard: 60,
+    fsmServicesList: 600,
   } as const;
 
   async invalidatePublicCompanies(slug?: string): Promise<void> {
@@ -218,5 +233,21 @@ export class CacheService {
 
   async invalidatePlans(): Promise<void> {
     await this.del(this.keys.plansAll());
+  }
+
+  async invalidateSubscriptionUsage(companyId: string): Promise<void> {
+    await this.del(this.keys.subscriptionUsage(companyId));
+  }
+
+  async invalidateAnalytics(companyId: string): Promise<void> {
+    await this.invalidate(`cache:companii:fsm:analytics:${companyId}:*`);
+  }
+
+  async invalidatePortalDashboard(userId: string): Promise<void> {
+    await this.del(this.keys.portalDashboard(userId));
+  }
+
+  async invalidateFsmServicesList(companyId: string): Promise<void> {
+    await this.del(this.keys.fsmServicesList(companyId));
   }
 }

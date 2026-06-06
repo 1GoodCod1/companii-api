@@ -11,8 +11,6 @@ import { CompanyAuthorizationService } from '../companies/authorization/company-
 import { SUBSCRIPTIONS_REPOSITORY } from './domain/ports/subscriptions.repository.port';
 import type { PrismaSubscriptionsRepository } from './infrastructure/persistence/prisma-subscriptions.repository';
 
-const SUBSCRIPTION_USAGE_TTL_SEC = 60;
-
 @Injectable()
 export class SubscriptionsService {
   constructor(
@@ -40,9 +38,9 @@ export class SubscriptionsService {
     if (!subscription) return null;
 
     const usage = await this.cache.getOrSet(
-      this.buildUsageKey(companyId),
+      this.cache.keys.subscriptionUsage(companyId),
       () => this.subscriptionsRepo.computeSubscriptionUsage(companyId),
-      SUBSCRIPTION_USAGE_TTL_SEC,
+      this.cache.ttl.subscriptionUsage,
     );
 
     return {
@@ -55,12 +53,8 @@ export class SubscriptionsService {
     };
   }
 
-  private buildUsageKey(companyId: string): string {
-    return `cache:companii:subscription:usage:${companyId}`;
-  }
-
   invalidateUsage(companyId: string): Promise<void> {
-    return this.cache.del(this.buildUsageKey(companyId));
+    return this.cache.invalidateSubscriptionUsage(companyId);
   }
 
   async adminSetPlan(

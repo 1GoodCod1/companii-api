@@ -18,13 +18,19 @@ export class CompanyServicesService {
     private readonly ctx: FsmContextService,
   ) {}
 
-  list(user: JwtPayload) {
+  async list(user: JwtPayload) {
     this.ctx.assertNotTechnician(user);
-    return this.prisma.companyService.findMany({
-      where: { companyId: this.ctx.companyId(user) },
-      include: this.serviceInclude,
-      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
-    });
+    const companyId = this.ctx.companyId(user);
+    return this.cache.getOrSet(
+      this.cache.keys.fsmServicesList(companyId),
+      () =>
+        this.prisma.companyService.findMany({
+          where: { companyId },
+          include: this.serviceInclude,
+          orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+        }),
+      this.cache.ttl.fsmServicesList,
+    );
   }
 
   async create(
@@ -160,9 +166,10 @@ export class CompanyServicesService {
         select: { slug: true },
       }),
     );
-    await this.cache.invalidatePublicServices(company?.slug);
-    if (company?.slug) {
-      await this.cache.invalidatePublicCompanies(company.slug);
-    }
+    await Promise.all([
+      this.cache.invalidatePublicServices(company?.slug),
+      this.cache.invalidateFsmServicesList(companyId),
+      company?.slug ? this.cache.invalidatePublicCompanies(company.slug) : Promise.resolve(),
+    ]);
   }
 }

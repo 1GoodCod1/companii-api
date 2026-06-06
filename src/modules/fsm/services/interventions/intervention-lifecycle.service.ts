@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InterventionStatus, Prisma } from '@prisma/client';
 import { AppErrorMessages, AppErrors } from '../../../../common/errors';
 import { PrismaService } from '../../../shared/database/prisma.service';
+import { CacheService } from '../../../shared/cache/cache.service';
 import type { JwtPayload } from '../../../auth/types/jwt-payload';
 import { FsmContextService } from '../../context/fsm-context.service';
 import {
@@ -20,6 +21,7 @@ export class InterventionLifecycleService {
     private readonly prisma: PrismaService,
     private readonly ctx: FsmContextService,
     private readonly email: EmailService,
+    private readonly cache: CacheService,
   ) {}
 
   async updateStatus(
@@ -78,6 +80,8 @@ export class InterventionLifecycleService {
         this.logger.error('Failed to notify managers about pending receipts', err),
       );
     }
+
+    await this.cache.invalidateAnalytics(existing.companyId);
 
     return result;
   }

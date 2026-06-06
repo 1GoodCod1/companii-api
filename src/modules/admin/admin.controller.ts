@@ -165,4 +165,9 @@ export class AdminController {
   deleteBlueprint(@Param('id') id: string) {
     return this.admin.deleteBlueprint(id);
   }
+
+  @Get('feedback')
+  feedback() {
+    return this.admin.listFeedback();
+  }
 }

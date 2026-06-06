@@ -13,6 +13,7 @@ import {
   type CanCreateReviewDto,
   type CompanyReviewPublicDto,
 } from './reviews.types';
+import { CacheService } from '../shared/cache/cache.service';
 
 @Injectable()
 export class ReviewsService {
@@ -20,6 +21,7 @@ export class ReviewsService {
     @Inject(REVIEWS_REPOSITORY)
     private readonly reviewsRepo: PrismaReviewsRepository,
     private readonly eventEmitter: EventEmitter2,
+    private readonly cache: CacheService,
   ) {}
 
   private async getCustomer(userId: string) {
@@ -84,6 +86,8 @@ export class ReviewsService {
     });
 
     await this.eventEmitter.emitAsync('review.created', { companyId: dto.companyId });
+
+    await this.cache.invalidatePortalDashboard(user.sub);
 
     return review;
   }

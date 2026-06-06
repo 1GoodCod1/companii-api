@@ -6,3 +6,5 @@ export { FsmServicesController } from './fsm-services.controller';
 export { FsmQuotesController } from './fsm-quotes.controller';
 export { FsmExportController, FsmInvoicesController } from './fsm-invoices.controller';
 export { FsmCrewsController } from './fsm-crews.controller';
+export { FsmAnalyticsController } from './fsm-analytics.controller';
+export { FsmPipelineController } from './fsm-pipeline.controller';

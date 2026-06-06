@@ -15,6 +15,7 @@ describe('ReviewsService', () => {
     recalculateRating: jest.Mock;
   };
   let eventEmitter: { emitAsync: jest.Mock };
+  let cache: { invalidatePortalDashboard: jest.Mock };
 
   beforeEach(() => {
     reviewsRepo = {
@@ -31,7 +32,11 @@ describe('ReviewsService', () => {
       emitAsync: jest.fn().mockResolvedValue([]),
     };
 
-    service = new ReviewsService(reviewsRepo as any, eventEmitter as any);
+    cache = {
+      invalidatePortalDashboard: jest.fn().mockResolvedValue(undefined),
+    };
+
+    service = new ReviewsService(reviewsRepo as any, eventEmitter as any, cache as any);
   });
 
   const mockUser: JwtPayload = {
@@ -93,6 +98,7 @@ describe('ReviewsService', () => {
       expect(eventEmitter.emitAsync).toHaveBeenCalledWith('review.created', {
         companyId: 'company-123',
       });
+      expect(cache.invalidatePortalDashboard).toHaveBeenCalledWith(mockUser.sub);
     });
   });
 

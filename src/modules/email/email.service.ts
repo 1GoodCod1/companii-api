@@ -19,6 +19,8 @@ import {
   buildEstimateVarianceAlertEmail,
   buildInterventionAssignedEmail,
   buildPaymentProofSubmittedEmail,
+  escapeHtml,
+  escapeHtmlMultiline,
 } from './templates';
 
 @Injectable()
@@ -263,6 +265,37 @@ export class EmailService implements OnModuleInit {
     const tpl = buildEstimateVarianceAlertEmail(params);
     return await this.send(params.to, tpl.subject, tpl.html, tpl.text, `${tpl.devLog} → ${params.to}`);
   }
+
+  async sendDevFeedbackEmail(params: {
+    userEmail: string;
+    userName: string;
+    companyName: string | null;
+    category: string;
+    details: string;
+    projectName?: string | null;
+  }): Promise<boolean> {
+    const to = 'support@faber.md';
+    const subject = `[Dev Feedback] Estimate Calculator: ${params.category}`;
+    const text = [
+      `User: ${params.userName} (${params.userEmail})`,
+      `Company: ${params.companyName || 'N/A'}`,
+      `Project: ${params.projectName || 'N/A'}`,
+      `Category: ${params.category}`,
+      `Details:`,
+      params.details,
+    ].join('\n');
+    const html = `
+      <p><strong>New Estimate Calculator Feedback</strong></p>
+      <p><strong>User:</strong> ${escapeHtml(params.userName)} (${escapeHtml(params.userEmail)})</p>
+      <p><strong>Company:</strong> ${escapeHtml(params.companyName || 'N/A')}</p>
+      <p><strong>Project:</strong> ${escapeHtml(params.projectName || 'N/A')}</p>
+      <p><strong>Category:</strong> ${escapeHtml(params.category)}</p>
+      <p><strong>Details:</strong></p>
+      <blockquote style="border-left:3px solid #ccc;padding-left:12px;color:#444;">${escapeHtmlMultiline(params.details)}</blockquote>
+    `;
+    return await this.send(to, subject, html, text, `[DEV FEEDBACK EMAIL] ${params.category} from ${params.userEmail}`);
+  }
+
 
   private async send(
     to: string,

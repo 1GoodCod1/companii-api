@@ -4,7 +4,9 @@ import { CompaniesModule } from '../companies/companies.module';
 import { InvoicePdfModule } from '../fsm/pdf/invoice-pdf.module';
 import { EstimatesBlueprintsController } from './controllers/estimates-blueprints.controller';
 import { EstimateProjectsController } from './controllers/estimate-projects.controller';
+import { EstimateFeedbackController } from './controllers/estimate-feedback.controller';
 import { EstimateStagesController } from './controllers/estimate-stages.controller';
+import { EstimateFeedbackService } from './services/projects/estimate-feedback.service';
 import { EstimateQuotesController } from './controllers/estimate-quotes.controller';
 import { EstimateReceiptsController } from './controllers/estimate-receipts.controller';
 import { EstimateWorksheetController } from './controllers/estimate-worksheet.controller';
@@ -69,6 +71,7 @@ import { EstimateCommentModule } from './estimate-comment.module';
     EstimateVersionsController,
     EstimatePhotosController,
     EstimateTemplatesController,
+    EstimateFeedbackController,
   ],
   providers: [
     EstimatesContextService,
@@ -89,6 +92,7 @@ import { EstimateCommentModule } from './estimate-comment.module';
     },
     EstimateStagesService,
     EstimateLinesService,
+    EstimateFeedbackService,
     EstimateQuotesService,
     EstimateReceiptsService,
     EstimatePortalService,

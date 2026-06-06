@@ -8,6 +8,7 @@ import { AppErrorMessages, AppErrors } from '../../../../common/errors';
 import { normalizePhone } from '../../../../common/utils/phone.util';
 import { PrismaService } from '../../../shared/database/prisma.service';
 import { CompanyAuthorizationService } from '../../../companies/authorization/company-authorization.service';
+import { CacheService } from '../../../shared/cache/cache.service';
 import type { JwtPayload } from '../../../auth/types/jwt-payload';
 import { createEstimateProjectWithStages } from '../../../estimates/utils/project/create-estimate-project.util';
 import { nextCompanyNumber } from '../../../../common/utils/sequence-number.util';
@@ -25,6 +26,7 @@ export class LeadsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly companyAuth: CompanyAuthorizationService,
+    private readonly cache: CacheService,
   ) {}
 
   private companyId(user: JwtPayload) {
@@ -72,7 +74,7 @@ export class LeadsService {
     return lead;
   }
 
-  createLead(
+  async createLead(
     user: JwtPayload,
     data: {
       contactName: string;
@@ -87,7 +89,7 @@ export class LeadsService {
     },
   ) {
     const phone = normalizePhone(data.contactPhone) ?? data.contactPhone.trim();
-    return this.prisma.companyLead.create({
+    const result = await this.prisma.companyLead.create({
       data: {
         companyId: this.companyId(user),
         contactName: data.contactName.trim(),
@@ -102,6 +104,10 @@ export class LeadsService {
       },
       include: leadInclude,
     });
+
+    await this.cache.invalidateAnalytics(this.companyId(user));
+
+    return result;
   }
 
   async updateLead(
@@ -120,7 +126,7 @@ export class LeadsService {
     const existing = await this.getLead(user, id);
     this.assertLeadOpen(existing.status);
 
-    return this.prisma.companyLead.update({
+    const result = await this.prisma.companyLead.update({
       where: { id },
       data: {
         status: data.status,
@@ -140,6 +146,10 @@ export class LeadsService {
       },
       include: leadInclude,
     });
+
+    await this.cache.invalidateAnalytics(this.companyId(user));
+
+    return result;
   }
 
   async completeLead(user: JwtPayload, id: string) {
@@ -151,7 +161,7 @@ export class LeadsService {
       throw AppErrors.badRequest('Cererea este marcată pierdută.');
     }
 
-    return this.prisma.companyLead.update({
+    const result = await this.prisma.companyLead.update({
       where: { id },
       data: {
         status: 'CONVERTED',
@@ -159,6 +169,10 @@ export class LeadsService {
       },
       include: leadInclude,
     });
+
+    await this.cache.invalidateAnalytics(this.companyId(user));
+
+    return result;
   }
 
   async convertLead(
@@ -172,7 +186,7 @@ export class LeadsService {
 
     const cid = this.companyId(user);
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       let customerId = lead.customerId;
 
       if (!customerId) {
@@ -326,5 +340,9 @@ export class LeadsService {
       const project = await tx.estimateProject.findUniqueOrThrow({ where: { id: projectId } });
       return { customerId, project, mode, keptOpen: true };
     });
+
+    await this.cache.invalidateAnalytics(cid);
+
+    return result;
   }
 }
