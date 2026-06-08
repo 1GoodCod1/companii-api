@@ -47,6 +47,7 @@ export class CalendarService {
               where: { companyId: cid, status: { in: ['NEW', 'CONTACTED', 'QUALIFIED'] } },
               include: {
                 category: { select: { id: true, name: true } },
+                interventions: { select: { id: true, number: true, type: true } },
               },
               orderBy: { createdAt: 'desc' },
               take: 20,

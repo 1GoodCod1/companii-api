@@ -174,8 +174,6 @@ export class EstimateProjectsService {
     }
 
     return this.prisma.$transaction(async (tx) => {
-      // M-05: idempotent replay — if the offline queue retries the same
-      // mutation, return the current state without re-applying.
       if (
         data.clientMutationId &&
         (await isMutationAlreadyApplied(tx, id, data.clientMutationId))
@@ -186,13 +184,18 @@ export class EstimateProjectsService {
         });
         return { ...current, warnings: validationWarnings };
       }
-
-      // M-05 / S-03: optimistic concurrency — only update when the row
-      // is still at the version the client saw.
       assertVersionMatch(project.version, data.expectedVersion, {
         number: project.number,
         title: project.title,
       });
+
+      const nextDiagnostic = (mergedDiagnostic ?? data.diagnosticAnswers) as Record<string, unknown> | undefined;
+      if (nextDiagnostic && project.diagnosticAnswers && typeof project.diagnosticAnswers === 'object') {
+        const prevDiag = project.diagnosticAnswers as Record<string, unknown>;
+        if (prevDiag._deletedAutoLines) {
+          nextDiagnostic._deletedAutoLines = prevDiag._deletedAutoLines;
+        }
+      }
 
       const updateData: Prisma.EstimateProjectUpdateInput = {
         title: data.title?.trim(),
@@ -210,7 +213,7 @@ export class EstimateProjectsService {
         accessDifficulty:
           data.accessDifficulty === null ? null : data.accessDifficulty?.trim() || undefined,
         urgency: data.urgency === null ? null : data.urgency?.trim() || undefined,
-        diagnosticAnswers: (mergedDiagnostic ?? data.diagnosticAnswers) as Prisma.InputJsonValue,
+        diagnosticAnswers: nextDiagnostic ? (nextDiagnostic as Prisma.InputJsonValue) : undefined,
         notes: data.notes === null ? null : data.notes?.trim(),
         status: data.status,
         version: { increment: 1 },

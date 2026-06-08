@@ -49,6 +49,10 @@ export class InterventionLifecycleService {
       throw AppErrors.badRequest(AppErrorMessages.STATUS_TRANSITION_INVALID);
     }
 
+    if (toStatus === 'SCHEDULED' && !existing.scheduledAt) {
+      throw AppErrors.badRequest('Nu se poate schimba statusul în PROGRAMAT fără o dată stabilită.');
+    }
+
     const result = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.intervention.update({
         where: { id },

@@ -13,6 +13,7 @@ import { resolveInterventionDescriptions } from '../../utils/resolve-interventio
 import { nextCompanyNumber } from '../../../../common/utils/sequence-number.util';
 import { CrewsService } from './crews.service';
 import { EmailService } from '../../../email/email.service';
+import { reconcileEstimateProjectLifecycle } from '../../../estimates/utils/project/estimate-lifecycle.util';
 
 const assignmentsInclude = {
   assignments: {
@@ -256,7 +257,16 @@ export class InterventionsService {
         companyId: cid,
         namespace: 'intervention-number',
         prefix: 'INT',
-        count: () => tx.intervention.count({ where: { companyId: cid } }),
+        count: (year) =>
+          tx.intervention.count({
+            where: {
+              companyId: cid,
+              createdAt: {
+                gte: new Date(year, 0, 1),
+                lt: new Date(year + 1, 0, 1),
+              },
+            },
+          }),
         exists: async (n) =>
           (await tx.intervention.findUnique({ where: { number: n }, select: { id: true } })) !== null,
       });
@@ -370,6 +380,12 @@ export class InterventionsService {
       data.scheduledAt !== undefined &&
       data.scheduledAt !== null;
 
+    const nextScheduledAt = data.scheduledAt === null ? null : data.scheduledAt ? new Date(data.scheduledAt) : existing.scheduledAt;
+    const nextStatus = shouldAutoSchedule ? 'SCHEDULED' : existing.status;
+    if (nextStatus === 'SCHEDULED' && !nextScheduledAt) {
+      throw AppErrors.badRequest('Nu se poate schimba statusul în PROGRAMAT fără o dată stabilită.');
+    }
+
     const updated = await this.prisma.$transaction(async (tx) => {
       if (assignment !== null) {
         await tx.interventionAssignment.deleteMany({ where: { interventionId: id } });
@@ -452,7 +468,12 @@ export class InterventionsService {
       throw AppErrors.badRequest('Cannot delete completed or invoiced interventions.');
     }
 
-    await this.prisma.intervention.delete({ where: { id } });
+    await this.prisma.$transaction(async (tx) => {
+      await tx.intervention.delete({ where: { id } });
+      if (existing.estimateProjectId) {
+        await reconcileEstimateProjectLifecycle(tx, existing.estimateProjectId);
+      }
+    });
     await Promise.all([
       this.cache.invalidateSubscriptionUsage(companyId),
       this.cache.invalidateAnalytics(companyId),

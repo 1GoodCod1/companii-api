@@ -53,7 +53,16 @@ export class EstimateQuotesService {
         companyId: cid,
         namespace: 'quote-number',
         prefix: 'QTE',
-        count: () => tx.quote.count({ where: { companyId: cid } }),
+        count: (year) =>
+          tx.quote.count({
+            where: {
+              companyId: cid,
+              createdAt: {
+                gte: new Date(year, 0, 1),
+                lt: new Date(year + 1, 0, 1),
+              },
+            },
+          }),
         exists: async (n) =>
           this.prisma.runOutsideRlsContext(() =>
             this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async (db) => {

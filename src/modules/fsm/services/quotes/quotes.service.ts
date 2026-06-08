@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Prisma, QuoteStatus } from '@prisma/client';
+import { Prisma, QuoteStatus, EstimateProjectStatus } from '@prisma/client';
 import { AppErrorMessages, AppErrors } from '../../../../common/errors';
 import { CompanyAuthorizationService } from '../../../companies/authorization/company-authorization.service';
 import { PrismaService } from '../../../shared/database/prisma.service';
@@ -76,7 +76,16 @@ export class QuotesService {
         companyId: cid,
         namespace: 'quote-number',
         prefix: 'QTE',
-        count: () => tx.quote.count({ where: { companyId: cid } }),
+        count: (year) =>
+          tx.quote.count({
+            where: {
+              companyId: cid,
+              createdAt: {
+                gte: new Date(year, 0, 1),
+                lt: new Date(year + 1, 0, 1),
+              },
+            },
+          }),
         exists: async (n) =>
           this.prisma.runOutsideRlsContext(() =>
             this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async (db) => {
@@ -154,7 +163,7 @@ export class QuotesService {
         );
       }
 
-      return tx.quote.update({
+      const updatedQuote = await tx.quote.update({
         where: { id },
         data: {
           status: data.status,
@@ -163,6 +172,41 @@ export class QuotesService {
         },
         include: { lines: true },
       });
+
+      if (data.status && data.status !== existing.status) {
+        if (data.status === QuoteStatus.REJECTED) {
+          const estimateProject = await tx.estimateProject.findFirst({
+            where: { quoteId: id }
+          });
+          if (estimateProject) {
+            await tx.estimateProject.update({
+              where: { id: estimateProject.id },
+              data: { status: EstimateProjectStatus.CANCELLED }
+            });
+            const sourceLead = await tx.companyLead.findFirst({
+              where: { estimateProjectId: estimateProject.id }
+            });
+            if (sourceLead) {
+              await tx.companyLead.update({
+                where: { id: sourceLead.id },
+                data: { status: 'LOST' }
+              });
+            }
+          }
+        } else if (data.status === QuoteStatus.ACCEPTED) {
+          const estimateProject = await tx.estimateProject.findFirst({
+            where: { quoteId: id }
+          });
+          if (estimateProject) {
+            await tx.estimateProject.update({
+              where: { id: estimateProject.id },
+              data: { status: EstimateProjectStatus.ACCEPTED }
+            });
+          }
+        }
+      }
+
+      return updatedQuote;
     });
 
     await this.cache.invalidateAnalytics(this.ctx.companyId(user));
@@ -198,23 +242,53 @@ export class QuotesService {
     await this.companyAuth.assertInterventionMonthlyLimit(quote.companyId);
 
     const result = await this.prisma.$transaction(async (tx) => {
-      const count = await tx.intervention.count({ where: { companyId: quote.companyId } });
-      let number = `INT-${String(count + 1).padStart(5, '0')}`;
-      let isUnique = false;
-      let attempts = 0;
-      while (!isUnique && attempts < 15) {
-        const existing = await this.prisma.runOutsideRlsContext(() =>
-          this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async (db) =>
-            db.intervention.findUnique({
-              where: { number },
-              select: { id: true },
+      const number = await nextCompanyNumber(tx, {
+        companyId: quote.companyId,
+        namespace: 'intervention-number',
+        prefix: 'INT',
+        count: (year) =>
+          tx.intervention.count({
+            where: {
+              companyId: quote.companyId,
+              createdAt: {
+                gte: new Date(year, 0, 1),
+                lt: new Date(year + 1, 0, 1),
+              },
+            },
+          }),
+        exists: async (n) =>
+          this.prisma.runOutsideRlsContext(() =>
+            this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async (db) => {
+              const intv = await db.intervention.findUnique({
+                where: { number: n },
+                select: { id: true },
+              });
+              return intv !== null;
             }),
           ),
-        );
-        if (!existing) isUnique = true;
-        else {
-          attempts++;
-          number = `INT-${String(count + 1 + attempts).padStart(5, '0')}`;
+      });
+
+      const estimateProject = await tx.estimateProject.findFirst({
+        where: { quoteId: id }
+      });
+      let sourceLeadId: string | undefined;
+      if (estimateProject) {
+        await tx.estimateProject.update({
+          where: { id: estimateProject.id },
+          data: { status: EstimateProjectStatus.IN_EXECUTION },
+        });
+        const sourceLead = await tx.companyLead.findFirst({
+          where: { estimateProjectId: estimateProject.id }
+        });
+        if (sourceLead) {
+          sourceLeadId = sourceLead.id;
+          await tx.companyLead.update({
+            where: { id: sourceLead.id },
+            data: {
+              status: 'CONVERTED',
+              convertedAt: new Date(),
+            },
+          });
         }
       }
 
@@ -227,6 +301,7 @@ export class QuotesService {
           description: `Creată automat din Oferta ${quote.number}:\n` + quote.lines.map(l => `- ${l.description} x${l.qty}`).join('\n'),
           address: quote.customer.address,
           estimatedPrice: quote.total,
+          sourceLeadId,
         },
       });
 

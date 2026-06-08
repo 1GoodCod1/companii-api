@@ -120,6 +120,8 @@ export class CalculateProjectCommandHandler {
         })),
       });
 
+      const deletedAutoLines = (diagnostic._deletedAutoLines as string[]) ?? [];
+
       for (const stage of project.stages) {
         const manualLines = await tx.estimateLine.findMany({
           where: { stageId: stage.id, source: 'manual' },
@@ -130,7 +132,12 @@ export class CalculateProjectCommandHandler {
           where: { stageId: stage.id, source: { in: [...RECALCULATED_ESTIMATE_LINE_SOURCES] } },
         });
 
-        const stageLines = ruleLines.filter((line) => line.stageCode === stage.code);
+        const stageLines = ruleLines
+          .filter((line) => line.stageCode === stage.code)
+          .filter((line) => {
+            const lineKey = `${stage.code}:${line.description}`;
+            return !deletedAutoLines.includes(lineKey);
+          });
         let { laborCost, materialCost } = accumulateEstimateLineTotals(
           manualLines.map((line) => ({
             unit: line.unit,
@@ -144,13 +151,15 @@ export class CalculateProjectCommandHandler {
         if (customPricing.customLaborTotal && chargeableStageCount > 0) {
           const overrideLabor = round2(customPricing.customLaborTotal / chargeableStageCount);
           const hasManualCustomLabor = stageHasManualCustomLaborTotalOverride(manualLines);
+          const customLaborDescription = `Cost Lucrări — ${stage.name}`;
+          const customLaborKey = `${stage.code}:${customLaborDescription}`;
 
-          if (chargeableStageIds.has(stage.id) && !hasManualCustomLabor) {
+          if (chargeableStageIds.has(stage.id) && !hasManualCustomLabor && !deletedAutoLines.includes(customLaborKey)) {
             laborCost = round2(laborCost + overrideLabor);
             await tx.estimateLine.create({
               data: {
                 stageId: stage.id,
-                description: `Cost Lucrări (Volum / Contract) — ${stage.name}`,
+                description: customLaborDescription,
                 qty: 1, unit: 'buc', unitPrice: overrideLabor, lineTotal: overrideLabor,
                 source: 'custom-total-override', sortOrder: sortOrder++,
               },
@@ -188,14 +197,19 @@ export class CalculateProjectCommandHandler {
           const hours = Number(stage.laborHours);
           const rate = Number(stage.laborRate);
           const stageDefaultLabor = round2(hours * rate);
-          laborCost = round2(laborCost + stageDefaultLabor);
-          await tx.estimateLine.create({
-            data: {
-              stageId: stage.id, description: `Cost Lucrări — ${stage.name}`,
-              qty: hours, unit: 'ore', unitPrice: rate, lineTotal: stageDefaultLabor,
-              source: 'stage-default', sortOrder: sortOrder++,
-            },
-          });
+          const defaultLaborDescription = `Cost Lucrări — ${stage.name}`;
+          const defaultLaborKey = `${stage.code}:${defaultLaborDescription}`;
+
+          if (!deletedAutoLines.includes(defaultLaborKey)) {
+            laborCost = round2(laborCost + stageDefaultLabor);
+            await tx.estimateLine.create({
+              data: {
+                stageId: stage.id, description: defaultLaborDescription,
+                qty: hours, unit: 'ore', unitPrice: rate, lineTotal: stageDefaultLabor,
+                source: 'stage-default', sortOrder: sortOrder++,
+              },
+            });
+          }
         }
 
         const stageTotal = round2(laborCost + materialCost);
@@ -212,6 +226,13 @@ export class CalculateProjectCommandHandler {
             where: { id: item.id }, data: { durationDays: item.durationDays },
           });
         }
+      } else {
+        for (const stage of project.stages) {
+          const defaultDuration = stageDefByCode.get(stage.code)?.durationDays ?? null;
+          await tx.estimateStage.update({
+            where: { id: stage.id }, data: { durationDays: defaultDuration },
+          });
+        }
       }
 
       if (customPricing.customLaborHours && chargeableStageCount > 0) {
@@ -220,6 +241,17 @@ export class CalculateProjectCommandHandler {
           await tx.estimateStage.update({
             where: { id: stage.id },
             data: { laborHours: hoursPerStage, laborRate: stage.laborRate ?? config.defaultLaborRate },
+          });
+        }
+      } else {
+        for (const stage of project.stages) {
+          const def = stageDefByCode.get(stage.code);
+          await tx.estimateStage.update({
+            where: { id: stage.id },
+            data: {
+              laborHours: def?.defaultLaborHours ?? null,
+              laborRate: def?.defaultLaborRate ?? config.defaultLaborRate,
+            },
           });
         }
       }

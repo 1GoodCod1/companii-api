@@ -21,7 +21,8 @@ describe('IT web measurements (it-web)', () => {
     );
 
     expect(result.pagesCount).toBe(10);
-    expect(result.hasBackendCount).toBe(2);
+    expect(result.hasBackendCount).toBe(1);
+    expect(result.backendComplexityMultiplier).toBe(2);
     expect(result.hasCmsCount).toBe(1);
     expect(result.hasEcommerceCount).toBe(0);
     expect(result.analysisHours).toBe(16);

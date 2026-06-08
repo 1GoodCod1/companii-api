@@ -10,6 +10,7 @@ import { assertPaymentTransition } from '../../utils/status-transitions';
 import { reconcileEstimateProjectLifecycle } from '../../../estimates/utils/project/estimate-lifecycle.util';
 import { InvoicePdfCacheService } from './invoice-pdf-cache.service';
 import { RLS_SYSTEM_CONTEXT } from '../../../../common/rls/rls-system.util';
+import { nextCompanyNumber } from '../../../../common/utils/sequence-number.util';
 
 @Injectable()
 export class InvoiceLifecycleService {
@@ -79,28 +80,31 @@ export class InvoiceLifecycleService {
     );
 
     const result = await this.prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${this.pdfCache.companyInvoiceLockKey(cid)}::bigint)`;
-
-      const count = await tx.companyInvoice.count({ where: { companyId: cid } });
-
-      let number = `INV-${String(count + 1).padStart(5, '0')}`;
-      let isUnique = false;
-      let attempts = 0;
-      while (!isUnique && attempts < 15) {
-        const existing = await this.prisma.runOutsideRlsContext(() =>
-          this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async (db) =>
-            db.companyInvoice.findUnique({
-              where: { number },
-              select: { id: true },
+      const number = await nextCompanyNumber(tx, {
+        companyId: cid,
+        namespace: 'invoice-number',
+        prefix: 'INV',
+        count: (year) =>
+          tx.companyInvoice.count({
+            where: {
+              companyId: cid,
+              issuedAt: {
+                gte: new Date(year, 0, 1),
+                lt: new Date(year + 1, 0, 1),
+              },
+            },
+          }),
+        exists: async (n) =>
+          this.prisma.runOutsideRlsContext(() =>
+            this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async (db) => {
+              const inv = await db.companyInvoice.findUnique({
+                where: { number: n },
+                select: { id: true },
+              });
+              return inv !== null;
             }),
           ),
-        );
-        if (!existing) isUnique = true;
-        else {
-          attempts++;
-          number = `INV-${String(count + 1 + attempts).padStart(5, '0')}`;
-        }
-      }
+      });
 
       const invoice = await tx.companyInvoice.create({
         data: {

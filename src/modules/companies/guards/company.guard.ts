@@ -5,6 +5,7 @@ import { AppErrorMessages, AppErrors } from '../../../common/errors';
 import { rlsContextFromUser } from '../../../common/rls/rls-context.util';
 import { PrismaService } from '../../shared/database/prisma.service';
 import type { JwtPayload } from '../../auth/types/jwt-payload';
+import { ALLOW_UNVERIFIED_KEY } from '../decorators/allow-unverified.decorator';
 
 export const COMPANY_ROLES_KEY = 'company_roles';
 
@@ -29,6 +30,11 @@ export class CompanyGuard implements CanActivate {
       [context.getHandler(), context.getClass()],
     );
 
+    const allowUnverified = this.reflector.getAllAndOverride<boolean>(
+      ALLOW_UNVERIFIED_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+
     const req = context.switchToHttp().getRequest<{
       user: JwtPayload;
       headers: Record<string, string | string[] | undefined>;
@@ -45,9 +51,14 @@ export class CompanyGuard implements CanActivate {
       (tx) =>
         tx.companyMember.findFirst({
           where: { companyId, userId: user.sub, status: 'ACTIVE' },
+          include: { company: true },
         }),
     );
     if (!member) throw AppErrors.forbidden(AppErrorMessages.COMPANY_ACCESS_DENIED);
+
+    if (!member.company.isVerified && !allowUnverified) {
+      throw AppErrors.forbidden('Company is not verified yet. Access to operations is pending approval.');
+    }
 
     if (roles?.length && !roles.includes(member.role)) {
       throw AppErrors.forbidden(AppErrorMessages.COMPANY_ACCESS_DENIED);

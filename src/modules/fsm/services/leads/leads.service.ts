@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import {
   CompanyLeadSource,
   CompanyLeadStatus,
+  EstimateProjectStatus,
+  QuoteStatus,
   Prisma,
 } from '@prisma/client';
 import { AppErrorMessages, AppErrors } from '../../../../common/errors';
@@ -19,6 +21,7 @@ const leadInclude = {
   customer: true,
   category: { select: { id: true, name: true, slug: true } },
   estimateProject: { select: { id: true, number: true, title: true, status: true } },
+  interventions: { select: { id: true, number: true, type: true } },
 } satisfies Prisma.CompanyLeadInclude;
 
 @Injectable()
@@ -126,25 +129,46 @@ export class LeadsService {
     const existing = await this.getLead(user, id);
     this.assertLeadOpen(existing.status);
 
-    const result = await this.prisma.companyLead.update({
-      where: { id },
-      data: {
-        status: data.status,
-        notes: data.notes === null ? null : data.notes?.trim(),
-        contactName: data.contactName?.trim(),
-        contactPhone: data.contactPhone
-          ? normalizePhone(data.contactPhone) ?? data.contactPhone.trim()
-          : undefined,
-        contactEmail: data.contactEmail === null ? null : data.contactEmail?.trim().toLowerCase(),
-        address: data.address === null ? null : data.address?.trim(),
-        scheduledAt:
-          data.scheduledAt === null
-            ? null
-            : data.scheduledAt
-              ? new Date(data.scheduledAt)
-              : undefined,
-      },
-      include: leadInclude,
+    const result = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.companyLead.update({
+        where: { id },
+        data: {
+          status: data.status,
+          notes: data.notes === null ? null : data.notes?.trim(),
+          contactName: data.contactName?.trim(),
+          contactPhone: data.contactPhone
+            ? normalizePhone(data.contactPhone) ?? data.contactPhone.trim()
+            : undefined,
+          contactEmail: data.contactEmail === null ? null : data.contactEmail?.trim().toLowerCase(),
+          address: data.address === null ? null : data.address?.trim(),
+          scheduledAt:
+            data.scheduledAt === null
+              ? null
+              : data.scheduledAt
+                ? new Date(data.scheduledAt)
+                : undefined,
+        },
+        include: leadInclude,
+      });
+
+      if (data.status === 'LOST' && existing.estimateProjectId) {
+        await tx.estimateProject.update({
+          where: { id: existing.estimateProjectId },
+          data: { status: EstimateProjectStatus.CANCELLED },
+        });
+        const project = await tx.estimateProject.findUnique({
+          where: { id: existing.estimateProjectId },
+          select: { quoteId: true },
+        });
+        if (project?.quoteId) {
+          await tx.quote.update({
+            where: { id: project.quoteId },
+            data: { status: QuoteStatus.REJECTED },
+          });
+        }
+      }
+
+      return updated;
     });
 
     await this.cache.invalidateAnalytics(this.companyId(user));
@@ -215,13 +239,33 @@ export class LeadsService {
       }
 
       if (mode === 'intervention') {
+        const existingIntervention = await tx.intervention.findFirst({
+          where: {
+            companyId: cid,
+            sourceLeadId: lead.id,
+          },
+          select: { id: true },
+        });
+        if (existingIntervention) {
+          throw AppErrors.badRequest('O lucrare a fost deja creată pentru această cerere.');
+        }
+
         await this.companyAuth.assertInterventionMonthlyLimit(cid);
 
         const number = await nextCompanyNumber(tx, {
           companyId: cid,
           namespace: 'intervention-number',
           prefix: 'INT',
-          count: () => tx.intervention.count({ where: { companyId: cid } }),
+          count: (year) =>
+            tx.intervention.count({
+              where: {
+                companyId: cid,
+                createdAt: {
+                  gte: new Date(year, 0, 1),
+                  lt: new Date(year + 1, 0, 1),
+                },
+              },
+            }),
           exists: async (n) =>
             this.prisma.runOutsideRlsContext(() =>
               this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async (db) => {
@@ -303,7 +347,16 @@ export class LeadsService {
         companyId: cid,
         namespace: 'estimate-number',
         prefix: 'EST',
-        count: () => tx.estimateProject.count({ where: { companyId: cid } }),
+        count: (year) =>
+          tx.estimateProject.count({
+            where: {
+              companyId: cid,
+              createdAt: {
+                gte: new Date(year, 0, 1),
+                lt: new Date(year + 1, 0, 1),
+              },
+            },
+          }),
         exists: async (n) =>
           this.prisma.runOutsideRlsContext(() =>
             this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async (db) => {

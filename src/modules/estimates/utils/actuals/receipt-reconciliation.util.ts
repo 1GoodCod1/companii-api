@@ -1,10 +1,3 @@
-/**
- * V-03: reconciliation between a store receipt and the estimate lines
- * it is attached to. Σ (actualLineTotal) must equal the receipt's
- * `totalAmount` within 0.02 MDL (banker's rounding tolerance across
- * many lines).
- */
-
 export const RECEIPT_RECONCILIATION_TOLERANCE = 0.02;
 export const RECEIPT_RECONCILIATION_MISMATCH = 'RECEIPT_TOTAL_MISMATCH';
 

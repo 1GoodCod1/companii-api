@@ -20,7 +20,21 @@ export class DeleteProjectCommandHandler {
     if (project.status === EstimateProjectStatus.IN_EXECUTION) {
       throw AppErrors.badRequest('Cannot delete estimate in execution');
     }
-    await this.prisma.estimateProject.delete({ where: { id } });
+    await this.prisma.$transaction(async (tx) => {
+      const associatedLead = await tx.companyLead.findFirst({
+        where: { estimateProjectId: id },
+      });
+      if (associatedLead) {
+        await tx.companyLead.update({
+          where: { id: associatedLead.id },
+          data: {
+            status: 'QUALIFIED',
+            estimateProjectId: null,
+          },
+        });
+      }
+      await tx.estimateProject.delete({ where: { id } });
+    });
     return { success: true };
   }
 }

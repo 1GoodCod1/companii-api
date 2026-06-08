@@ -21,6 +21,18 @@ import { TransferOwnershipDto } from '@/modules/companies/team/dto/team-member.d
 import { CONTROLLER_PATH } from '../../../common/constants';
 import { AuthService } from '../../auth/auth.service';
 import { RefreshCookieService } from '../../auth/services/refresh-cookie.service';
+import { Public } from '../../../common/decorators/public.decorator';
+import { Roles } from '../../../common/decorators/roles.decorator';
+import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
+import { RolesGuard } from '@/common/guards/roles.guard';
+import { CompanyGuard } from '@/modules/companies/guards/company.guard';
+import { CompanyRoles } from '../decorators/company-roles.decorator';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import { AllowUnverified } from '../decorators/allow-unverified.decorator';
+import type { JwtPayload } from '../../auth/types/jwt-payload';
+import { ClientProjectRequestDto } from '@/modules/companies/dto/client-project-request.dto';
+import { ClientServiceRequestDto } from '@/modules/companies/dto/client-service-request.dto';
+import { UpdatePricingModifiersDto } from '@/modules/companies/dto/update-pricing-modifiers.dto';
 
 const RESERVED_COMPANY_SLUGS = new Set([
   'members',
@@ -29,17 +41,6 @@ const RESERVED_COMPANY_SLUGS = new Set([
   'cities',
   'categories',
 ]);
-import { Public } from '../../../common/decorators/public.decorator';
-import { Roles } from '../../../common/decorators/roles.decorator';
-import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
-import { RolesGuard } from '@/common/guards/roles.guard';
-import { CompanyGuard } from '@/modules/companies/guards/company.guard';
-import { CompanyRoles } from '../decorators/company-roles.decorator';
-import { CurrentUser } from '../../../common/decorators/current-user.decorator';
-import type { JwtPayload } from '../../auth/types/jwt-payload';
-import { ClientProjectRequestDto } from '@/modules/companies/dto/client-project-request.dto';
-import { ClientServiceRequestDto } from '@/modules/companies/dto/client-service-request.dto';
-import { UpdatePricingModifiersDto } from '@/modules/companies/dto/update-pricing-modifiers.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller(CONTROLLER_PATH.companies)
@@ -140,6 +141,7 @@ export class CompaniesController {
   @Patch('me')
   @UseGuards(CompanyGuard)
   @CompanyRoles('OWNER', 'MANAGER')
+  @AllowUnverified()
   update(
     @CurrentUser() user: JwtPayload,
     @Body() dto: Partial<CreateCompanyDto>,
@@ -157,6 +159,7 @@ export class CompaniesController {
   @Get('me/pricing-modifiers')
   @UseGuards(CompanyGuard)
   @CompanyRoles('OWNER', 'MANAGER')
+  @AllowUnverified()
   getPricingModifiers(@CurrentUser() user: JwtPayload) {
     return this.companies.getPricingModifiers(user, user.activeCompanyId!);
   }
@@ -164,6 +167,7 @@ export class CompaniesController {
   @Patch('me/pricing-modifiers')
   @UseGuards(CompanyGuard)
   @CompanyRoles('OWNER', 'MANAGER')
+  @AllowUnverified()
   updatePricingModifiers(
     @CurrentUser() user: JwtPayload,
     @Body() dto: UpdatePricingModifiersDto,
@@ -174,6 +178,7 @@ export class CompaniesController {
   @Post('me/gallery')
   @UseGuards(CompanyGuard)
   @CompanyRoles('OWNER', 'MANAGER')
+  @AllowUnverified()
   addGalleryImage(
     @CurrentUser() user: JwtPayload,
     @Body() dto: AddGalleryImageDto,
@@ -184,6 +189,7 @@ export class CompaniesController {
   @Delete('me/gallery/:imageId')
   @UseGuards(CompanyGuard)
   @CompanyRoles('OWNER', 'MANAGER')
+  @AllowUnverified()
   removeGalleryImage(
     @CurrentUser() user: JwtPayload,
     @Param('imageId') imageId: string,

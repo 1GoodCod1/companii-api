@@ -55,6 +55,10 @@ export class ConvertToInterventionsUseCase {
           throw AppErrors.conflict('Calculul de preț a fost deja convertit sau are alt status.');
         }
 
+        const sourceLead = await tx.companyLead.findFirst({
+          where: { estimateProjectId: id },
+        });
+
         const interventions: Awaited<ReturnType<typeof tx.intervention.create>>[] = [];
         for (const stage of activeStages) {
           const intNumber = await this.access.nextInterventionNumber(tx, cid);
@@ -69,6 +73,7 @@ export class ConvertToInterventionsUseCase {
               estimatedPrice: stage.stageTotal,
               estimateProjectId: project.id,
               estimateStageId: stage.id,
+              sourceLeadId: sourceLead?.id ?? undefined,
               status: 'NEW',
             },
           });
@@ -83,6 +88,16 @@ export class ConvertToInterventionsUseCase {
           await tx.quote.update({
             where: { id: project.quoteId },
             data: { status: QuoteStatus.CONVERTED },
+          });
+        }
+
+        if (sourceLead) {
+          await tx.companyLead.update({
+            where: { id: sourceLead.id },
+            data: {
+              status: 'CONVERTED',
+              convertedAt: new Date(),
+            },
           });
         }
 
@@ -115,6 +130,10 @@ export class ConvertToInterventionsUseCase {
         throw AppErrors.conflict('Calculul de preț a fost deja convertit sau are alt status.');
       }
 
+      const sourceLead = await tx.companyLead.findFirst({
+        where: { estimateProjectId: id },
+      });
+
       const intNumber = await this.access.nextInterventionNumber(tx, cid);
       const description = buildSingleInterventionDescription(project.number, project);
 
@@ -128,6 +147,7 @@ export class ConvertToInterventionsUseCase {
           address: project.address ?? project.customer.address,
           estimatedPrice: project.grandTotal,
           estimateProjectId: project.id,
+          sourceLeadId: sourceLead?.id ?? undefined,
           status: 'NEW',
         },
       });
@@ -140,6 +160,16 @@ export class ConvertToInterventionsUseCase {
         await tx.quote.update({
           where: { id: project.quoteId },
           data: { status: QuoteStatus.CONVERTED },
+        });
+      }
+
+      if (sourceLead) {
+        await tx.companyLead.update({
+          where: { id: sourceLead.id },
+          data: {
+            status: 'CONVERTED',
+            convertedAt: new Date(),
+          },
         });
       }
 

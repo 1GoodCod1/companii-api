@@ -19,16 +19,16 @@ export async function nextCompanyNumber(
     companyId: string;
     namespace: string;
     prefix: string;
-    count: () => Promise<number>;
+    count: (year: number) => Promise<number>;
     exists: (candidate: string) => Promise<boolean>;
   },
 ): Promise<string> {
+  const year = new Date().getFullYear();
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(${companySequenceLockKey(opts.namespace, opts.companyId)}::bigint)`;
-  const base = await opts.count();
-  let number = `${opts.prefix}-${String(base + 1).padStart(5, '0')}`;
+  const base = await opts.count(year);
   for (let attempt = 0; attempt < 1000; attempt++) {
+    const number = `${opts.prefix}-${year}-${String(base + 1 + attempt).padStart(5, '0')}`;
     if (!(await opts.exists(number))) return number;
-    number = `${opts.prefix}-${String(base + 1 + attempt).padStart(5, '0')}`;
   }
-  return number;
+  return `${opts.prefix}-${year}-${String(base + 1).padStart(5, '0')}`;
 }

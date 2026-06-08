@@ -31,6 +31,28 @@ export async function reconcileEstimateProjectLifecycle(
     where: { estimateProjectId: projectId },
     select: { status: true },
   });
+
+  const allCancelledOrEmpty =
+    interventions.length === 0 ||
+    interventions.every((i) => i.status === InterventionStatus.CANCELLED);
+
+  if (allCancelledOrEmpty) {
+    await tx.estimateProject.update({
+      where: { id: projectId },
+      data: { status: EstimateProjectStatus.ACCEPTED },
+    });
+    const sourceLead = await tx.companyLead.findFirst({
+      where: { estimateProjectId: projectId },
+    });
+    if (sourceLead) {
+      await tx.companyLead.update({
+        where: { id: sourceLead.id },
+        data: { status: 'IN_PROGRESS', convertedAt: null },
+      });
+    }
+    return;
+  }
+
   const shouldBeDone = shouldCloseEstimateProject(interventions.map((i) => i.status));
 
   if (shouldBeDone && project.status === EstimateProjectStatus.IN_EXECUTION) {

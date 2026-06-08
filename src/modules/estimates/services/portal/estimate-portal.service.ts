@@ -76,6 +76,18 @@ export class EstimatePortalService {
         });
       }
 
+      if (status === 'REJECTED') {
+        const sourceLead = await tx.companyLead.findFirst({
+          where: { estimateProjectId: projectId },
+        });
+        if (sourceLead) {
+          await tx.companyLead.update({
+            where: { id: sourceLead.id },
+            data: { status: 'LOST' },
+          });
+        }
+      }
+
       const notifyEmail = fullProject.company.contactEmail ?? fullProject.company.owner.email;
       if (notifyEmail) {
         void this.email.sendEstimateStatusEmail({

@@ -61,7 +61,16 @@ export class EstimateProjectAccessService {
       companyId,
       namespace: 'estimate-number',
       prefix: 'EST',
-      count: () => tx.estimateProject.count({ where: { companyId } }),
+      count: (year) =>
+        tx.estimateProject.count({
+          where: {
+            companyId,
+            createdAt: {
+              gte: new Date(year, 0, 1),
+              lt: new Date(year + 1, 0, 1),
+            },
+          },
+        }),
       exists: async (number) =>
         this.prisma.runOutsideRlsContext(() =>
           this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async (db) => {
@@ -80,7 +89,16 @@ export class EstimateProjectAccessService {
       companyId,
       namespace: 'intervention-number',
       prefix: 'INT',
-      count: () => tx.intervention.count({ where: { companyId } }),
+      count: (year) =>
+        tx.intervention.count({
+          where: {
+            companyId,
+            createdAt: {
+              gte: new Date(year, 0, 1),
+              lt: new Date(year + 1, 0, 1),
+            },
+          },
+        }),
       exists: async (number) =>
         this.prisma.runOutsideRlsContext(() =>
           this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async (db) => {

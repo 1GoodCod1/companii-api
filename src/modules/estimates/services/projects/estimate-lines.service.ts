@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { AppErrorMessages, AppErrors } from '../../../../common/errors';
 import { formatEstimateUnitsList, normalizeEstimateUnit, resolveLaborUnits } from '../../../../../prisma/estimate-measurement-units';
 import { PrismaService } from '../../../shared/database/prisma.service';
@@ -161,6 +162,25 @@ export class EstimateLinesService {
     return this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT id FROM estimate_projects WHERE id = ${projectId} FOR UPDATE`;
       await tx.$executeRaw`SELECT id FROM estimate_stages WHERE id = ${stageId} FOR UPDATE`;
+
+      if (line.source !== 'manual') {
+        const project = await tx.estimateProject.findUniqueOrThrow({
+          where: { id: projectId },
+          select: { diagnosticAnswers: true },
+        });
+        const diagnosticAnswers = (project.diagnosticAnswers as Record<string, unknown> | null) ?? {};
+        const deletedAutoLines = (diagnosticAnswers._deletedAutoLines as string[]) ?? [];
+        const lineKey = `${stage.code}:${line.description}`;
+        if (!deletedAutoLines.includes(lineKey)) {
+          deletedAutoLines.push(lineKey);
+        }
+        diagnosticAnswers._deletedAutoLines = deletedAutoLines;
+
+        await tx.estimateProject.update({
+          where: { id: projectId },
+          data: { diagnosticAnswers: diagnosticAnswers as Prisma.InputJsonValue },
+        });
+      }
 
       await tx.estimateLine.delete({ where: { id: lineId } });
       return this.recalcStageTotals(tx, stageId, projectId);
