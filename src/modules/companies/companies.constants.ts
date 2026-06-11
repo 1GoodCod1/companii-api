@@ -6,6 +6,7 @@ export const LEAD_SOURCE_LABELS: Record<CompanyLeadSource, string> = {
   MANUAL: 'Cerere manuală',
   PHONE: 'Telefon',
   WEBSITE: 'Site',
+  BOOKING: 'Programare online',
 };
 
 export function isGalleryVideoUrl(url: string): boolean {

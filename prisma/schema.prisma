@@ -122,10 +122,45 @@ enum CompanyLeadSource {
   MANUAL
   PHONE
   WEBSITE
+  BOOKING
 }
 
 enum PaymentProductType {
   COMPANY_SUBSCRIPTION
+}
+
+enum NotificationType {
+  TELEGRAM
+  IN_APP
+}
+
+enum NotificationCategory {
+  NEW_LEAD
+  LEAD_STATUS_UPDATED
+  NEW_REVIEW
+  SUBSCRIPTION_EXPIRING
+  PAYMENT_SUCCESS
+  QUOTE_SENT
+  QUOTE_ACCEPTED
+  INTERVENTION_SCHEDULED
+  INTERVENTION_COMPLETED
+  NEW_PORTAL_CUSTOMER
+  SYSTEM_UPDATE
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  DELIVERED
+  READ
+}
+
+enum LeadNotifyChannel {
+  TELEGRAM
+  IN_APP
+  BOTH
+  NONE
 }
 
 model User {
@@ -140,6 +175,9 @@ model User {
   termsVersion    String?     @map("terms_version")
   isActive        Boolean     @default(true) @map("is_active")
   emailVerifiedAt DateTime?   @map("email_verified_at")
+  telegramChatId  String?     @map("telegram_chat_id")
+  leadNotifyChannel LeadNotifyChannel? @default(BOTH) @map("lead_notify_channel")
+  notifyInApp     Boolean     @default(true) @map("notify_in_app")
   createdAt       DateTime    @default(now()) @map("created_at")
   updatedAt       DateTime    @updatedAt @map("updated_at")
 
@@ -153,8 +191,51 @@ model User {
   passwordResetTokens PasswordResetToken[]
   emailVerificationTokens EmailVerificationToken[]
   estimateFeedbacks   EstimateFeedback[]
+  notifications       Notification[]
+  telegramConnectTokens TelegramConnectToken[]
 
   @@map("users")
+}
+
+model Notification {
+  id        String  @id @default(uuid(7))
+  userId    String? @map("user_id")
+  title     String?
+  message   String
+  type      NotificationType
+  category  NotificationCategory?
+  status    NotificationStatus    @default(PENDING)
+  sentAt    DateTime? @map("sent_at")
+  readAt    DateTime? @map("read_at")
+  metadata  Json?
+  createdAt DateTime   @default(now()) @map("created_at")
+
+  user      User?  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type])
+  @@index([category])
+  @@index([status])
+  @@index([createdAt])
+  @@index([userId, status, createdAt])
+  @@index([userId, type, createdAt])
+  @@index([userId, category, createdAt])
+  @@map("notifications")
+}
+
+model TelegramConnectToken {
+  id        String   @id @default(uuid(7))
+  token     String   @unique
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("telegram_connect_tokens")
 }
 
 enum FileVisibility {
@@ -266,6 +347,7 @@ model Company {
   isVerified   Boolean  @default(false) @map("is_verified")
   logoUrl      String?  @map("logo_url")
   pricingModifiers Json? @map("pricing_modifiers")
+  bookingSettings  Json? @map("booking_settings")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 

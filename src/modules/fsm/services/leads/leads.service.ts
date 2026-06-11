@@ -278,6 +278,17 @@ export class LeadsService {
             ),
         });
 
+        let estimatedPrice = lead.estimatedBudget ?? undefined;
+        if (estimatedPrice === undefined && lead.serviceTitle) {
+          const service = await tx.companyService.findFirst({
+            where: { companyId: cid, name: lead.serviceTitle },
+            select: { defaultPrice: true },
+          });
+          if (service && Number(service.defaultPrice) > 0) {
+            estimatedPrice = service.defaultPrice;
+          }
+        }
+
         const intervention = await tx.intervention.create({
           data: {
             companyId: cid,
@@ -289,6 +300,7 @@ export class LeadsService {
             address: lead.address ?? lead.contactName,
             scheduledAt: lead.scheduledAt ?? undefined,
             status: 'NEW',
+            estimatedPrice,
             estimateProjectId: lead.estimateProjectId ?? undefined,
           },
         });

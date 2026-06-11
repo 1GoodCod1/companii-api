@@ -15,6 +15,7 @@ import {
   FsmQuotesController,
   FsmServicesController,
   FsmPipelineController,
+  FsmSearchController,
 } from './controllers';
 import { LeadsService } from './services/leads/leads.service';
 import { InvoicePdfModule } from './pdf/invoice-pdf.module';
@@ -36,6 +37,7 @@ import { InvoicePdfCacheService } from './services/invoices/invoice-pdf-cache.se
 import { InvoiceLifecycleService } from './services/invoices/invoice-lifecycle.service';
 import { FsmAnalyticsService } from './services/analytics/fsm-analytics.service';
 import { PipelineService } from './services/pipeline/pipeline.service';
+import { GlobalSearchService } from './services/search/global-search.service';
 
 @Module({
   imports: [forwardRef(() => AuthModule), CompaniesModule, InvoicePdfModule, FilesModule],
@@ -51,6 +53,7 @@ import { PipelineService } from './services/pipeline/pipeline.service';
     FsmCrewsController,
     FsmAnalyticsController,
     FsmPipelineController,
+    FsmSearchController,
   ],
   providers: [
     FsmContextService,
@@ -73,6 +76,7 @@ import { PipelineService } from './services/pipeline/pipeline.service';
     CustomerImportService,
     FsmAnalyticsService,
     PipelineService,
+    GlobalSearchService,
   ],
   exports: [InvoiceLifecycleService],
 })

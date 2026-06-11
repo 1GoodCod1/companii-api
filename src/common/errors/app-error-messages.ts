@@ -30,6 +30,8 @@ export const AppErrorMessages = {
   CATALOG_IN_USE: 'Cannot delete: item is used by existing records',
   SERVICE_NOT_FOUND: 'Service not found',
   CLIENT_REQUEST_END_CLIENT_ONLY: 'Only registered client accounts can submit requests',
+  BOOKING_DISABLED: 'Online booking is not available for this company',
+  BOOKING_SLOT_UNAVAILABLE: 'Selected time slot is no longer available',
   CLIENT_PHONE_REQUIRED: 'Add a phone number to your profile before submitting a request',
   PORTAL_NOT_LINKED: 'Portal profile not linked',
   PORTAL_INVITE_INVALID: 'Portal invitation is invalid or expired',

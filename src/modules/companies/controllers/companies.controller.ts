@@ -125,6 +125,15 @@ export class CompaniesController {
   }
 
   @Public()
+  @Get(':slug/booking-slots')
+  bookingSlots(@Param('slug') slug: string, @Query('from') from?: string) {
+    if (RESERVED_COMPANY_SLUGS.has(slug)) {
+      throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
+    }
+    return this.companies.getBookingSlots(slug, from);
+  }
+
+  @Public()
   @Get(':slug')
   bySlug(@Param('slug') slug: string) {
     if (RESERVED_COMPANY_SLUGS.has(slug)) {

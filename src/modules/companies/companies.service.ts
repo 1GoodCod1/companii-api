@@ -19,6 +19,7 @@ import { AddGalleryImageUseCase } from './use-cases/add-gallery-image.use-case';
 import { RemoveGalleryImageUseCase } from './use-cases/remove-gallery-image.use-case';
 import { RequestPublicServiceUseCase } from './use-cases/request-public-service.use-case';
 import { RequestPublicProjectUseCase } from './use-cases/request-public-project.use-case';
+import { GetBookingSlotsUseCase } from './use-cases/get-booking-slots.use-case';
 import { GetCompanyAuditLogsUseCase } from './use-cases/get-company-audit-logs.use-case';
 import { GetPricingModifiersUseCase } from './use-cases/get-pricing-modifiers.use-case';
 import { UpdatePricingModifiersUseCase } from './use-cases/update-pricing-modifiers.use-case';
@@ -40,6 +41,7 @@ export class CompaniesService {
     private readonly removeGalleryImageUc: RemoveGalleryImageUseCase,
     private readonly requestPublicServiceUc: RequestPublicServiceUseCase,
     private readonly requestPublicProjectUc: RequestPublicProjectUseCase,
+    private readonly getBookingSlotsUc: GetBookingSlotsUseCase,
     private readonly getCompanyAuditLogsUc: GetCompanyAuditLogsUseCase,
     private readonly getPricingModifiersUc: GetPricingModifiersUseCase,
     private readonly updatePricingModifiersUc: UpdatePricingModifiersUseCase,
@@ -96,6 +98,10 @@ export class CompaniesService {
 
   requestPublicProject(user: JwtPayload, companySlug: string, body: ClientProjectRequestDto) {
     return this.requestPublicProjectUc.execute(user, companySlug, body);
+  }
+
+  getBookingSlots(companySlug: string, from?: string) {
+    return this.getBookingSlotsUc.execute(companySlug, from);
   }
 
   getAuditLogs(

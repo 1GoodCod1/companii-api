@@ -8,3 +8,4 @@ export { FsmExportController, FsmInvoicesController } from './fsm-invoices.contr
 export { FsmCrewsController } from './fsm-crews.controller';
 export { FsmAnalyticsController } from './fsm-analytics.controller';
 export { FsmPipelineController } from './fsm-pipeline.controller';
+export { FsmSearchController } from './fsm-search.controller';

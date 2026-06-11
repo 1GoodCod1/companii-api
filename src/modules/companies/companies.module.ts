@@ -12,6 +12,7 @@ import { PortalInvitationModule } from '../portal-invitation/portal-invitation.m
 import { TeamInviteModule } from './team/team-invite.module';
 import { TeamMembersService } from './team/team-members.service';
 import { LeadNotificationService } from './services/lead-notification.service';
+import { BookingAvailabilityService } from './booking/booking-availability.service';
 import { WaitlistService } from './services/waitlist.service';
 import { WAITLIST_REPOSITORY } from './domain/ports/waitlist.repository.port';
 import { PrismaWaitlistRepository } from './infrastructure/persistence/prisma-waitlist.repository';
@@ -29,6 +30,7 @@ import { COMPANIES_USE_CASE_PROVIDERS } from './use-cases/companies-use-cases.pr
   controllers: [MembersController, WaitlistController, CompaniesController],
   providers: [
     LeadNotificationService,
+    BookingAvailabilityService,
     WaitlistService,
     PrismaWaitlistRepository,
     {

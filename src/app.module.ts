@@ -32,6 +32,7 @@ import { ReviewsModule } from './modules/reviews/reviews.module';
 import { EstimatesModule } from './modules/estimates/estimates.module';
 import { SeoModule } from './modules/seo/seo.module';
 import { WebVitalsModule } from './modules/web-vitals/web-vitals.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 import { RlsModule } from './common/rls/rls.module';
 import { HealthController } from './health.controller';
 import { HealthService } from './health.service';
@@ -87,6 +88,7 @@ const isProd = process.env.NODE_ENV === 'production';
     EstimatesModule,
     SeoModule,
     WebVitalsModule,
+    NotificationsModule,
   ],
   controllers: [HealthController],
   providers: [
