@@ -1,4 +1,3 @@
--- Create role companii_app if not exists
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'companii_app') THEN

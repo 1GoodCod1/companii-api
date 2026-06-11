@@ -51,7 +51,7 @@ export function getCorsOrigins(): string | string[] {
     const origins = parseValidOrigins(process.env.FRONTEND_URL);
     if (origins.length === 0) {
       logger.fatal(
-        'FRONTEND_URL is required in production. Set FRONTEND_URL=https://companii.faber.md',
+        'FRONTEND_URL is required in production. Set FRONTEND_URL=https://faber.md',
       );
       process.exit(1);
     }
@@ -80,7 +80,6 @@ export function getCorsOptions(): CorsOptions {
     allowedHeaders: [
       'Content-Type',
       'Authorization',
-      'x-company-id',
       'x-request-id',
       'Cache-Control',
       'Pragma',

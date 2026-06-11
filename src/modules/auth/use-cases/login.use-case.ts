@@ -29,6 +29,7 @@ export class LoginUseCase {
 
     const user = await this.userLookup.findByLogin(login);
     if (!user?.passwordHash) {
+      await argon2.hash(dto.password);
       await this.lockout.recordFailed(login, ipAddress);
       void this.audit.log({
         action: AuditAction.LOGIN_FAILED,

@@ -23,6 +23,9 @@ import {
 
 const SEED_TERMS_VERSION = '2026-05-25';
 
+const DEV_ADMIN_EMAIL = 'admin@companii.local';
+const DEV_ADMIN_PASSWORD = 'Admin12345!';
+
 const url = process.env.MIGRATION_DATABASE_URL ?? process.env.DATABASE_URL;
 if (!url) throw new Error('DATABASE_URL or MIGRATION_DATABASE_URL required');
 
@@ -265,8 +268,10 @@ async function main() {
       categoryHasEstimateBlueprint(c.slug),
     ).length;
 
+    const { email: adminEmail } = resolveAdminCredentials();
+
     console.log('Seed OK', {
-      adminEmail: process.env.SEED_ADMIN_EMAIL ?? 'admin@companii.local',
+      adminEmail,
       cities: CITIES.length,
       categories: CATEGORIES.length,
       plans: PLAN_CODES.length,
@@ -356,9 +361,24 @@ async function seedEstimateBlueprints(tx: Prisma.TransactionClient) {
   }
 }
 
+function resolveAdminCredentials(): { email: string; password: string } {
+  const isProd = process.env.NODE_ENV === 'production';
+  const email = process.env.ADMIN_EMAIL ?? (isProd ? undefined : DEV_ADMIN_EMAIL);
+  const password = process.env.ADMIN_PASSWORD ?? (isProd ? undefined : DEV_ADMIN_PASSWORD);
+
+  if (!email || !password) {
+    throw new Error(
+      'ADMIN_EMAIL and ADMIN_PASSWORD are required in production. Set them in .env before running seed.',
+    );
+  }
+
+  return { email, password };
+}
+
 async function seedAdmin(tx: Prisma.TransactionClient) {
-  const adminEmail = process.env.SEED_ADMIN_EMAIL ?? 'admin@companii.local';
-  const hash = await argon2.hash(process.env.SEED_ADMIN_PASSWORD ?? 'Admin12345!', {
+  const isProd = process.env.NODE_ENV === 'production';
+  const { email: adminEmail, password: adminPassword } = resolveAdminCredentials();
+  const hash = await argon2.hash(adminPassword, {
     type: argon2.argon2id,
   });
 
@@ -371,8 +391,16 @@ async function seedAdmin(tx: Prisma.TransactionClient) {
       firstName: 'Platform',
       lastName: 'Admin',
     },
-    update: {},
+    update: {
+      passwordHash: hash,
+    },
   });
+
+  if (isProd) {
+    console.log(`Admin seeded: ${adminEmail}`);
+  } else {
+    console.log(`Admin: ${adminEmail} / ${adminPassword}`);
+  }
 }
 
 main()

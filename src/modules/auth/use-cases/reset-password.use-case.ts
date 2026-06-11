@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import { Injectable } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { AppErrors, AppErrorMessages } from '../../../common/errors';
@@ -5,7 +6,6 @@ import { PrismaService } from '../../shared/database/prisma.service';
 import { AuditAction } from '../../audit/audit-action.enum';
 import { AuditEntityType } from '../../audit/audit-entity-type.enum';
 import { AuditService } from '../../audit/audit.service';
-import { timingSafeStringEquals } from '../../../common/utils/timing-safe.util';
 import { ResetPasswordDto } from '@/modules/auth/dto/reset-password.dto';
 import { TokenService } from '../services/token.service';
 
@@ -19,13 +19,14 @@ export class ResetPasswordUseCase {
 
   async execute(dto: ResetPasswordDto) {
     const { token, password } = dto;
+    const tokenHash = createHash('sha256').update(token).digest('hex');
 
     const resetToken = await this.prisma.passwordResetToken.findUnique({
-      where: { token },
+      where: { token: tokenHash },
       include: { user: true },
     });
 
-    if (!resetToken || !timingSafeStringEquals(resetToken.token, token)) {
+    if (!resetToken) {
       throw AppErrors.notFound(AppErrorMessages.RESET_TOKEN_INVALID);
     }
 

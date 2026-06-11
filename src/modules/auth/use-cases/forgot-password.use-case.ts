@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { randomBytes } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import { PrismaService } from '../../shared/database/prisma.service';
 import { AuditAction } from '../../audit/audit-action.enum';
 import { AuditEntityType } from '../../audit/audit-entity-type.enum';
@@ -40,8 +40,8 @@ export class ForgotPasswordUseCase {
     if (!user || !user.isActive) {
       return GENERIC_RESPONSE;
     }
-
     const token = randomBytes(32).toString('hex');
+    const tokenHash = createHash('sha256').update(token).digest('hex');
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 1);
 
@@ -54,7 +54,7 @@ export class ForgotPasswordUseCase {
 
     await this.prisma.passwordResetToken.create({
       data: {
-        token,
+        token: tokenHash,
         userId: user.id,
         expiresAt,
       },

@@ -5,16 +5,19 @@ const logger = new Logger('ConfigValidation');
 
 const MIN_JWT_SECRET_LENGTH = 32;
 
+const FORBIDDEN_JWT_SECRET_PATTERNS = ['dev-secret', 'change-me', 'changeme', 'placeholder', 'example'];
+
 export function validateProductionSecrets(config: ConfigService): void {
   if (config.get<string>('nodeEnv') !== 'production') return;
 
   const missing: string[] = [];
 
   const jwtSecret = config.get<string>('jwt.secret');
+  const jwtSecretLower = (jwtSecret ?? '').toLowerCase();
   if (
     !jwtSecret ||
     jwtSecret.length < MIN_JWT_SECRET_LENGTH ||
-    jwtSecret.includes('dev-secret')
+    FORBIDDEN_JWT_SECRET_PATTERNS.some((p) => jwtSecretLower.includes(p))
   ) {
     missing.push(`JWT_SECRET (min ${MIN_JWT_SECRET_LENGTH} chars, no dev defaults)`);
   }
