@@ -8,7 +8,12 @@ import {
   Query,
   Body,
   UseGuards,
+  Sse,
+  MessageEvent,
 } from '@nestjs/common';
+import { Observable, fromEvent } from 'rxjs';
+import { filter, map } from 'rxjs/operators';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../auth/types/jwt-payload';
 import { NotificationsQueryService } from './services/notifications-query.service';
@@ -21,7 +26,16 @@ export class NotificationsController {
   constructor(
     private readonly queryService: NotificationsQueryService,
     private readonly actionService: NotificationsActionService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
+
+  @Sse('stream')
+  stream(@CurrentUser() user: JwtPayload): Observable<MessageEvent> {
+    return fromEvent(this.eventEmitter, 'notification.created').pipe(
+      filter((payload: any) => payload.userId === user.sub),
+      map((payload) => ({ data: payload } as MessageEvent)),
+    );
+  }
 
   @Get()
   async getNotifications(

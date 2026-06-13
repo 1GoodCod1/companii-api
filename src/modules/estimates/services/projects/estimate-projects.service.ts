@@ -24,6 +24,7 @@ import {
   recordAppliedMutation,
 } from '../../utils/project/conflict-resolution.util';
 import { EstimateProjectAccessService } from './estimate-project-access.service';
+import { toCursorPage } from '../../../../common/utils/cursor-page.util';
 import type { EstimateBlueprintConfig } from '../../../../../prisma/estimate-blueprints';
 import { EstimateProjectActualsService } from './estimate-project-actuals.service';
 
@@ -37,7 +38,7 @@ export class EstimateProjectsService {
     private readonly actuals: EstimateProjectActualsService,
   ) {}
 
-  list(user: JwtPayload, cursor?: string, limit = 20) {
+  async list(user: JwtPayload, cursor?: string, limit = 20) {
     this.ctx.assertManagement(user);
     const take = Math.min(Math.max(limit, 1), 100);
     return this.prisma.estimateProject.findMany({
@@ -59,15 +60,7 @@ export class EstimateProjectsService {
       cursor: cursor ? { id: cursor } : undefined,
       skip: cursor ? 1 : 0,
       take,
-    }).then((items) => {
-      if (!cursor) {
-        return items as unknown as typeof items | { items: typeof items; nextCursor: string | null };
-      }
-      return {
-        items,
-        nextCursor: items.length === take ? items[items.length - 1]?.id : null,
-      };
-    });
+    }).then((items) => toCursorPage(items, take));
   }
 
   async get(user: JwtPayload, id: string) {

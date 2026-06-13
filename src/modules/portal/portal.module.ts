@@ -14,6 +14,7 @@ import { RequestEstimateChangesUseCase } from './use-cases/request-estimate-chan
 import { GetPortalEstimateUseCase } from './use-cases/get-portal-estimate.use-case';
 import { GetPortalEstimatePdfUseCase } from './use-cases/get-portal-estimate-pdf.use-case';
 import { GetPortalInvoicePdfUseCase } from './use-cases/get-portal-invoice-pdf.use-case';
+import { GetPortalQuotePdfUseCase } from './use-cases/get-portal-quote-pdf.use-case';
 import { SubmitInvoicePaymentProofUseCase } from './use-cases/submit-invoice-payment-proof.use-case';
 import { PORTAL_REPOSITORY } from './domain/ports/portal.repository.port';
 import { PrismaPortalRepository } from './infrastructure/persistence/prisma-portal.repository';
@@ -37,6 +38,7 @@ import { PrismaPortalRepository } from './infrastructure/persistence/prisma-port
     GetPortalEstimateUseCase,
     GetPortalEstimatePdfUseCase,
     GetPortalInvoicePdfUseCase,
+    GetPortalQuotePdfUseCase,
     SubmitInvoicePaymentProofUseCase,
     PrismaPortalRepository,
     {

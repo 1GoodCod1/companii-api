@@ -109,6 +109,23 @@ export class PortalController {
 
   @UseGuards(RolesGuard)
   @Roles('END_CLIENT')
+  @Get('quotes/:id/pdf')
+  async quotePdf(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    const { buffer, filename } = await this.portal.getQuotePdf(user, id);
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Content-Length': buffer.length,
+    });
+    res.send(buffer);
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles('END_CLIENT')
   @Post('invoices/:id/payment-proof')
   submitInvoicePaymentProof(
     @CurrentUser() user: JwtPayload,

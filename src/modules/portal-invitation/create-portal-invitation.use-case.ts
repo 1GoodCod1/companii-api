@@ -4,7 +4,7 @@ import { AppErrorMessages, AppErrors } from '../../common/errors';
 import { PORTAL_INVITATION_REPOSITORY } from './domain/ports/portal-invitation.repository.port';
 import type { PrismaPortalInvitationRepository } from './infrastructure/persistence/prisma-portal-invitation.repository';
 
-const PORTAL_INVITE_TTL_MS = 2 * 60 * 60 * 1000;
+const PORTAL_INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class CreatePortalInvitationUseCase {

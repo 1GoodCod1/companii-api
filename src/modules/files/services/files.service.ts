@@ -192,8 +192,8 @@ export class FilesService {
     if (user.accountKind === 'PLATFORM_ADMIN') return;
     if (file.uploadedById && file.uploadedById === user.sub) return;
 
-    const isReceiptForLine = await this.filesRepo.isReceiptForLine(file.id, user.activeCompanyId ?? null, user.sub);
-    if (!isReceiptForLine) {
+    const canAccess = await this.filesRepo.canAccessFile(file.id, user.activeCompanyId ?? null, user.sub);
+    if (!canAccess) {
       throw AppErrors.forbidden(AppErrorMessages.FILES_ACCESS_DENIED);
     }
   }

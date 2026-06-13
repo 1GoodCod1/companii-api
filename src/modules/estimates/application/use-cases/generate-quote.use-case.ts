@@ -6,8 +6,12 @@ import type { JwtPayload } from '../../../auth/types/jwt-payload';
 import { EstimatesContextService } from '../../context/estimates-context.service';
 import { EstimateProjectAccessService } from '../../services/projects/estimate-project-access.service';
 import { EstimateStagesService } from '../../services/projects/estimate-stages.service';
-import { projectInclude } from '../../estimate.constants';
+import { projectInclude, round2 } from '../../estimate.constants';
 import { isEstimateRecalculable } from '../../utils/project/estimate-status-transitions.util';
+import {
+  estimateClientPriceFactor,
+  toClientPrice,
+} from '../../utils/calculation/client-price.util';
 import { nextCompanyNumber } from '../../../../common/utils/sequence-number.util';
 import { RLS_SYSTEM_CONTEXT } from '../../../../common/rls/rls-system.util';
 
@@ -64,16 +68,21 @@ export class GenerateQuoteUseCase {
             }),
           ),
       });
-
+      const priceFactor = estimateClientPriceFactor(project);
+      const projectVatRate = project.tvaRate !== null ? Number(project.tvaRate) : null;
       const lines = project.stages.flatMap((stage) =>
         stage.lines.map((line) => ({
           description: `[${stage.name}] ${line.description}`,
           qty: Number(line.qty),
-          unitPrice: Number(line.unitPrice),
+          unitPrice: toClientPrice(line.unitPrice, priceFactor),
+          vatRate:
+            line.vatRate !== null && line.vatRate !== undefined
+              ? Number(line.vatRate)
+              : projectVatRate ?? undefined,
         })),
       );
 
-      const total = lines.reduce((acc, line) => acc + line.qty * line.unitPrice, 0);
+      const total = round2(lines.reduce((acc, line) => acc + line.qty * line.unitPrice, 0));
       const quote = await tx.quote.create({
         data: {
           companyId: cid,

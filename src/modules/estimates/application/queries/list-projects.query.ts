@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../shared/database/prisma.service';
 import type { JwtPayload } from '../../../auth/types/jwt-payload';
 import { EstimatesContextService } from '../../context/estimates-context.service';
+import { toCursorPage } from '../../../../common/utils/cursor-page.util';
 
 @Injectable()
 export class ListProjectsQuery {
@@ -41,7 +42,6 @@ export class ListProjectsQuery {
       take,
     });
 
-    if (!cursor) return items;
-    return { items, nextCursor: items.length === take ? items[items.length - 1]?.id : null };
+    return toCursorPage(items, take);
   }
 }

@@ -180,12 +180,20 @@ export class InvoiceLifecycleService {
         : !existing.dueDate ||
           new Date(data.dueDate).getTime() !== existing.dueDate.getTime());
     const invalidatePdfCache = statusChanged || dueDateChanged;
+    const total = Number(existing.amount) + Number(existing.tvaAmount);
+    const paidAmountUpdate =
+      data.paymentStatus === 'PAID' && existing.paymentStatus !== 'PAID'
+        ? { paidAmount: new Prisma.Decimal(total) }
+        : isReversal
+          ? { paidAmount: new Prisma.Decimal(0) }
+          : {};
 
     const updated = await this.prisma.companyInvoice.update({
       where: { id },
       data: {
         paymentStatus: data.paymentStatus,
         dueDate: data.dueDate === null ? null : data.dueDate ? new Date(data.dueDate) : undefined,
+        ...paidAmountUpdate,
         ...(invalidatePdfCache ? { pdfFileKey: null } : {}),
       },
     });
@@ -438,6 +446,9 @@ export class InvoiceLifecycleService {
           ),
         );
     }
+    if (existing.paymentProofFileKey) {
+      this.deletePaymentProofFile(existing.paymentProofFileKey);
+    }
 
     await this.prisma.$transaction(async (tx) => {
       await tx.companyInvoice.delete({ where: { id } });
@@ -601,9 +612,26 @@ export class InvoiceLifecycleService {
       },
     });
 
+    if (existing.paymentProofFileKey) {
+      this.deletePaymentProofFile(existing.paymentProofFileKey);
+    }
+
     await this.cache.invalidateAnalytics(existing.companyId);
 
     return updated;
+  }
+  
+  private deletePaymentProofFile(fileId: string): void {
+    void (async () => {
+      const file = await this.prisma.file.findUnique({ where: { id: fileId } });
+      if (!file) return;
+      await this.storage.deleteByStoredPath(file.path);
+      await this.prisma.file.delete({ where: { id: fileId } });
+    })().catch((err) =>
+      this.logger.warn(
+        `Failed to delete orphaned payment proof ${fileId}: ${err instanceof Error ? err.message : String(err)}`,
+      ),
+    );
   }
 
   private resolveStatusAfterRejection(invoice: {

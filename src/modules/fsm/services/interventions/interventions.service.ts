@@ -11,6 +11,7 @@ import { technicianWithUser } from '../../fsm.constants';
 import { redactInterventionForTechnician } from '../../utils/intervention-field-access.util';
 import { resolveInterventionDescriptions } from '../../utils/resolve-intervention-descriptions.util';
 import { nextCompanyNumber } from '../../../../common/utils/sequence-number.util';
+import { toCursorPage } from '../../../../common/utils/cursor-page.util';
 import { CrewsService } from './crews.service';
 import { EmailService } from '../../../email/email.service';
 import { reconcileEstimateProjectLifecycle } from '../../../estimates/utils/project/estimate-lifecycle.util';
@@ -181,13 +182,7 @@ export class InterventionsService {
     const mapped = this.ctx.isTechnician(user)
       ? enriched.map((item) => redactInterventionForTechnician(item))
       : enriched;
-    if (!cursor) {
-      return mapped as any;
-    }
-    return {
-      items: mapped,
-      nextCursor: items.length === take ? items[items.length - 1]?.id : null,
-    };
+    return toCursorPage(mapped, take);
   }
 
   async get(user: JwtPayload, id: string) {
@@ -435,7 +430,7 @@ export class InterventionsService {
             fromStatus: existing.status,
             toStatus: 'SCHEDULED',
             changedByMemberId: user.memberId,
-            note: 'Programată din calendar',
+            note: 'Programată automat (dată stabilită)',
           },
         });
       }

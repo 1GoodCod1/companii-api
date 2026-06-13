@@ -12,6 +12,10 @@ import { AuditEntityType } from '../../../audit/audit-entity-type.enum';
 import type { EstimateBlueprintConfig } from '../../../../../prisma/estimate-blueprint-config.types';
 import { buildSingleInterventionDescription } from '../../utils/worksheet/intervention-description.util';
 import { filterWorksheetStages } from '../../utils/worksheet/worksheet-stage-filter.util';
+import {
+  estimateClientPriceFactor,
+  toClientPrice,
+} from '../../utils/calculation/client-price.util';
 
 @Injectable()
 export class ConvertToInterventionsUseCase {
@@ -58,7 +62,7 @@ export class ConvertToInterventionsUseCase {
         const sourceLead = await tx.companyLead.findFirst({
           where: { estimateProjectId: id },
         });
-
+        const priceFactor = estimateClientPriceFactor(project);
         const interventions: Awaited<ReturnType<typeof tx.intervention.create>>[] = [];
         for (const stage of activeStages) {
           const intNumber = await this.access.nextInterventionNumber(tx, cid);
@@ -70,7 +74,7 @@ export class ConvertToInterventionsUseCase {
               type: project.category.name,
               description: `${stage.name}\n${stage.description ?? ''}`.trim(),
               address: project.address ?? project.customer.address,
-              estimatedPrice: stage.stageTotal,
+              estimatedPrice: toClientPrice(stage.stageTotal ?? 0, priceFactor),
               estimateProjectId: project.id,
               estimateStageId: stage.id,
               sourceLeadId: sourceLead?.id ?? undefined,

@@ -30,7 +30,12 @@ const portalEstimateInclude = {
   measurements: { orderBy: { key: 'asc' as const } },
   stages: {
     orderBy: { sortOrder: 'asc' as const },
-    include: { lines: { orderBy: { sortOrder: 'asc' as const } } },
+    include: {
+      lines: {
+        orderBy: { sortOrder: 'asc' as const },
+        include: { receipt: { select: { fileKey: true } } },
+      },
+    },
   },
 };
 
@@ -72,11 +77,44 @@ export class PrismaPortalRepository implements PortalRepository {
       const nextStatus =
         action === 'ACCEPTED' ? QuoteStatus.ACCEPTED : QuoteStatus.REJECTED;
 
-      return tx.quote.update({
+      const updated = await tx.quote.update({
         where: { id: quoteId },
         data: { status: nextStatus },
       });
+      const estimateProject = await tx.estimateProject.findFirst({
+        where: { quoteId },
+        select: { id: true, status: true },
+      });
+      if (estimateProject && !TERMINAL_PORTAL_ESTIMATE_STATUSES.has(estimateProject.status)) {
+        if (action === 'ACCEPTED') {
+          await tx.estimateProject.update({
+            where: { id: estimateProject.id },
+            data: { status: EstimateProjectStatus.ACCEPTED },
+          });
+        } else {
+          await tx.estimateProject.update({
+            where: { id: estimateProject.id },
+            data: { status: EstimateProjectStatus.CANCELLED },
+          });
+          await this.markSourceLeadLost(tx, estimateProject.id);
+        }
+      }
+
+      return updated;
     });
+  }
+
+  private async markSourceLeadLost(tx: Prisma.TransactionClient, estimateProjectId: string) {
+    const sourceLead = await tx.companyLead.findFirst({
+      where: { estimateProjectId },
+      select: { id: true, status: true },
+    });
+    if (sourceLead && sourceLead.status !== 'CONVERTED' && sourceLead.status !== 'LOST') {
+      await tx.companyLead.update({
+        where: { id: sourceLead.id },
+        data: { status: 'LOST' },
+      });
+    }
   }
 
   async findOwnedInvoiceCustomerId(invoiceId: string, userId: string): Promise<string | null> {
@@ -92,15 +130,23 @@ export class PrismaPortalRepository implements PortalRepository {
       where: {
         id: projectId,
         customer: { portalUserId: userId },
-        status: {
-          in: [
-            EstimateProjectStatus.SENT,
-            EstimateProjectStatus.ACCEPTED,
-            EstimateProjectStatus.IN_EXECUTION,
-            EstimateProjectStatus.DONE,
-            EstimateProjectStatus.CANCELLED,
-          ],
-        },
+        OR: [
+          {
+            status: {
+              in: [
+                EstimateProjectStatus.SENT,
+                EstimateProjectStatus.ACCEPTED,
+                EstimateProjectStatus.IN_EXECUTION,
+                EstimateProjectStatus.DONE,
+                EstimateProjectStatus.CANCELLED,
+              ],
+            },
+          },
+          {
+            status: EstimateProjectStatus.CALCULATED,
+            clientFeedback: { not: Prisma.DbNull },
+          },
+        ],
       },
       include: portalEstimateInclude,
     });
@@ -131,7 +177,10 @@ export class PrismaPortalRepository implements PortalRepository {
         this.prisma.quote.findMany({
           where: { customer: { portalUserId: userId }, status: { in: ['SENT', 'ACCEPTED', 'CONVERTED'] } },
           orderBy: { createdAt: 'desc' },
-          include: { company: { select: { id: true, name: true, slug: true } } },
+          include: {
+            company: { select: { id: true, name: true, slug: true } },
+            lines: true,
+          },
         }),
       () =>
         this.prisma.companyInvoice.findMany({
@@ -160,7 +209,10 @@ export class PrismaPortalRepository implements PortalRepository {
         this.prisma.estimateProject.findMany({
           where: {
             customer: { portalUserId: userId },
-            status: { in: ['SENT', 'ACCEPTED', 'IN_EXECUTION', 'DONE'] },
+            OR: [
+              { status: { in: ['SENT', 'ACCEPTED', 'IN_EXECUTION', 'DONE'] } },
+              { status: 'CALCULATED', clientFeedback: { not: Prisma.DbNull } },
+            ],
           },
           orderBy: { updatedAt: 'desc' },
           include: {
@@ -240,6 +292,20 @@ export class PrismaPortalRepository implements PortalRepository {
           clientFeedback: appendFeedbackFn(project.clientFeedback),
         },
       });
+      if (fullProject.quoteId) {
+        await tx.quote.updateMany({
+          where: {
+            id: fullProject.quoteId,
+            status: { in: [QuoteStatus.DRAFT, QuoteStatus.SENT] },
+          },
+          data: {
+            status: status === 'ACCEPTED' ? QuoteStatus.ACCEPTED : QuoteStatus.REJECTED,
+          },
+        });
+      }
+      if (status === 'REJECTED') {
+        await this.markSourceLeadLost(tx, projectId);
+      }
 
       return { updatedProject: updated, fullProject };
     });
@@ -303,6 +369,28 @@ export class PrismaPortalRepository implements PortalRepository {
       }
 
       return { updatedProject: updated, fullProject, quoteId: fullProject.quoteId };
+    });
+  }
+
+  getQuotePdfData(quoteId: string, userId: string) {
+    return this.prisma.quote.findFirst({
+      where: { id: quoteId, customer: { portalUserId: userId } },
+      include: {
+        company: {
+          select: {
+            name: true,
+            legalName: true,
+            idno: true,
+            legalAddress: true,
+            contactPhone: true,
+            contactEmail: true,
+            isTvaPayer: true,
+            tvaCode: true,
+          },
+        },
+        customer: true,
+        lines: true,
+      },
     });
   }
 

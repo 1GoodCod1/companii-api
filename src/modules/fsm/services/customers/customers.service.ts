@@ -5,6 +5,7 @@ import { PrismaService } from '../../../shared/database/prisma.service';
 import type { JwtPayload } from '../../../auth/types/jwt-payload';
 import { FsmContextService } from '../../context/fsm-context.service';
 import { technicianWithUser } from '../../fsm.constants';
+import { toCursorPage } from '../../../../common/utils/cursor-page.util';
 
 @Injectable()
 export class CustomersService {
@@ -22,15 +23,7 @@ export class CustomersService {
       cursor: cursor ? { id: cursor } : undefined,
       skip: cursor ? 1 : 0,
       take,
-    }).then((items) => {
-      if (!cursor) {
-        return items as any;
-      }
-      return {
-        items,
-        nextCursor: items.length === take ? items[items.length - 1]?.id : null,
-      };
-    });
+    }).then((items) => toCursorPage(items, take));
   }
 
   count(user: JwtPayload) {

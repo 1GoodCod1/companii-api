@@ -1,5 +1,6 @@
 import type { EstimateProjectDetail, EstimateProjectUpdateResult } from '../../estimate.constants';
 import type { EstimateProject } from '@/modules/estimates/domain/entities/estimate-project.entity';
+import type { CursorPage } from '@/common/utils/cursor-page.util';
 
 export const ESTIMATE_PROJECT_REPOSITORY = Symbol('EstimateProjectRepository');
 
@@ -11,7 +12,7 @@ export interface EstimateProjectRepository {
     companyId: string,
     cursor?: string,
     limit?: number,
-  ): Promise<EstimateProjectDetail[] | { items: EstimateProjectDetail[]; nextCursor: string | null }>;
+  ): Promise<CursorPage<EstimateProjectDetail>>;
   create(project: EstimateProject): Promise<EstimateProjectDetail>;
   update(id: string, data: Record<string, unknown>, version: number): Promise<EstimateProjectDetail>;
   delete(id: string): Promise<void>;

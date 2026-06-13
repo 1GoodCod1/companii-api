@@ -57,9 +57,10 @@ import { PrismaEstimateProjectPhotoRepository } from './infrastructure/persisten
 import { ESTIMATE_BLUEPRINT_REPOSITORY } from './domain/ports/estimate-blueprint.repository.port';
 import { PrismaEstimateBlueprintRepository } from './infrastructure/persistence/prisma-estimate-blueprint.repository';
 import { EstimateCommentModule } from './estimate-comment.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [AuthModule, CompaniesModule, InvoicePdfModule, AuditModule, EmailModule, QueueModule, EstimateCommentModule],
+  imports: [AuthModule, CompaniesModule, InvoicePdfModule, AuditModule, EmailModule, QueueModule, EstimateCommentModule, NotificationsModule],
   controllers: [
     EstimatesBlueprintsController,
     EstimateProjectsController,

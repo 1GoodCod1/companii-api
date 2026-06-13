@@ -70,28 +70,57 @@ export class QuotePdfService {
     doc.text(`Status: ${data.status}`, 48, doc.y + 4);
     if (data.validUntil) doc.text(`Valabil până: ${formatDate(data.validUntil)}`, 48, doc.y + 4);
 
-    const tableTop = doc.y + 24;
-    doc.rect(48, tableTop, doc.page.width - 96, 28).fill('#F5F3FF');
-    doc.fillColor('#4C1D95').font('Arial-Bold').fontSize(9);
-    doc.text('Descriere', 56, tableTop + 9);
-    doc.text('Cant.', 320, tableTop + 9);
-    doc.text('Preț unit.', 370, tableTop + 9);
-    doc.text('Total', 470, tableTop + 9, { width: 70, align: 'right' });
+    const drawTableHeader = (top: number): number => {
+      doc.rect(48, top, doc.page.width - 96, 28).fill('#F5F3FF');
+      doc.fillColor('#4C1D95').font('Arial-Bold').fontSize(9);
+      doc.text('Descriere', 56, top + 9);
+      doc.text('Cant.', 320, top + 9);
+      doc.text('Preț unit.', 370, top + 9);
+      doc.text('Total', 470, top + 9, { width: 70, align: 'right' });
+      return top + 36;
+    };
 
-    let rowY = tableTop + 36;
+    const pageBottom = doc.page.height - 60;
+    let rowY = drawTableHeader(doc.y + 24);
     doc.font('Arial').fontSize(9).fillColor('#374151');
     for (const line of data.lines) {
+      const rowHeight = Math.max(doc.heightOfString(line.description, { width: 250 }), 12) + 10;
+      if (rowY + rowHeight > pageBottom) {
+        doc.addPage();
+        rowY = drawTableHeader(48);
+        doc.font('Arial').fontSize(9).fillColor('#374151');
+      }
       const lineTotal = Number(line.qty) * Number(line.unitPrice);
       doc.text(line.description, 56, rowY, { width: 250 });
       doc.text(String(Number(line.qty)), 320, rowY);
       doc.text(formatMoney(Number(line.unitPrice)), 370, rowY);
       doc.text(formatMoney(lineTotal), 470, rowY, { width: 70, align: 'right' });
-      rowY += 22;
+      rowY += rowHeight;
     }
-
+    if (rowY + 90 > doc.page.height - 48) {
+      doc.addPage();
+      rowY = 48;
+    }
     doc.moveTo(48, rowY + 8).lineTo(doc.page.width - 48, rowY + 8).stroke('#E5E7EB');
-    doc.fillColor('#111827').font('Arial-Bold').fontSize(11);
-    doc.text(`TOTAL: ${formatMoney(total)}`, 370, rowY + 20, { width: 170, align: 'right' });
+    const tva =
+      Math.round(
+        data.lines.reduce(
+          (acc, line) =>
+            acc + Number(line.qty) * Number(line.unitPrice) * (Number(line.vatRate ?? 0) / 100),
+          0,
+        ) * 100,
+      ) / 100;
+
+    if (tva > 0) {
+      doc.fillColor('#374151').font('Arial').fontSize(9);
+      doc.text(`Subtotal (fără TVA): ${formatMoney(total)}`, 370, rowY + 20, { width: 170, align: 'right' });
+      doc.text(`TVA: ${formatMoney(tva)}`, 370, doc.y + 4, { width: 170, align: 'right' });
+      doc.fillColor('#111827').font('Arial-Bold').fontSize(11);
+      doc.text(`TOTAL DE PLATĂ: ${formatMoney(total + tva)}`, 370, doc.y + 6, { width: 170, align: 'right' });
+    } else {
+      doc.fillColor('#111827').font('Arial-Bold').fontSize(11);
+      doc.text(`TOTAL: ${formatMoney(total)}`, 370, rowY + 20, { width: 170, align: 'right' });
+    }
 
     doc.end();
     return await finished;

@@ -47,7 +47,7 @@ const isShuttingDownRef = { current: false };
 async function bootstrap() {
   const bootstrapLogger = new Logger('Bootstrap');
   const isProd = process.env.NODE_ENV === 'production';
-
+  console.log('starting bootstrap');
   const app = await NestFactory.create(AppModule, {
     logger: false,
     bufferLogs: true,

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma, QuoteStatus, EstimateProjectStatus } from '@prisma/client';
 import { AppErrorMessages, AppErrors } from '../../../../common/errors';
+import { assertQuoteTransition } from '../../utils/status-transitions';
 import { CompanyAuthorizationService } from '../../../companies/authorization/company-authorization.service';
 import { PrismaService } from '../../../shared/database/prisma.service';
 import type { JwtPayload } from '../../../auth/types/jwt-payload';
@@ -10,6 +11,7 @@ import { QuotePdfService } from '../../pdf/quote-pdf.service';
 import { FsmContextService } from '../../context/fsm-context.service';
 import { CacheService } from '../../../shared/cache/cache.service';
 import { nextCompanyNumber } from '../../../../common/utils/sequence-number.util';
+import { toCursorPage } from '../../../../common/utils/cursor-page.util';
 import { RLS_SYSTEM_CONTEXT } from '../../../../common/rls/rls-system.util';
 
 @Injectable()
@@ -41,15 +43,7 @@ export class QuotesService {
       cursor: cursor ? { id: cursor } : undefined,
       skip: cursor ? 1 : 0,
       take,
-    }).then((items) => {
-      if (!cursor) {
-        return items as any;
-      }
-      return {
-        items,
-        nextCursor: items.length === take ? items[items.length - 1]?.id : null,
-      };
-    });
+    }).then((items) => toCursorPage(items, take));
   }
 
   async get(user: JwtPayload, id: string) {
@@ -142,6 +136,19 @@ export class QuotesService {
       where: { id, companyId: this.ctx.companyId(user) },
     });
     if (!existing) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
+
+    if (data.status && data.status !== existing.status) {
+      try {
+        assertQuoteTransition(existing.status, data.status);
+      } catch {
+        throw AppErrors.badRequest(AppErrorMessages.STATUS_TRANSITION_INVALID);
+      }
+    }
+    // Lines define the amount the client agreed to — once accepted or
+    // converted they are immutable (reopen via REJECTED → DRAFT to renegotiate).
+    if (data.lines && (existing.status === 'ACCEPTED' || existing.status === 'CONVERTED')) {
+      throw AppErrors.badRequest('Oferta acceptată nu mai poate fi modificată.');
+    }
 
     const result = await this.prisma.$transaction(async (tx) => {
       let total = existing.total;
@@ -238,6 +245,9 @@ export class QuotesService {
     if (quote.status === 'CONVERTED') {
       throw AppErrors.badRequest('Quote is already converted to an intervention.');
     }
+    if (quote.status !== 'ACCEPTED') {
+      throw AppErrors.badRequest('Doar ofertele acceptate de client pot fi convertite în lucrări.');
+    }
 
     await this.companyAuth.assertInterventionMonthlyLimit(quote.companyId);
 
@@ -302,6 +312,8 @@ export class QuotesService {
           address: quote.customer.address,
           estimatedPrice: quote.total,
           sourceLeadId,
+          // Keeps the project lifecycle reconcilable when the invoice is paid/cancelled.
+          estimateProjectId: estimateProject?.id,
         },
       });
 
@@ -345,6 +357,10 @@ export class QuotesService {
     if (quote.status === 'CONVERTED') {
       throw AppErrors.badRequest('Devizul a fost deja convertit.');
     }
+    // Sending again must not silently undo the client's decision.
+    if (quote.status === 'ACCEPTED' || quote.status === 'REJECTED') {
+      throw AppErrors.badRequest('Oferta a fost deja procesată de client.');
+    }
 
     const updated = await this.prisma.quote.update({
       where: { id },
@@ -356,11 +372,17 @@ export class QuotesService {
     const portalUrl = `${frontendUrl}/portal/oferte`;
 
     if (quote.customer.email) {
+      // Email the gross amount — the invoice will bill VAT on top of the net total.
+      const tva = quote.lines.reduce(
+        (acc, line) =>
+          acc + Number(line.qty) * Number(line.unitPrice) * (Number(line.vatRate ?? 0) / 100),
+        0,
+      );
       void this.email.sendQuoteEmail({
         to: quote.customer.email,
         companyName: quote.company.name,
         quoteNumber: quote.number,
-        total: Number(quote.total),
+        total: Math.round((Number(quote.total) + tva) * 100) / 100,
         portalUrl,
       });
     }

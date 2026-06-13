@@ -1,4 +1,9 @@
-import type { InterventionStatus, InvoicePaymentStatus, CompanyRole } from '@prisma/client';
+import type {
+  InterventionStatus,
+  InvoicePaymentStatus,
+  QuoteStatus,
+  CompanyRole,
+} from '@prisma/client';
 
 const MANAGEMENT_TRANSITIONS: Record<InterventionStatus, InterventionStatus[]> = {
   NEW: ['SCHEDULED', 'CANCELLED'],
@@ -28,6 +33,14 @@ const PAYMENT_TRANSITIONS: Record<InvoicePaymentStatus, InvoicePaymentStatus[]> 
   PENDING_CONFIRMATION: ['PAID', 'UNPAID', 'OVERDUE', 'CANCELLED'],
   PAID: ['UNPAID'],
   CANCELLED: [],
+};
+
+const QUOTE_TRANSITIONS: Record<QuoteStatus, QuoteStatus[]> = {
+  DRAFT: ['SENT', 'ACCEPTED', 'REJECTED'],
+  SENT: ['ACCEPTED', 'REJECTED', 'DRAFT'],
+  ACCEPTED: ['REJECTED'],
+  REJECTED: ['DRAFT'],
+  CONVERTED: [],
 };
 
 export function isTerminalInterventionStatus(status: InterventionStatus): boolean {
@@ -61,6 +74,22 @@ export function assertInterventionTransition(
   }
   const allowed = getAllowedInterventionTransitions(from, role);
   if (!allowed.includes(to)) {
+    throw new Error('STATUS_TRANSITION_INVALID');
+  }
+}
+
+export function getAllowedQuoteTransitions(from: QuoteStatus): QuoteStatus[] {
+  return QUOTE_TRANSITIONS[from] ?? [];
+}
+
+export function assertQuoteTransition(from: QuoteStatus, to: QuoteStatus): void {
+  if (from === to) {
+    throw new Error('STATUS_UNCHANGED');
+  }
+  if (to === 'CONVERTED') {
+    throw new Error('STATUS_SYSTEM_ONLY');
+  }
+  if (!QUOTE_TRANSITIONS[from]?.includes(to)) {
     throw new Error('STATUS_TRANSITION_INVALID');
   }
 }

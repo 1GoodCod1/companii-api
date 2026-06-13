@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { EstimateProjectStatus, Prisma } from '@prisma/client';
 import { AppErrorMessages, AppErrors } from '../../../../common/errors';
 import { formatEstimateUnitsList, normalizeEstimateUnit, resolveLaborUnits } from '../../../../../prisma/estimate-measurement-units';
 import { PrismaService } from '../../../shared/database/prisma.service';
@@ -14,6 +14,13 @@ import {
   shouldPromoteRecalculatedLineToManual,
 } from '../../utils/calculation/estimate-line-recalculate.util';
 
+const PRICE_LOCKED_PROJECT_STATUSES: ReadonlySet<EstimateProjectStatus> = new Set([
+  EstimateProjectStatus.ACCEPTED,
+  EstimateProjectStatus.IN_EXECUTION,
+  EstimateProjectStatus.DONE,
+  EstimateProjectStatus.CANCELLED,
+]);
+
 @Injectable()
 export class EstimateLinesService {
   constructor(
@@ -21,6 +28,17 @@ export class EstimateLinesService {
     private readonly ctx: EstimatesContextService,
     private readonly access: EstimateProjectAccessService,
   ) {}
+
+  private assertPriceMutable(project: {
+    status: EstimateProjectStatus;
+    actualsLockedAt: Date | null;
+  }) {
+    if (PRICE_LOCKED_PROJECT_STATUSES.has(project.status) || project.actualsLockedAt) {
+      throw AppErrors.badRequest(
+        'Calculul de preț a fost acceptat de client — sumele nu mai pot fi modificate.',
+      );
+    }
+  }
 
   async updateLine(
     user: JwtPayload,
@@ -47,6 +65,29 @@ export class EstimateLinesService {
       where: { id: lineId, stageId },
     });
     if (!line) throw AppErrors.notFound('Estimate line not found');
+
+    const hasPriceChanges =
+      data.description !== undefined ||
+      data.qty !== undefined ||
+      data.unit !== undefined ||
+      data.unitPrice !== undefined;
+    if (!hasPriceChanges) {
+      return this.prisma.$transaction(async (tx) => {
+        await tx.estimateLine.update({
+          where: { id: lineId },
+          data: {
+            materialStore: data.materialStore === null ? null : data.materialStore?.trim(),
+            receiptFileKey: data.receiptFileKey === null ? null : data.receiptFileKey,
+          },
+        });
+        return tx.estimateProject.findUniqueOrThrow({
+          where: { id: projectId },
+          include: projectInclude,
+        });
+      });
+    }
+
+    this.assertPriceMutable(project);
 
     const qty = data.qty !== undefined ? data.qty : Number(line.qty);
     const unitPrice = data.unitPrice !== undefined ? data.unitPrice : Number(line.unitPrice);
@@ -100,6 +141,7 @@ export class EstimateLinesService {
   ) {
     this.ctx.assertManagement(user);
     const project = await this.access.findProjectOrThrow(user, projectId);
+    this.assertPriceMutable(project);
     const stage = await this.prisma.estimateStage.findFirst({
       where: { id: stageId, projectId },
     });
@@ -148,7 +190,8 @@ export class EstimateLinesService {
     lineId: string,
   ) {
     this.ctx.assertManagement(user);
-    await this.access.findProjectOrThrow(user, projectId);
+    const project = await this.access.findProjectOrThrow(user, projectId);
+    this.assertPriceMutable(project);
     const stage = await this.prisma.estimateStage.findFirst({
       where: { id: stageId, projectId },
     });

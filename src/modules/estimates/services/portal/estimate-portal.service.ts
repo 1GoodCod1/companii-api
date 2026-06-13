@@ -10,6 +10,8 @@ import {
   type EstimateClientFeedbackKind,
 } from '../../utils/portal/client-feedback.util';
 import { EstimateProjectAccessService } from '../projects/estimate-project-access.service';
+import { NotificationsSenderService } from '../../../notifications/services/notifications-sender.service';
+import { NotificationCategory, NotificationType } from '@prisma/client';
 
 const TERMINAL_PORTAL_STATUSES: ReadonlySet<EstimateProjectStatus> = new Set([
   EstimateProjectStatus.ACCEPTED,
@@ -25,6 +27,7 @@ export class EstimatePortalService {
     private readonly access: EstimateProjectAccessService,
     private readonly email: EmailService,
     private readonly estimatePdf: EstimatePdfService,
+    private readonly notifications: NotificationsSenderService,
   ) {}
 
   async updateStatus(
@@ -52,7 +55,11 @@ export class EstimatePortalService {
             select: {
               name: true,
               contactEmail: true,
-              owner: { select: { email: true } },
+              owner: { select: { id: true, email: true } },
+              members: {
+                where: { status: 'ACTIVE', role: { in: ['OWNER', 'MANAGER'] } },
+                select: { user: { select: { id: true, email: true } } },
+              },
             },
           },
         },
@@ -101,6 +108,25 @@ export class EstimatePortalService {
         });
       }
 
+      const userIds = [
+        fullProject.company.owner.id,
+        ...(fullProject.company as any).members?.map((m: any) => m.user.id) || [],
+      ];
+      const uniqueUserIds = [...new Set(userIds)].filter(Boolean);
+
+      const statusRo = status === 'ACCEPTED' ? 'acceptată' : 'respinsă';
+      await Promise.all(
+        uniqueUserIds.map((userId) =>
+          this.notifications.send({
+            userId,
+            title: `Calcul preț ${statusRo}`,
+            message: `Clientul ${fullProject.customer.fullName} a ${statusRo} calculul de preț #${fullProject.number} - ${fullProject.title}.`,
+            type: NotificationType.IN_APP,
+            category: NotificationCategory.QUOTE_ACCEPTED,
+          })
+        )
+      );
+
       return updated;
     });
   }
@@ -137,7 +163,11 @@ export class EstimatePortalService {
             select: {
               name: true,
               contactEmail: true,
-              owner: { select: { email: true } },
+              owner: { select: { id: true, email: true } },
+              members: {
+                where: { status: 'ACTIVE', role: { in: ['OWNER', 'MANAGER'] } },
+                select: { user: { select: { id: true, email: true } } },
+              },
             },
           },
         },
@@ -169,6 +199,24 @@ export class EstimatePortalService {
           comment: trimmed,
         });
       }
+
+      const userIds = [
+        fullProject.company.owner.id,
+        ...(fullProject.company as any).members?.map((m: any) => m.user.id) || [],
+      ];
+      const uniqueUserIds = [...new Set(userIds)].filter(Boolean);
+
+      await Promise.all(
+        uniqueUserIds.map((userId) =>
+          this.notifications.send({
+            userId,
+            title: `Feedback calcul preț`,
+            message: `Clientul ${fullProject.customer.fullName} a lăsat un comentariu la calculul #${fullProject.number} - ${fullProject.title}:\n\n"${trimmed}"`,
+            type: NotificationType.IN_APP,
+            category: NotificationCategory.QUOTE_ACCEPTED,
+          })
+        )
+      );
 
       return updated;
     });

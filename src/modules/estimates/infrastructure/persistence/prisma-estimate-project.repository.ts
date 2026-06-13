@@ -2,6 +2,7 @@ import { PrismaService } from '../../../shared/database/prisma.service';
 import { CacheService } from '../../../shared/cache/cache.service';
 import type { EstimateProjectRepository } from '../../domain/ports/estimate-project.repository.port';
 import type { EstimateProjectDetail } from '../../estimate.constants';
+import { toCursorPage, type CursorPage } from '../../../../common/utils/cursor-page.util';
 
 export class PrismaEstimateProjectRepository implements EstimateProjectRepository {
   constructor(
@@ -30,7 +31,7 @@ export class PrismaEstimateProjectRepository implements EstimateProjectRepositor
     }) as unknown as EstimateProjectDetail | null;
   }
 
-  async listByCompany(companyId: string, cursor?: string, limit = 20): Promise<EstimateProjectDetail[] | { items: EstimateProjectDetail[]; nextCursor: string | null }> {
+  async listByCompany(companyId: string, cursor?: string, limit = 20): Promise<CursorPage<EstimateProjectDetail>> {
     const take = Math.min(Math.max(limit, 1), 100);
     const items = await this.prisma.estimateProject.findMany({
       where: { companyId },
@@ -41,8 +42,7 @@ export class PrismaEstimateProjectRepository implements EstimateProjectRepositor
       take,
     });
 
-    if (!cursor) return items as unknown as EstimateProjectDetail[];
-    return { items: items as unknown as EstimateProjectDetail[], nextCursor: items.length === take ? items[items.length - 1]?.id : null };
+    return toCursorPage(items as unknown as EstimateProjectDetail[], take);
   }
 
   create(project: import('../../domain/entities/estimate-project.entity').EstimateProject): Promise<EstimateProjectDetail> {

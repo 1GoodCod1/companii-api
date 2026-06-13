@@ -3,6 +3,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { PrismaService } from '../../shared/database/prisma.service';
 import { NotificationType, NotificationCategory, NotificationStatus } from '@prisma/client';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 export interface SendNotificationParams {
   userId: string;
@@ -21,6 +22,7 @@ export class NotificationsSenderService {
   constructor(
     @InjectQueue('telegram') private readonly telegramQueue: Queue,
     private readonly prisma: PrismaService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
   async send(params: SendNotificationParams) {
     const { userId, title, message, type, category, metadata, skipInApp } = params;
@@ -47,6 +49,12 @@ export class NotificationsSenderService {
         },
       });
       inAppSent = true;
+      
+      // Emit event for SSE
+      this.eventEmitter.emit('notification.created', {
+        userId,
+        notificationId: inAppNotif.id,
+      });
     }
     const wantsTelegram =
       user.leadNotifyChannel === 'TELEGRAM' || user.leadNotifyChannel === 'BOTH';

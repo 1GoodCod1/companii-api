@@ -14,6 +14,7 @@ import { CacheService } from '../../../shared/cache/cache.service';
 import type { JwtPayload } from '../../../auth/types/jwt-payload';
 import { createEstimateProjectWithStages } from '../../../estimates/utils/project/create-estimate-project.util';
 import { nextCompanyNumber } from '../../../../common/utils/sequence-number.util';
+import { toCursorPage } from '../../../../common/utils/cursor-page.util';
 import { RLS_SYSTEM_CONTEXT } from '../../../../common/rls/rls-system.util';
 import type { EstimateBlueprintConfig } from '../../../../../prisma/estimate-blueprints';
 
@@ -57,15 +58,7 @@ export class LeadsService {
       cursor: cursor ? { id: cursor } : undefined,
       skip: cursor ? 1 : 0,
       take,
-    }).then((items) => {
-      if (!cursor) {
-        return items as any;
-      }
-      return {
-        items,
-        nextCursor: items.length === take ? items[items.length - 1]?.id : null,
-      };
-    });
+    }).then((items) => toCursorPage(items, take));
   }
 
   async getLead(user: JwtPayload, id: string) {
@@ -128,6 +121,10 @@ export class LeadsService {
   ) {
     const existing = await this.getLead(user, id);
     this.assertLeadOpen(existing.status);
+
+    if (data.status === 'CONVERTED') {
+      throw AppErrors.badRequest('Folosiți acțiunea de finalizare sau conversie a cererii.');
+    }
 
     const result = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.companyLead.update({
@@ -220,7 +217,7 @@ export class LeadsService {
             fullName: lead.contactName,
             phone: lead.contactPhone,
             email: lead.contactEmail ?? undefined,
-            address: lead.address ?? lead.contactName,
+            address: lead.address ?? '',
             notes: lead.notes ?? undefined,
           },
         });
@@ -297,7 +294,7 @@ export class LeadsService {
             number,
             type: lead.serviceTitle ?? lead.category?.name ?? 'Cerere nouă',
             description: lead.message ?? lead.serviceTitle ?? 'Convertit din cerere',
-            address: lead.address ?? lead.contactName,
+            address: lead.address ?? '',
             scheduledAt: lead.scheduledAt ?? undefined,
             status: 'NEW',
             estimatedPrice,

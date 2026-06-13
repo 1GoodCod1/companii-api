@@ -17,6 +17,7 @@ import { WaitlistService } from './services/waitlist.service';
 import { WAITLIST_REPOSITORY } from './domain/ports/waitlist.repository.port';
 import { PrismaWaitlistRepository } from './infrastructure/persistence/prisma-waitlist.repository';
 import { COMPANIES_USE_CASE_PROVIDERS } from './use-cases/companies-use-cases.providers';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { COMPANIES_USE_CASE_PROVIDERS } from './use-cases/companies-use-cases.pr
     TeamInviteModule,
     CompanyAuthorizationModule,
     CacheModule,
+    NotificationsModule,
   ],
   controllers: [MembersController, WaitlistController, CompaniesController],
   providers: [

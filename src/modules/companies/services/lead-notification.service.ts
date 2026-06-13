@@ -4,6 +4,8 @@ import { CompanyLeadSource } from '@prisma/client';
 import { EmailService } from '../../email/email.service';
 import { PrismaService } from '../../shared/database/prisma.service';
 import { LEAD_SOURCE_LABELS } from '../companies.constants';
+import { NotificationsSenderService } from '../../notifications/services/notifications-sender.service';
+import { NotificationCategory, NotificationType } from '@prisma/client';
 
 export interface PublicLeadNotification {
   source: CompanyLeadSource;
@@ -25,6 +27,7 @@ export class LeadNotificationService {
     private readonly prisma: PrismaService,
     private readonly email: EmailService,
     private readonly config: ConfigService,
+    private readonly notifications: NotificationsSenderService,
   ) {}
 
   async safeNotifyManagersAboutPublicLead(
@@ -48,10 +51,10 @@ export class LeadNotificationService {
         select: {
           name: true,
           contactEmail: true,
-          owner: { select: { email: true } },
+          owner: { select: { id: true, email: true } },
           members: {
             where: { status: 'ACTIVE', role: { in: ['OWNER', 'MANAGER'] } },
-            select: { user: { select: { email: true } } },
+            select: { user: { select: { id: true, email: true } } },
           },
         },
       }),
@@ -87,6 +90,35 @@ export class LeadNotificationService {
           leadsUrl,
         }),
       ),
+    );
+
+    // Send in-app / telegram notifications
+    const userIds = [
+      company.owner.id,
+      ...company.members.map((m) => m.user.id),
+    ];
+    const uniqueUserIds = [...new Set(userIds)];
+
+    const messageParts = [
+      `Client: ${lead.contactName} (${lead.contactPhone})`,
+    ];
+    if (lead.serviceTitle) messageParts.push(`Serviciu/Proiect: ${lead.serviceTitle}`);
+    if (lead.estimatedBudget) messageParts.push(`Buget estimativ: ${lead.estimatedBudget} Lei`);
+
+    await Promise.all(
+      uniqueUserIds.map((userId) =>
+        this.notifications.send({
+          userId,
+          title: `Cerere nouă: ${sourceLabel}`,
+          message: messageParts.join('\n'),
+          type: NotificationType.IN_APP,
+          category: NotificationCategory.NEW_LEAD,
+          metadata: {
+            source: lead.source,
+            contactPhone: lead.contactPhone,
+          },
+        })
+      )
     );
   }
 }

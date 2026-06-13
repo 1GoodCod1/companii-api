@@ -8,10 +8,12 @@ import { CreatePortalInvitationUseCase } from '../portal-invitation/create-porta
 import { GetPortalEstimateUseCase } from './use-cases/get-portal-estimate.use-case';
 import { GetPortalEstimatePdfUseCase } from './use-cases/get-portal-estimate-pdf.use-case';
 import { GetPortalInvoicePdfUseCase } from './use-cases/get-portal-invoice-pdf.use-case';
+import { GetPortalQuotePdfUseCase } from './use-cases/get-portal-quote-pdf.use-case';
 import { SubmitInvoicePaymentProofUseCase } from './use-cases/submit-invoice-payment-proof.use-case';
 import { PORTAL_REPOSITORY } from './domain/ports/portal.repository.port';
 import type { PrismaPortalRepository } from './infrastructure/persistence/prisma-portal.repository';
 import { CacheService } from '../shared/cache/cache.service';
+import { toCursorPage } from '../../common/utils/cursor-page.util';
 
 @Injectable()
 export class PortalService {
@@ -26,6 +28,7 @@ export class PortalService {
     private readonly getPortalEstimate: GetPortalEstimateUseCase,
     private readonly getPortalEstimatePdf: GetPortalEstimatePdfUseCase,
     private readonly getPortalInvoicePdf: GetPortalInvoicePdfUseCase,
+    private readonly getPortalQuotePdf: GetPortalQuotePdfUseCase,
     private readonly submitInvoicePaymentProofUseCase: SubmitInvoicePaymentProofUseCase,
     private readonly cache: CacheService,
   ) {}
@@ -54,13 +57,7 @@ export class PortalService {
       category: lead.category,
       company: lead.company,
     }));
-    if (!cursor) {
-      return items as any;
-    }
-    return {
-      items,
-      nextCursor: items.length === take ? items[items.length - 1]?.id : null,
-    };
+    return toCursorPage(items, take);
   }
 
   async updateEstimateStatus(user: JwtPayload, projectId: string, status: 'ACCEPTED' | 'REJECTED') {
@@ -91,6 +88,10 @@ export class PortalService {
 
   async getInvoicePdf(user: JwtPayload, invoiceId: string) {
     return await this.getPortalInvoicePdf.execute(user, invoiceId);
+  }
+
+  async getQuotePdf(user: JwtPayload, quoteId: string) {
+    return await this.getPortalQuotePdf.execute(user, quoteId);
   }
 
   async submitInvoicePaymentProof(user: JwtPayload, invoiceId: string, fileId: string) {
