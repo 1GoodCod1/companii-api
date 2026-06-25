@@ -2,6 +2,8 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   InternalServerErrorException,
   NotFoundException,
   UnauthorizedException,
@@ -28,6 +30,10 @@ export class AppErrors {
 
   static conflict(message: string | Record<string, unknown>): ConflictException {
     return new ConflictException(message);
+  }
+
+  static tooManyRequests(message: string): HttpException {
+    return new HttpException(message, HttpStatus.TOO_MANY_REQUESTS);
   }
 
   static internal(message: string): InternalServerErrorException {

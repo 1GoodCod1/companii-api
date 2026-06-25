@@ -1,13 +1,15 @@
 import { Type } from 'class-transformer';
-import { IsNumber, IsOptional, IsString, IsUUID, Min, MinLength } from 'class-validator';
+import { IsNumber, IsOptional, IsString, IsUUID, MaxLength, Min, MinLength } from 'class-validator';
 
 export class ClientProjectRequestDto {
   @IsString()
   @MinLength(3)
+  @MaxLength(2000)
   message!: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(500)
   address?: string;
 
   @IsOptional()
@@ -16,6 +18,7 @@ export class ClientProjectRequestDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(200)
   projectTitle?: string;
 
   @IsOptional()

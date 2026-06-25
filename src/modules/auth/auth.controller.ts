@@ -14,7 +14,6 @@ import { Throttle } from '@nestjs/throttler';
 import {
   AUTH_LOGIN_THROTTLE_LIMIT,
   AUTH_LOGIN_THROTTLE_TTL_MS,
-  AUTH_THROTTLER_NAME,
   CONTROLLER_PATH,
 } from '../../common/constants';
 import { Public } from '../../common/decorators/public.decorator';
@@ -54,7 +53,7 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @Throttle({
-    [AUTH_THROTTLER_NAME]: {
+    default: {
       limit: AUTH_LOGIN_THROTTLE_LIMIT,
       ttl: AUTH_LOGIN_THROTTLE_TTL_MS,
     },

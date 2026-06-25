@@ -45,20 +45,19 @@ export class LeadNotificationService {
     companyId: string,
     lead: PublicLeadNotification,
   ): Promise<void> {
-    const company = await this.prisma.runOutsideRlsContext(() =>
-      this.prisma.company.findUnique({
-        where: { id: companyId },
-        select: {
-          name: true,
-          contactEmail: true,
-          owner: { select: { id: true, email: true } },
-          members: {
-            where: { status: 'ACTIVE', role: { in: ['OWNER', 'MANAGER'] } },
-            select: { user: { select: { id: true, email: true } } },
-          },
+    await this.prisma.runOutsideRlsContext(async () => {
+    const company = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      select: {
+        name: true,
+        contactEmail: true,
+        owner: { select: { id: true, email: true } },
+        members: {
+          where: { status: 'ACTIVE', role: { in: ['OWNER', 'MANAGER'] } },
+          select: { user: { select: { id: true, email: true } } },
         },
-      }),
-    );
+      },
+    });
     if (!company) return;
 
     const recipients = [
@@ -127,5 +126,6 @@ export class LeadNotificationService {
         })
       )
     );
+    });
   }
 }

@@ -36,7 +36,6 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { RlsModule } from './common/rls/rls.module';
 import { HealthController } from './health.controller';
 import { HealthService } from './health.service';
-import { AUTH_THROTTLER_NAME } from './common/constants';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 
 const isProd = process.env.NODE_ENV === 'production';
@@ -62,10 +61,7 @@ const isProd = process.env.NODE_ENV === 'production';
             },
           }),
         ]),
-    ThrottlerModule.forRoot([
-      { name: 'default', ttl: 60_000, limit: 120 },
-      { name: AUTH_THROTTLER_NAME, ttl: 60_000, limit: 20 },
-    ]),
+    ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 120 }]),
     EventEmitterModule.forRoot(),
     PrismaModule,
     RlsModule,

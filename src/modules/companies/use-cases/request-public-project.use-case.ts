@@ -7,6 +7,7 @@ import type { JwtPayload } from '../../auth/types/jwt-payload';
 import { ClientProjectRequestDto } from '@/modules/companies/dto/client-project-request.dto';
 import { createPublicCompanyLead } from '../utils/public-lead.util';
 import { LeadNotificationService } from '../services/lead-notification.service';
+import { assertNotSpam } from '../utils/spam-guard.util';
 
 @Injectable()
 export class RequestPublicProjectUseCase {
@@ -21,6 +22,8 @@ export class RequestPublicProjectUseCase {
       user.sub,
       user.accountKind,
     );
+
+    assertNotSpam(body.message, contact.contactPhone);
 
     return this.prisma.runOutsideRlsContext(() =>
       this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async () => {
@@ -79,9 +82,11 @@ export class RequestPublicProjectUseCase {
         },
       };
     })).then(({ response, notification }) => {
-      this.leadNotifier.safeNotifyManagersAboutPublicLead(
-        notification.companyId,
-        notification.lead,
+      this.prisma.deferOutsideRlsContext(() =>
+        this.leadNotifier.safeNotifyManagersAboutPublicLead(
+          notification.companyId,
+          notification.lead,
+        ),
       );
       return response;
     });

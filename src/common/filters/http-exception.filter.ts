@@ -121,31 +121,31 @@ export class HttpExceptionFilter implements ExceptionFilter {
         return {
           status: HttpStatus.CONFLICT,
           message: {
-            message: 'Unique constraint violation',
+            message: 'Date duplicat — această înregistrare există deja.',
             fields: exception.meta?.target,
           },
         };
       case 'P2025':
         return {
           status: HttpStatus.NOT_FOUND,
-          message: { message: 'Record not found' },
+          message: { message: 'Înregistrarea nu a fost găsită.' },
         };
       case 'P2003':
         return {
           status: HttpStatus.CONFLICT,
           message: {
-            message: 'Referenced record does not exist or is locked',
+            message: 'Înregistrarea referită nu există sau este blocată.',
           },
         };
       case 'P2034':
         return {
           status: HttpStatus.CONFLICT,
-          message: { message: 'Concurrent update conflict, please retry' },
+          message: { message: 'Conflict de actualizare concurentă. Vă rugăm reîncercați.' },
         };
       default:
         return {
           status: HttpStatus.INTERNAL_SERVER_ERROR,
-          message: { message: 'Internal server error' },
+          message: { message: 'Eroare internă de server.' },
         };
     }
   }

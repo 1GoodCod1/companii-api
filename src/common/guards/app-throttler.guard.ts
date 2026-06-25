@@ -7,6 +7,7 @@ import {
   type ThrottlerStorage,
 } from '@nestjs/throttler';
 import { GLOBAL_PREFIX_EXCLUDE } from '../../config/http-app';
+import { Request } from 'express';
 
 @Injectable()
 export class AppThrottlerGuard extends ThrottlerGuard {
@@ -17,6 +18,12 @@ export class AppThrottlerGuard extends ThrottlerGuard {
     private readonly configService: ConfigService,
   ) {
     super(options, storageService, reflector);
+  }
+  protected async getTracker(req: Request): Promise<string> {
+    const userId = (req as { user?: { sub?: string } }).user?.sub;
+    if (userId) return `user:${userId}`;
+    const ip = req.ips?.length ? req.ips[0] : req.ip;
+    return ip ?? 'unknown';
   }
 
   protected async shouldSkip(context: ExecutionContext): Promise<boolean> {

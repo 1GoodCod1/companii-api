@@ -1,4 +1,3 @@
-export const AUTH_THROTTLER_NAME = 'auth';
 export const PUBLIC_READ_THROTTLE_LIMIT = 60;
 export const PUBLIC_READ_THROTTLE_TTL_MS = 60_000;
 export const AUTH_LOGIN_THROTTLE_LIMIT = 10;

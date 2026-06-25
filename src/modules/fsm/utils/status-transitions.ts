@@ -3,7 +3,17 @@ import type {
   InvoicePaymentStatus,
   QuoteStatus,
   CompanyRole,
+  CompanyLeadStatus,
 } from '@prisma/client';
+
+const LEAD_TRANSITIONS: Record<CompanyLeadStatus, CompanyLeadStatus[]> = {
+  NEW: ['CONTACTED', 'QUALIFIED', 'LOST'],
+  CONTACTED: ['NEW', 'QUALIFIED', 'IN_PROGRESS', 'LOST'],
+  QUALIFIED: ['CONTACTED', 'IN_PROGRESS', 'LOST'],
+  IN_PROGRESS: ['QUALIFIED', 'CONVERTED', 'LOST'],
+  CONVERTED: [],
+  LOST: ['NEW'],
+};
 
 const MANAGEMENT_TRANSITIONS: Record<InterventionStatus, InterventionStatus[]> = {
   NEW: ['SCHEDULED', 'CANCELLED'],
@@ -42,6 +52,32 @@ const QUOTE_TRANSITIONS: Record<QuoteStatus, QuoteStatus[]> = {
   REJECTED: ['DRAFT'],
   CONVERTED: [],
 };
+
+export function isClosedLeadStatus(status: CompanyLeadStatus): boolean {
+  return status === 'CONVERTED' || status === 'LOST';
+}
+
+export function getAllowedLeadTransitions(from: CompanyLeadStatus): CompanyLeadStatus[] {
+  if (isClosedLeadStatus(from) && from !== 'LOST') return [];
+  return LEAD_TRANSITIONS[from] ?? [];
+}
+
+export function assertLeadTransition(
+  from: CompanyLeadStatus,
+  to: CompanyLeadStatus,
+  opts?: { allowConverted?: boolean },
+): void {
+  if (from === to) {
+    throw new Error('STATUS_UNCHANGED');
+  }
+  if (to === 'CONVERTED' && !opts?.allowConverted) {
+    throw new Error('STATUS_SYSTEM_ONLY');
+  }
+  const allowed = getAllowedLeadTransitions(from);
+  if (!allowed.includes(to)) {
+    throw new Error('STATUS_TRANSITION_INVALID');
+  }
+}
 
 export function isTerminalInterventionStatus(status: InterventionStatus): boolean {
   return status === 'PAID' || status === 'CANCELLED';

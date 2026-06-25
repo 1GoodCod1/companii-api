@@ -1,5 +1,6 @@
 import type { CompanyLeadSource, Prisma } from '@prisma/client';
 import { normalizePhone } from '../../../common/utils/phone.util';
+import { AppErrors } from '../../../common/errors';
 
 export type PublicLeadContactInput = {
   contactName: string;
@@ -88,6 +89,20 @@ export async function createPublicCompanyLead(
   options?: { portalUserId?: string },
 ) {
   const phone = normalizePhone(input.contactPhone) ?? input.contactPhone.trim();
+  const duplicate = await tx.companyLead.findFirst({
+    where: {
+      companyId: input.companyId,
+      contactPhone: phone,
+      status: 'NEW',
+      source: input.source,
+      createdAt: { gte: new Date(Date.now() - 5 * 60 * 1000) },
+    },
+    select: { id: true },
+  });
+  if (duplicate) {
+    throw AppErrors.tooManyRequests('O cerere similară a fost deja trimisă recent. Vă rugăm să așteptați.');
+  }
+
   const { customerId, created: customerCreated } = await ensureCompanyCustomerFromContact(
     tx,
     input.companyId,

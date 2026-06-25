@@ -15,6 +15,20 @@ export interface SendNotificationParams {
   skipInApp?: boolean;
 }
 
+export interface NotificationCreatedEvent {
+  userId: string;
+  notificationId: string;
+  notification: {
+    id: string;
+    type: NotificationType;
+    category: NotificationCategory | null;
+    title: string | null;
+    message: string;
+    createdAt: string;
+    metadata: Record<string, any>;
+  };
+}
+
 @Injectable()
 export class NotificationsSenderService {
   private readonly logger = new Logger(NotificationsSenderService.name);
@@ -25,45 +39,55 @@ export class NotificationsSenderService {
     private readonly eventEmitter: EventEmitter2,
   ) {}
   async send(params: SendNotificationParams) {
-    const { userId, title, message, type, category, metadata, skipInApp } = params;
+    return this.prisma.runOutsideRlsContext(async () => {
+      const { userId, title, message, type, category, metadata, skipInApp } = params;
 
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { telegramChatId: true, leadNotifyChannel: true, notifyInApp: true },
-    });
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { telegramChatId: true, leadNotifyChannel: true, notifyInApp: true },
+      });
 
-    if (!user) return null;
+      if (!user) return null;
 
-    let inAppSent = false;
-    let telegramSent = false;
-    if (user.notifyInApp && !skipInApp) {
-      const inAppNotif = await this.prisma.notification.create({
-        data: {
+      let inAppSent = false;
+      let telegramSent = false;
+      if (user.notifyInApp && !skipInApp) {
+        const inAppNotif = await this.prisma.notification.create({
+          data: {
+            userId,
+            title,
+            message,
+            type: type || NotificationType.IN_APP,
+            category,
+            status: NotificationStatus.DELIVERED,
+            metadata: metadata || {},
+          },
+        });
+        inAppSent = true;
+        const event: NotificationCreatedEvent = {
           userId,
-          title,
-          message,
-          type: type || NotificationType.IN_APP,
-          category,
-          status: NotificationStatus.DELIVERED,
-          metadata: metadata || {},
-        },
-      });
-      inAppSent = true;
-      
-      // Emit event for SSE
-      this.eventEmitter.emit('notification.created', {
-        userId,
-        notificationId: inAppNotif.id,
-      });
-    }
-    const wantsTelegram =
-      user.leadNotifyChannel === 'TELEGRAM' || user.leadNotifyChannel === 'BOTH';
-    if (user.telegramChatId && wantsTelegram) {
-      await this.sendTelegram(user.telegramChatId, message);
-      telegramSent = true;
-    }
+          notificationId: inAppNotif.id,
+          notification: {
+            id: inAppNotif.id,
+            type: inAppNotif.type,
+            category: inAppNotif.category,
+            title: inAppNotif.title,
+            message: inAppNotif.message,
+            createdAt: inAppNotif.createdAt.toISOString(),
+            metadata: (inAppNotif.metadata as Record<string, any>) ?? {},
+          },
+        };
+        this.eventEmitter.emit('notification.created', event);
+      }
+      const wantsTelegram =
+        user.leadNotifyChannel === 'TELEGRAM' || user.leadNotifyChannel === 'BOTH';
+      if (user.telegramChatId && wantsTelegram) {
+        await this.sendTelegram(user.telegramChatId, message);
+        telegramSent = true;
+      }
 
-    return { inAppSent, telegramSent };
+      return { inAppSent, telegramSent };
+    });
   }
 
   async sendTelegram(chatId: string, message: string) {

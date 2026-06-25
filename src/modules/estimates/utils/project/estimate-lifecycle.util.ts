@@ -44,7 +44,9 @@ export async function reconcileEstimateProjectLifecycle(
     const sourceLead = await tx.companyLead.findFirst({
       where: { estimateProjectId: projectId },
     });
-    if (sourceLead) {
+    // Reopen the lead only if it isn't a dead deal. A LOST lead must stay closed:
+    // cancelling its interventions should never silently revive it.
+    if (sourceLead && sourceLead.status !== 'LOST') {
       await tx.companyLead.update({
         where: { id: sourceLead.id },
         data: { status: 'IN_PROGRESS', convertedAt: null },

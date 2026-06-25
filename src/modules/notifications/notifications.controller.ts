@@ -11,14 +11,23 @@ import {
   Sse,
   MessageEvent,
 } from '@nestjs/common';
-import { Observable, fromEvent } from 'rxjs';
+import { Observable, fromEvent, merge, timer } from 'rxjs';
 import { filter, map } from 'rxjs/operators';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Streaming } from '../../common/decorators/streaming.decorator';
 import type { JwtPayload } from '../auth/types/jwt-payload';
 import { NotificationsQueryService } from './services/notifications-query.service';
 import { NotificationsActionService } from './services/notifications-action.service';
+import type { NotificationCreatedEvent } from './services/notifications-sender.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+
+/**
+ * Keep-alive interval for the SSE stream. A periodic comment-like `ping` event
+ * keeps idle proxies/load balancers from closing the connection. Named events
+ * do not trigger EventSource.onmessage, so clients ignore them.
+ */
+const SSE_HEARTBEAT_MS = 25_000;
 
 @Controller('notifications')
 @UseGuards(JwtAuthGuard)
@@ -30,11 +39,28 @@ export class NotificationsController {
   ) {}
 
   @Sse('stream')
+  @Streaming()
   stream(@CurrentUser() user: JwtPayload): Observable<MessageEvent> {
-    return fromEvent(this.eventEmitter, 'notification.created').pipe(
-      filter((payload: any) => payload.userId === user.sub),
-      map((payload) => ({ data: payload } as MessageEvent)),
+    const notifications$ = fromEvent<NotificationCreatedEvent>(
+      this.eventEmitter,
+      'notification.created',
+    ).pipe(
+      filter((payload) => payload.userId === user.sub),
+      map(
+        (payload) =>
+          ({
+            data: payload.notification ?? { id: payload.notificationId },
+          }) as MessageEvent,
+      ),
     );
+
+    // Heartbeat keeps the connection alive through idle periods; the immediate
+    // first tick also confirms the stream is open right after connect.
+    const heartbeat$ = timer(0, SSE_HEARTBEAT_MS).pipe(
+      map(() => ({ type: 'ping', data: Date.now().toString() }) as MessageEvent),
+    );
+
+    return merge(heartbeat$, notifications$);
   }
 
   @Get()

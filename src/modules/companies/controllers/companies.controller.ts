@@ -11,6 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Response } from 'express';
+import { Throttle } from '@nestjs/throttler';
 import { AppErrorMessages, AppErrors } from '../../../common/errors';
 import { CompaniesService } from '../companies.service';
 import { TeamMembersService } from '../team/team-members.service';
@@ -97,6 +98,7 @@ export class CompaniesController {
 
   @UseGuards(RolesGuard)
   @Roles('END_CLIENT')
+  @Throttle({ default: { limit: 3, ttl: 900_000 } })
   @Post(':slug/request-project')
   requestProject(
     @CurrentUser() user: JwtPayload,
@@ -111,6 +113,7 @@ export class CompaniesController {
 
   @UseGuards(RolesGuard)
   @Roles('END_CLIENT')
+  @Throttle({ default: { limit: 3, ttl: 900_000 } })
   @Post(':slug/services/:serviceId/request')
   requestService(
     @CurrentUser() user: JwtPayload,

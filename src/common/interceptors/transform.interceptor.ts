@@ -9,6 +9,7 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import type { Request } from 'express';
 import { getRequestId } from '../request-context';
+import { isStreamingHandler } from '../decorators/streaming.decorator';
 
 export interface ApiSuccessResponse<T> {
   success: true;
@@ -29,6 +30,12 @@ export class TransformInterceptor<T> implements NestInterceptor<
   ): Observable<ApiSuccessResponse<T>> {
     const request = context.switchToHttp().getRequest<Request>();
     const requestId = getRequestId();
+
+    // SSE/streaming handlers emit raw MessageEvent frames — wrapping each one in
+    // the JSON success envelope would corrupt the event stream.
+    if (isStreamingHandler(context.getHandler())) {
+      return next.handle() as Observable<ApiSuccessResponse<T>>;
+    }
 
     if (request.url === '/health' || request.url.startsWith('/metrics')) {
       return next.handle() as Observable<ApiSuccessResponse<T>>;

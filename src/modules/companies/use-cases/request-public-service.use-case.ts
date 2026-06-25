@@ -10,6 +10,7 @@ import { createPublicCompanyLead } from '../utils/public-lead.util';
 import { LeadNotificationService } from '../services/lead-notification.service';
 import { BookingAvailabilityService } from '../booking/booking-availability.service';
 import { resolveBookingSettings } from '../booking/booking-settings.util';
+import { assertNotSpam } from '../utils/spam-guard.util';
 
 @Injectable()
 export class RequestPublicServiceUseCase {
@@ -30,6 +31,9 @@ export class RequestPublicServiceUseCase {
       user.sub,
       user.accountKind,
     );
+
+    assertNotSpam(body.message, contact.contactPhone);
+
     return this.prisma.runOutsideRlsContext(() =>
       this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async (tx) => {
       const company = await tx.company.findFirst({
@@ -93,9 +97,11 @@ export class RequestPublicServiceUseCase {
         },
       };
     })).then(({ response, notification }) => {
-      this.leadNotifier.safeNotifyManagersAboutPublicLead(
-        notification.companyId,
-        notification.lead,
+      this.prisma.deferOutsideRlsContext(() =>
+        this.leadNotifier.safeNotifyManagersAboutPublicLead(
+          notification.companyId,
+          notification.lead,
+        ),
       );
       return response;
     });

@@ -16,6 +16,7 @@ import { createEstimateProjectWithStages } from '../../../estimates/utils/projec
 import { nextCompanyNumber } from '../../../../common/utils/sequence-number.util';
 import { toCursorPage } from '../../../../common/utils/cursor-page.util';
 import { RLS_SYSTEM_CONTEXT } from '../../../../common/rls/rls-system.util';
+import { assertLeadTransition, isClosedLeadStatus } from '../../utils/status-transitions';
 import type { EstimateBlueprintConfig } from '../../../../../prisma/estimate-blueprints';
 
 const leadInclude = {
@@ -126,6 +127,19 @@ export class LeadsService {
       throw AppErrors.badRequest('Folosiți acțiunea de finalizare sau conversie a cererii.');
     }
 
+    if (data.status) {
+      try {
+        assertLeadTransition(existing.status, data.status);
+      } catch (err) {
+        if (err instanceof Error) {
+          throw AppErrors.badRequest(
+            `Tranziția ${existing.status} → ${data.status} nu este permisă.`,
+          );
+        }
+        throw err;
+      }
+    }
+
     const result = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.companyLead.update({
         where: { id },
@@ -182,18 +196,60 @@ export class LeadsService {
       throw AppErrors.badRequest('Cererea este marcată pierdută.');
     }
 
-    const result = await this.prisma.companyLead.update({
-      where: { id },
-      data: {
-        status: 'CONVERTED',
-        convertedAt: new Date(),
-      },
-      include: leadInclude,
+    try {
+      assertLeadTransition(lead.status, 'CONVERTED', { allowConverted: true });
+    } catch (err) {
+      if (err instanceof Error) {
+        throw AppErrors.badRequest(
+          `Tranziția ${lead.status} → CONVERTED nu este permisă.`,
+        );
+      }
+      throw err;
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.companyLead.update({
+        where: { id },
+        data: {
+          status: 'CONVERTED',
+          convertedAt: new Date(),
+        },
+        include: leadInclude,
+      });
+
+      // Sync linked interventions: complete any open ones
+      const openInterventions = await tx.intervention.findMany({
+        where: {
+          sourceLeadId: id,
+          status: { notIn: ['COMPLETED', 'CANCELLED', 'INVOICED', 'PAID'] },
+        },
+        select: { id: true, status: true, number: true },
+      });
+
+      for (const intv of openInterventions) {
+        await tx.intervention.update({
+          where: { id: intv.id },
+          data: { status: 'COMPLETED' },
+        });
+        if (user.memberId) {
+          await tx.interventionStatusHistory.create({
+            data: {
+              interventionId: intv.id,
+              fromStatus: intv.status,
+              toStatus: 'COMPLETED',
+              changedByMemberId: user.memberId,
+              note: 'Finalizat automat la conversia cererii.',
+            },
+          });
+        }
+      }
+
+      return { updated, completedInterventions: openInterventions };
     });
 
     await this.cache.invalidateAnalytics(this.companyId(user));
 
-    return result;
+    return result.updated;
   }
 
   async convertLead(
@@ -315,8 +371,7 @@ export class LeadsService {
 
         const keepOpen =
           lead.source === 'PROJECT_REQUEST' ||
-          lead.estimateProjectId != null ||
-          lead.status === 'IN_PROGRESS';
+          lead.estimateProjectId != null;
 
         await tx.companyLead.update({
           where: { id },
