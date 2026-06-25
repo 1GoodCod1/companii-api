@@ -2,6 +2,7 @@ import { Module, forwardRef } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { CompaniesModule } from '../companies/companies.module';
 import { FilesModule } from '../files/files.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { FsmService } from './fsm.service';
 import {
   FsmAnalyticsController,
@@ -40,7 +41,7 @@ import { PipelineService } from './services/pipeline/pipeline.service';
 import { GlobalSearchService } from './services/search/global-search.service';
 
 @Module({
-  imports: [forwardRef(() => AuthModule), CompaniesModule, InvoicePdfModule, FilesModule],
+  imports: [forwardRef(() => AuthModule), CompaniesModule, InvoicePdfModule, FilesModule, NotificationsModule],
   controllers: [
     FsmCustomersController,
     FsmInterventionsController,

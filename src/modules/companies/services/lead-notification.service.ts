@@ -116,6 +116,13 @@ export class LeadNotificationService {
           metadata: {
             source: lead.source,
             contactPhone: lead.contactPhone,
+            i18nKey: 'newLead',
+            params: {
+              contactName: lead.contactName,
+              contactPhone: lead.contactPhone,
+              serviceTitle: lead.serviceTitle ?? '',
+              estimatedBudget: lead.estimatedBudget ?? '',
+            },
           },
         })
       )

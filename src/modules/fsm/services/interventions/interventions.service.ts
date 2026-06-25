@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { InterventionStatus, Prisma } from '@prisma/client';
+import { InterventionStatus, NotificationCategory, Prisma } from '@prisma/client';
 import { AppErrorMessages, AppErrors } from '../../../../common/errors';
 import { CompanyAuthorizationService } from '../../../companies/authorization/company-authorization.service';
 import { PrismaService } from '../../../shared/database/prisma.service';
@@ -14,6 +14,8 @@ import { nextCompanyNumber } from '../../../../common/utils/sequence-number.util
 import { toCursorPage } from '../../../../common/utils/cursor-page.util';
 import { CrewsService } from './crews.service';
 import { EmailService } from '../../../email/email.service';
+import { NotificationsSenderService } from '../../../notifications/services/notifications-sender.service';
+import { notifyPortalClient } from '../../utils/notify-portal-client.util';
 import { reconcileEstimateProjectLifecycle } from '../../../estimates/utils/project/estimate-lifecycle.util';
 
 const assignmentsInclude = {
@@ -44,6 +46,7 @@ export class InterventionsService {
     private readonly crews: CrewsService,
     private readonly config: ConfigService,
     private readonly cache: CacheService,
+    private readonly notifications: NotificationsSenderService,
   ) {}
 
   private async notifyAssignedMembers(
@@ -442,6 +445,29 @@ export class InterventionsService {
       if (newlyAdded.length > 0) {
         void this.notifyAssignedMembers(cid, updated, newlyAdded);
       }
+    }
+
+    if (shouldAutoSchedule) {
+      const when = updated.scheduledAt
+        ? ` pentru ${updated.scheduledAt.toLocaleString('ro-MD')}`
+        : '';
+      void notifyPortalClient(
+        this.prisma,
+        this.notifications,
+        { customerId: updated.customerId },
+        {
+          title: 'Lucrare programată',
+          message: `Lucrarea #${updated.number} a fost programată${when}.`,
+          category: NotificationCategory.INTERVENTION_SCHEDULED,
+          link: '/portal/lucrari',
+          i18nKey: 'interventionScheduled',
+          params: {
+            number: updated.number,
+            scheduledAt: updated.scheduledAt ? updated.scheduledAt.toISOString() : '',
+          },
+          meta: { interventionId: updated.id, number: updated.number },
+        },
+      );
     }
 
     await this.cache.invalidateAnalytics(cid);

@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import type { Request } from 'express';
 import { AppErrors, AppErrorMessages } from '../../../common/errors';
 import { PrismaService } from '../../shared/database/prisma.service';
 import { RedisService } from '../../shared/redis/redis.service';
@@ -23,6 +24,11 @@ function resolveJwtSecret(config: ConfigService): string {
   return secret;
 }
 
+function accessTokenFromQuery(req: Request): string | null {
+  const token = req.query?.access_token;
+  return typeof token === 'string' && token.length > 0 ? token : null;
+}
+
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   private readonly logger = new Logger(JwtStrategy.name);
@@ -33,7 +39,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private readonly redis: RedisService,
   ) {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
+        accessTokenFromQuery,
+      ]),
       ignoreExpiration: false,
       secretOrKey: resolveJwtSecret(config),
     });

@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { InvoicePaymentStatus, Prisma } from '@prisma/client';
+import { InvoicePaymentStatus, NotificationCategory, Prisma } from '@prisma/client';
 import { AppErrorMessages, AppErrors } from '../../../../common/errors';
 import { PrismaService } from '../../../shared/database/prisma.service';
 import { CacheService } from '../../../shared/cache/cache.service';
@@ -9,6 +9,8 @@ import type { JwtPayload } from '../../../auth/types/jwt-payload';
 import { assertPaymentTransition } from '../../utils/status-transitions';
 import { reconcileEstimateProjectLifecycle } from '../../../estimates/utils/project/estimate-lifecycle.util';
 import { InvoicePdfCacheService } from './invoice-pdf-cache.service';
+import { NotificationsSenderService } from '../../../notifications/services/notifications-sender.service';
+import { notifyPortalClient } from '../../utils/notify-portal-client.util';
 import { RLS_SYSTEM_CONTEXT } from '../../../../common/rls/rls-system.util';
 import { nextCompanyNumber } from '../../../../common/utils/sequence-number.util';
 
@@ -22,7 +24,29 @@ export class InvoiceLifecycleService {
     private readonly pdfCache: InvoicePdfCacheService,
     private readonly storage: StorageService,
     private readonly cache: CacheService,
+    private readonly notifications: NotificationsSenderService,
   ) {}
+
+  private notifyClientPaymentConfirmed(invoice: {
+    number: string;
+    interventionId: string | null;
+  }): void {
+    if (!invoice.interventionId) return;
+    void notifyPortalClient(
+      this.prisma,
+      this.notifications,
+      { interventionId: invoice.interventionId },
+      {
+        title: 'Plată confirmată',
+        message: `Plata pentru factura #${invoice.number} a fost confirmată. Vă mulțumim!`,
+        category: NotificationCategory.PAYMENT_SUCCESS,
+        link: '/portal/facturi',
+        i18nKey: 'paymentConfirmed',
+        params: { number: invoice.number },
+        meta: { invoiceNumber: invoice.number },
+      },
+    );
+  }
 
   async create(
     user: JwtPayload,
@@ -139,6 +163,26 @@ export class InvoiceLifecycleService {
     });
 
     await this.cache.invalidateAnalytics(cid);
+
+    const total = Number(result.amount) + Number(result.tvaAmount);
+    void notifyPortalClient(
+      this.prisma,
+      this.notifications,
+      { interventionId: data.interventionId },
+      {
+        title: 'Factură nouă',
+        message: `${company?.name ?? 'Compania'} v-a emis factura #${result.number} în valoare de ${total.toFixed(2)} MDL.`,
+        category: NotificationCategory.INVOICE_ISSUED,
+        link: '/portal/facturi',
+        i18nKey: 'invoiceIssued',
+        params: {
+          companyName: company?.name ?? 'Compania',
+          number: result.number,
+          total: total.toFixed(2),
+        },
+        meta: { invoiceNumber: result.number, total },
+      },
+    );
 
     return result;
   }
@@ -262,6 +306,10 @@ export class InvoiceLifecycleService {
           }
         });
       }
+    }
+
+    if (data.paymentStatus === 'PAID' && existing.paymentStatus !== 'PAID') {
+      this.notifyClientPaymentConfirmed(existing);
     }
 
     await this.cache.invalidateAnalytics(this.ctx.companyId(user));
@@ -422,6 +470,10 @@ export class InvoiceLifecycleService {
       return updated;
     });
 
+    if (isFullyPaid) {
+      this.notifyClientPaymentConfirmed(existing);
+    }
+
     await this.cache.invalidateAnalytics(this.ctx.companyId(user));
 
     return result;
@@ -578,6 +630,8 @@ export class InvoiceLifecycleService {
           ),
         );
     }
+
+    this.notifyClientPaymentConfirmed(existing);
 
     await this.cache.invalidateAnalytics(existing.companyId);
 

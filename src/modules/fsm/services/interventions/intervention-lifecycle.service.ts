@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { InterventionStatus, Prisma } from '@prisma/client';
+import { InterventionStatus, NotificationCategory, Prisma } from '@prisma/client';
 import { AppErrorMessages, AppErrors } from '../../../../common/errors';
 import { PrismaService } from '../../../shared/database/prisma.service';
 import { CacheService } from '../../../shared/cache/cache.service';
@@ -10,6 +10,8 @@ import {
   isTerminalInterventionStatus,
 } from '../../utils/status-transitions';
 import { EmailService } from '../../../email/email.service';
+import { NotificationsSenderService } from '../../../notifications/services/notifications-sender.service';
+import { notifyPortalClient } from '../../utils/notify-portal-client.util';
 import { isEstimateLaborLine } from '../../../estimates/utils/calculation/estimate-line-recalculate.util';
 import { reconcileEstimateProjectLifecycle } from '../../../estimates/utils/project/estimate-lifecycle.util';
 
@@ -22,6 +24,7 @@ export class InterventionLifecycleService {
     private readonly ctx: FsmContextService,
     private readonly email: EmailService,
     private readonly cache: CacheService,
+    private readonly notifications: NotificationsSenderService,
   ) {}
 
   async updateStatus(
@@ -82,6 +85,44 @@ export class InterventionLifecycleService {
         existing.estimateProjectId,
       ).catch((err) =>
         this.logger.error('Failed to notify managers about pending receipts', err),
+      );
+    }
+
+    if (toStatus === 'SCHEDULED') {
+      const when = existing.scheduledAt
+        ? ` pentru ${existing.scheduledAt.toLocaleString('ro-MD')}`
+        : '';
+      void notifyPortalClient(
+        this.prisma,
+        this.notifications,
+        { customerId: existing.customerId },
+        {
+          title: 'Lucrare programată',
+          message: `Lucrarea #${existing.number} a fost programată${when}.`,
+          category: NotificationCategory.INTERVENTION_SCHEDULED,
+          link: '/portal/lucrari',
+          i18nKey: 'interventionScheduled',
+          params: {
+            number: existing.number,
+            scheduledAt: existing.scheduledAt ? existing.scheduledAt.toISOString() : '',
+          },
+          meta: { interventionId: existing.id, number: existing.number },
+        },
+      );
+    } else if (toStatus === 'COMPLETED') {
+      void notifyPortalClient(
+        this.prisma,
+        this.notifications,
+        { customerId: existing.customerId },
+        {
+          title: 'Lucrare finalizată',
+          message: `Lucrarea #${existing.number} a fost finalizată.`,
+          category: NotificationCategory.INTERVENTION_COMPLETED,
+          link: '/portal/lucrari',
+          i18nKey: 'interventionCompleted',
+          params: { number: existing.number },
+          meta: { interventionId: existing.id, number: existing.number },
+        },
       );
     }
 

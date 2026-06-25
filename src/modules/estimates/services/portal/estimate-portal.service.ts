@@ -123,6 +123,15 @@ export class EstimatePortalService {
             message: `Clientul ${fullProject.customer.fullName} a ${statusRo} calculul de preț #${fullProject.number} - ${fullProject.title}.`,
             type: NotificationType.IN_APP,
             category: NotificationCategory.QUOTE_ACCEPTED,
+            metadata: {
+              link: `/company/smete/${fullProject.id}`,
+              i18nKey: status === 'ACCEPTED' ? 'estimateAccepted' : 'estimateRejected',
+              params: {
+                clientName: fullProject.customer.fullName,
+                number: fullProject.number,
+                title: fullProject.title,
+              },
+            },
           })
         )
       );
@@ -214,6 +223,16 @@ export class EstimatePortalService {
             message: `Clientul ${fullProject.customer.fullName} a lăsat un comentariu la calculul #${fullProject.number} - ${fullProject.title}:\n\n"${trimmed}"`,
             type: NotificationType.IN_APP,
             category: NotificationCategory.QUOTE_ACCEPTED,
+            metadata: {
+              link: `/company/smete/${fullProject.id}`,
+              i18nKey: 'estimateFeedback',
+              params: {
+                clientName: fullProject.customer.fullName,
+                number: fullProject.number,
+                title: fullProject.title,
+                comment: trimmed,
+              },
+            },
           })
         )
       );
