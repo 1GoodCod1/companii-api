@@ -3,6 +3,7 @@ import { InterventionStatus, NotificationCategory, Prisma } from '@prisma/client
 import { AppErrorMessages, AppErrors } from '../../../../common/errors';
 import { PrismaService } from '../../../shared/database/prisma.service';
 import { CacheService } from '../../../shared/cache/cache.service';
+import { BookingAvailabilityService } from '../../../companies/booking/booking-availability.service';
 import type { JwtPayload } from '../../../auth/types/jwt-payload';
 import { FsmContextService } from '../../context/fsm-context.service';
 import {
@@ -25,6 +26,7 @@ export class InterventionLifecycleService {
     private readonly email: EmailService,
     private readonly cache: CacheService,
     private readonly notifications: NotificationsSenderService,
+    private readonly availability: BookingAvailabilityService,
   ) {}
 
   async updateStatus(
@@ -57,6 +59,17 @@ export class InterventionLifecycleService {
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
+      // Guard against double-booking when a work moves into SCHEDULED.
+      if (toStatus === 'SCHEDULED' && existing.scheduledAt) {
+        await this.availability.lockCompany(tx, existing.companyId);
+        await this.availability.assertCompanySlotFree(
+          tx,
+          existing.companyId,
+          existing.scheduledAt,
+          existing.durationMinutes,
+          id,
+        );
+      }
       const updated = await tx.intervention.update({
         where: { id },
         data: { status: toStatus },

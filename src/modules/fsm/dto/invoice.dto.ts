@@ -58,6 +58,12 @@ export class RecordInvoicePaymentDto {
   @IsString()
   @MaxLength(1000)
   note?: string;
+
+  /** Optional receipt/proof file (id of an uploaded file) attached by the company. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  proofFileId?: string;
 }
 
 export class RejectInvoicePaymentDto {

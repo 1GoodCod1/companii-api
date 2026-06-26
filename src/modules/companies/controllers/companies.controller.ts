@@ -129,11 +129,20 @@ export class CompaniesController {
 
   @Public()
   @Get(':slug/booking-slots')
-  bookingSlots(@Param('slug') slug: string, @Query('from') from?: string) {
+  bookingSlots(
+    @Param('slug') slug: string,
+    @Query('from') from?: string,
+    @Query('durationMinutes') durationMinutes?: string,
+  ) {
     if (RESERVED_COMPANY_SLUGS.has(slug)) {
       throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
     }
-    return this.companies.getBookingSlots(slug, from);
+    const duration = durationMinutes ? Number(durationMinutes) : undefined;
+    return this.companies.getBookingSlots(
+      slug,
+      from,
+      Number.isFinite(duration) ? duration : undefined,
+    );
   }
 
   @Public()

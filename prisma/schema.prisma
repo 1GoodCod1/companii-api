@@ -584,6 +584,7 @@ model CompanyLead {
   estimatedBudget    Decimal?          @map("estimated_budget") @db.Decimal(12, 2)
   estimateProjectId  String?           @unique @map("estimate_project_id")
   scheduledAt        DateTime?         @map("scheduled_at")
+  durationMinutes    Int?              @map("duration_minutes")
   notes        String?
   convertedAt  DateTime?         @map("converted_at")
   createdAt    DateTime          @default(now()) @map("created_at")
@@ -636,6 +637,7 @@ model Intervention {
   address        String
   status         InterventionStatus @default(NEW)
   scheduledAt    DateTime?          @map("scheduled_at")
+  durationMinutes Int?              @map("duration_minutes")
   estimatedPrice Decimal?           @map("estimated_price") @db.Decimal(12, 2)
   finalPrice     Decimal?           @map("final_price") @db.Decimal(12, 2)
   internalNotes      String?            @map("internal_notes")

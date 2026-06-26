@@ -389,7 +389,7 @@ export class InvoiceLifecycleService {
   async recordPayment(
     user: JwtPayload,
     id: string,
-    data: { amount: number; note?: string },
+    data: { amount: number; note?: string; proofFileId?: string },
   ) {
     if (!Number.isFinite(data.amount) || data.amount <= 0) {
       throw AppErrors.badRequest('Payment amount must be positive.');
@@ -423,6 +423,14 @@ export class InvoiceLifecycleService {
           paidAmount: new Prisma.Decimal(newPaid),
           ...(isFullyPaid
             ? { paymentStatus: 'PAID', pdfFileKey: null }
+            : {}),
+          // Receipt attached by the company itself (not the client portal).
+          ...(data.proofFileId
+            ? {
+                paymentProofFileKey: data.proofFileId,
+                paymentProofConfirmedByMemberId: user.memberId ?? null,
+                paymentProofConfirmedAt: new Date(),
+              }
             : {}),
         },
       });

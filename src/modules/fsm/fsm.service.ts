@@ -84,6 +84,7 @@ export class FsmService {
       assigneeMemberIds?: string[];
       crewId?: string;
       scheduledAt?: string;
+      durationMinutes?: number;
       estimatedPrice?: number;
       internalNotes?: string;
     },
@@ -102,6 +103,7 @@ export class FsmService {
       assigneeMemberIds?: string[];
       crewId?: string | null;
       scheduledAt?: string | null;
+      durationMinutes?: number | null;
       estimatedPrice?: number | null;
       finalPrice?: number | null;
       internalNotes?: string | null;
@@ -244,7 +246,7 @@ export class FsmService {
   recordInvoicePayment(
     user: JwtPayload,
     id: string,
-    data: { amount: number; note?: string },
+    data: { amount: number; note?: string; proofFileId?: string },
   ) {
     return this.invoices.recordPayment(user, id, data);
   }

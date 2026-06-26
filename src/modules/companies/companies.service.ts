@@ -100,8 +100,8 @@ export class CompaniesService {
     return this.requestPublicProjectUc.execute(user, companySlug, body);
   }
 
-  getBookingSlots(companySlug: string, from?: string) {
-    return this.getBookingSlotsUc.execute(companySlug, from);
+  getBookingSlots(companySlug: string, from?: string, durationMinutes?: number) {
+    return this.getBookingSlotsUc.execute(companySlug, from, durationMinutes);
   }
 
   getAuditLogs(

@@ -44,6 +44,6 @@ import { NotificationsModule } from '../notifications/notifications.module';
     TeamMembersService,
     CompanyGuard,
   ],
-  exports: [CompanyAuthorizationModule],
+  exports: [CompanyAuthorizationModule, BookingAvailabilityService],
 })
 export class CompaniesModule {}

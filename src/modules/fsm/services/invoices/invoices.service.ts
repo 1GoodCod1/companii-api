@@ -58,7 +58,7 @@ export class InvoicesService {
   async recordPayment(
     user: JwtPayload,
     id: string,
-    data: { amount: number; note?: string },
+    data: { amount: number; note?: string; proofFileId?: string },
   ) {
     return await this.lifecycle.recordPayment(user, id, data);
   }

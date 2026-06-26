@@ -15,6 +15,11 @@ export type BookingDayHours = [string, string] | null;
 
 export interface BookingSettings {
   enabled: boolean;
+  /**
+   * When true, a client booking becomes a SCHEDULED work immediately. When
+   * false it arrives as a NEW lead holding the slot, for manual confirmation.
+   */
+  autoConfirm: boolean;
   timezone: string;
   slotMinutes: number;
   leadTimeHours: number;
@@ -26,6 +31,7 @@ export interface BookingSettings {
 
 export const DEFAULT_BOOKING_SETTINGS: BookingSettings = {
   enabled: true,
+  autoConfirm: true,
   timezone: 'Europe/Chisinau',
   slotMinutes: 60,
   leadTimeHours: 2,
@@ -92,6 +98,7 @@ export function resolveBookingSettings(raw: unknown): BookingSettings {
 
   return {
     enabled: obj.enabled === undefined ? defaults.enabled : obj.enabled === true,
+    autoConfirm: obj.autoConfirm === undefined ? defaults.autoConfirm : obj.autoConfirm === true,
     timezone: typeof obj.timezone === 'string' && obj.timezone ? obj.timezone : defaults.timezone,
     slotMinutes: clampInt(obj.slotMinutes, 15, 240, defaults.slotMinutes),
     leadTimeHours: clampInt(obj.leadTimeHours, 0, 72, defaults.leadTimeHours),

@@ -32,6 +32,7 @@ export const AppErrorMessages = {
   CLIENT_REQUEST_END_CLIENT_ONLY: 'Only registered client accounts can submit requests',
   BOOKING_DISABLED: 'Online booking is not available for this company',
   BOOKING_SLOT_UNAVAILABLE: 'Selected time slot is no longer available',
+  BOOKING_SLOT_CONFLICT: 'The company is already busy with another work at this time',
   CLIENT_PHONE_REQUIRED: 'Add a phone number to your profile before submitting a request',
   PORTAL_NOT_LINKED: 'Portal profile not linked',
   PORTAL_INVITE_INVALID: 'Portal invitation is invalid or expired',

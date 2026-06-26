@@ -1,31 +1,36 @@
 import { Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
+import { AppErrorMessages, AppErrors } from '../../../common/errors';
 import { PrismaService } from '../../shared/database/prisma.service';
-import type { BookingSettings } from './booking-settings.util';
-import { computeAvailableSlots, isSlotAvailable, zonedTimeToUtc, type BookingDay } from './booking-slots.util';
+import { resolveBookingSettings, type BookingSettings } from './booking-settings.util';
+import {
+  clampDurationMinutes,
+  computeAvailableSlots,
+  hasCapacity,
+  isSlotAvailable,
+  zonedTimeToUtc,
+  MAX_BOOKING_DURATION_MINUTES,
+  type BookingDay,
+  type BusySpan,
+} from './booking-slots.util';
 
-/**
- * Lead statuses that still hold their requested time slot. CONVERTED is
- * excluded because the converted lead's intervention occupies the slot.
- */
 const SLOT_HOLDING_LEAD_STATUSES = ['NEW', 'CONTACTED', 'QUALIFIED', 'IN_PROGRESS'] as const;
+const LOOKBACK_MS = MAX_BOOKING_DURATION_MINUTES * 60 * 1000;
 
 @Injectable()
 export class BookingAvailabilityService {
   constructor(private readonly prisma: PrismaService) {}
-
-  /**
-   * Collects busy slot starts for a company inside [from, to]. Must run under
-   * a privileged RLS context: interventions and leads are tenant-scoped and
-   * deliberately unreadable by anonymous/portal sessions — only the aggregated
-   * availability ever leaves the API.
-   */
-  async findBusyStarts(
+  async lockCompany(tx: Prisma.TransactionClient, companyId: string): Promise<void> {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${companyId}))`;
+  }
+  async findBusy(
     tx: Prisma.TransactionClient,
     companyId: string,
     from: Date,
     to: Date,
-  ): Promise<Date[]> {
+    fallbackDurationMinutes: number,
+    excludeInterventionId?: string,
+  ): Promise<BusySpan[]> {
     const [interventions, leads] = await this.prisma.inSerial([
       () =>
         tx.intervention.findMany({
@@ -33,8 +38,9 @@ export class BookingAvailabilityService {
             companyId,
             scheduledAt: { gte: from, lte: to },
             status: { not: 'CANCELLED' },
+            ...(excludeInterventionId ? { id: { not: excludeInterventionId } } : {}),
           },
-          select: { scheduledAt: true },
+          select: { scheduledAt: true, durationMinutes: true },
         }),
       () =>
         tx.companyLead.findMany({
@@ -43,13 +49,19 @@ export class BookingAvailabilityService {
             scheduledAt: { gte: from, lte: to },
             status: { in: [...SLOT_HOLDING_LEAD_STATUSES] },
           },
-          select: { scheduledAt: true },
+          select: { scheduledAt: true, durationMinutes: true },
         }),
     ]);
 
-    return [...interventions, ...leads]
-      .map((item) => item.scheduledAt)
-      .filter((value): value is Date => value !== null);
+    const rows: { scheduledAt: Date | null; durationMinutes: number | null }[] = [
+      ...interventions,
+      ...leads,
+    ];
+    return rows.flatMap((item) =>
+      item.scheduledAt
+        ? [{ start: item.scheduledAt, durationMinutes: item.durationMinutes ?? fallbackDurationMinutes }]
+        : [],
+    );
   }
 
   async availableDays(
@@ -58,14 +70,19 @@ export class BookingAvailabilityService {
     settings: BookingSettings,
     fromDate: string,
     days: number,
+    requestedDurationMinutes: number,
     now = new Date(),
   ): Promise<BookingDay[]> {
     const windowStart = zonedTimeToUtc(fromDate, '00:00', settings.timezone);
-    const windowEnd = new Date(
-      windowStart.getTime() + days * 24 * 60 * 60 * 1000,
+    const windowEnd = new Date(windowStart.getTime() + days * 24 * 60 * 60 * 1000);
+    const busy = await this.findBusy(
+      tx,
+      companyId,
+      new Date(windowStart.getTime() - LOOKBACK_MS),
+      windowEnd,
+      settings.slotMinutes,
     );
-    const busy = await this.findBusyStarts(tx, companyId, windowStart, windowEnd);
-    return computeAvailableSlots({ settings, fromDate, days, busy, now });
+    return computeAvailableSlots({ settings, fromDate, days, busy, now, requestedDurationMinutes });
   }
 
   async slotIsFree(
@@ -73,15 +90,43 @@ export class BookingAvailabilityService {
     companyId: string,
     settings: BookingSettings,
     slotStart: Date,
+    durationMinutes: number,
     now = new Date(),
   ): Promise<boolean> {
-    const slotMs = settings.slotMinutes * 60 * 1000;
-    const busy = await this.findBusyStarts(
+    const busy = await this.findBusy(
       tx,
       companyId,
-      new Date(slotStart.getTime() - slotMs),
-      new Date(slotStart.getTime() + slotMs),
+      new Date(slotStart.getTime() - LOOKBACK_MS),
+      new Date(slotStart.getTime() + durationMinutes * 60 * 1000),
+      settings.slotMinutes,
     );
-    return isSlotAvailable(settings, slotStart, busy, now);
+    return isSlotAvailable(settings, slotStart, durationMinutes, busy, now);
+  }
+  async assertCompanySlotFree(
+    tx: Prisma.TransactionClient,
+    companyId: string,
+    start: Date,
+    durationMinutes: number | null | undefined,
+    excludeInterventionId?: string,
+  ): Promise<void> {
+    const company = await tx.company.findUnique({
+      where: { id: companyId },
+      select: { bookingSettings: true },
+    });
+    const settings = resolveBookingSettings(company?.bookingSettings);
+    const duration = clampDurationMinutes(durationMinutes ?? settings.slotMinutes, settings.slotMinutes);
+    const startMs = start.getTime();
+    const endMs = startMs + duration * 60 * 1000;
+    const busy = await this.findBusy(
+      tx,
+      companyId,
+      new Date(startMs - LOOKBACK_MS),
+      new Date(endMs),
+      settings.slotMinutes,
+      excludeInterventionId,
+    );
+    if (!hasCapacity(busy, startMs, endMs, settings.concurrent)) {
+      throw AppErrors.conflict(AppErrorMessages.BOOKING_SLOT_CONFLICT);
+    }
   }
 }

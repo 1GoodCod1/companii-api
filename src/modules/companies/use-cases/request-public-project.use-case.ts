@@ -7,6 +7,9 @@ import type { JwtPayload } from '../../auth/types/jwt-payload';
 import { ClientProjectRequestDto } from '@/modules/companies/dto/client-project-request.dto';
 import { createPublicCompanyLead } from '../utils/public-lead.util';
 import { LeadNotificationService } from '../services/lead-notification.service';
+import { BookingAvailabilityService } from '../booking/booking-availability.service';
+import { resolveBookingSettings } from '../booking/booking-settings.util';
+import { clampDurationMinutes } from '../booking/booking-slots.util';
 import { assertNotSpam } from '../utils/spam-guard.util';
 
 @Injectable()
@@ -14,6 +17,7 @@ export class RequestPublicProjectUseCase {
   constructor(
     private readonly prisma: PrismaService,
     private readonly leadNotifier: LeadNotificationService,
+    private readonly availability: BookingAvailabilityService,
   ) {}
 
   async execute(user: JwtPayload, companySlug: string, body: ClientProjectRequestDto) {
@@ -26,36 +30,62 @@ export class RequestPublicProjectUseCase {
     assertNotSpam(body.message, contact.contactPhone);
 
     return this.prisma.runOutsideRlsContext(() =>
-      this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async () => {
-      const company = await this.prisma.company.findFirst({
+      this.prisma.withRlsContext(RLS_SYSTEM_CONTEXT, async (tx) => {
+      const company = await tx.company.findFirst({
         where: { slug: companySlug, isPublished: true, isVerified: true },
-        select: { id: true, categoryId: true },
+        select: { id: true, categoryId: true, bookingSettings: true },
       });
       if (!company) throw AppErrors.notFound(AppErrorMessages.COMPANY_NOT_FOUND);
 
       const categoryId = body.categoryId ?? company.categoryId ?? undefined;
       if (categoryId) {
-        const category = await this.prisma.category.findUnique({ where: { id: categoryId } });
+        const category = await tx.category.findUnique({ where: { id: categoryId } });
         if (!category) throw AppErrors.notFound(AppErrorMessages.RECORD_NOT_FOUND);
       }
 
-      const result = await this.prisma.$transaction((tx) =>
-        createPublicCompanyLead(
+      // Optional proposed date: reserve the slot on the project request itself.
+      // A complex project still goes through estimation, so we do NOT auto-create
+      // a scheduled work — the date just holds the slot (race-safe).
+      const settings = resolveBookingSettings(company.bookingSettings);
+      const scheduledAt = body.scheduledAt ? new Date(body.scheduledAt) : undefined;
+      const durationMinutes = scheduledAt
+        ? clampDurationMinutes(body.durationMinutes, settings.slotMinutes)
+        : undefined;
+      if (scheduledAt) {
+        if (Number.isNaN(scheduledAt.getTime())) {
+          throw AppErrors.badRequest(AppErrorMessages.BOOKING_SLOT_UNAVAILABLE);
+        }
+        if (!settings.enabled) {
+          throw AppErrors.badRequest(AppErrorMessages.BOOKING_DISABLED);
+        }
+        await this.availability.lockCompany(tx, company.id);
+        const free = await this.availability.slotIsFree(
           tx,
-          {
-            companyId: company.id,
-            contactName: contact.contactName,
-            contactPhone: contact.contactPhone,
-            contactEmail: contact.contactEmail,
-            message: body.message.trim(),
-            address: body.address,
-            categoryId,
-            serviceTitle: body.projectTitle?.trim() || 'Cerere proiect',
-            estimatedBudget: body.estimatedBudget,
-            source: 'PROJECT_REQUEST',
-          },
-          { portalUserId: contact.portalUserId },
-        ),
+          company.id,
+          settings,
+          scheduledAt,
+          durationMinutes!,
+        );
+        if (!free) throw AppErrors.conflict(AppErrorMessages.BOOKING_SLOT_UNAVAILABLE);
+      }
+
+      const result = await createPublicCompanyLead(
+        tx,
+        {
+          companyId: company.id,
+          contactName: contact.contactName,
+          contactPhone: contact.contactPhone,
+          contactEmail: contact.contactEmail,
+          message: body.message.trim(),
+          address: body.address,
+          scheduledAt,
+          durationMinutes,
+          categoryId,
+          serviceTitle: body.projectTitle?.trim() || 'Cerere proiect',
+          estimatedBudget: body.estimatedBudget,
+          source: 'PROJECT_REQUEST',
+        },
+        { portalUserId: contact.portalUserId },
       );
 
       return {

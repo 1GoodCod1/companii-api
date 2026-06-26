@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { InterventionStatus, NotificationCategory, Prisma } from '@prisma/client';
 import { AppErrorMessages, AppErrors } from '../../../../common/errors';
 import { CompanyAuthorizationService } from '../../../companies/authorization/company-authorization.service';
+import { BookingAvailabilityService } from '../../../companies/booking/booking-availability.service';
 import { PrismaService } from '../../../shared/database/prisma.service';
 import { CacheService } from '../../../shared/cache/cache.service';
 import type { JwtPayload } from '../../../auth/types/jwt-payload';
@@ -42,6 +43,7 @@ export class InterventionsService {
     private readonly prisma: PrismaService,
     private readonly ctx: FsmContextService,
     private readonly companyAuth: CompanyAuthorizationService,
+    private readonly availability: BookingAvailabilityService,
     private readonly email: EmailService,
     private readonly crews: CrewsService,
     private readonly config: ConfigService,
@@ -158,6 +160,7 @@ export class InterventionsService {
         address: true,
         status: true,
         scheduledAt: true,
+        durationMinutes: true,
         estimatedPrice: true,
         finalPrice: true,
         estimateProjectId: true,
@@ -238,6 +241,7 @@ export class InterventionsService {
       assigneeMemberIds?: string[];
       crewId?: string;
       scheduledAt?: string;
+      durationMinutes?: number;
       estimatedPrice?: number;
       internalNotes?: string;
     },
@@ -250,7 +254,13 @@ export class InterventionsService {
       crewId: data.crewId,
     });
 
+    const scheduledAt = data.scheduledAt ? new Date(data.scheduledAt) : undefined;
+
     const created = await this.prisma.$transaction(async (tx) => {
+      if (scheduledAt) {
+        await this.availability.lockCompany(tx, cid);
+        await this.availability.assertCompanySlotFree(tx, cid, scheduledAt, data.durationMinutes);
+      }
       const number = await nextCompanyNumber(tx, {
         companyId: cid,
         namespace: 'intervention-number',
@@ -279,7 +289,8 @@ export class InterventionsService {
           type: data.type,
           description: data.description,
           address: data.address,
-          scheduledAt: data.scheduledAt ? new Date(data.scheduledAt) : undefined,
+          scheduledAt,
+          durationMinutes: data.durationMinutes,
           estimatedPrice: data.estimatedPrice,
           internalNotes: data.internalNotes,
         },
@@ -330,6 +341,7 @@ export class InterventionsService {
       assigneeMemberIds?: string[];
       crewId?: string | null;
       scheduledAt?: string | null;
+      durationMinutes?: number | null;
       estimatedPrice?: number | null;
       finalPrice?: number | null;
       internalNotes?: string | null;
@@ -383,8 +395,15 @@ export class InterventionsService {
     if (nextStatus === 'SCHEDULED' && !nextScheduledAt) {
       throw AppErrors.badRequest('Nu se poate schimba statusul în PROGRAMAT fără o dată stabilită.');
     }
+    const nextDuration = data.durationMinutes === undefined ? existing.durationMinutes : data.durationMinutes;
+    // Re-check overlap whenever the time or duration of a scheduled work changes.
+    const scheduleTouched = data.scheduledAt !== undefined || data.durationMinutes !== undefined;
 
     const updated = await this.prisma.$transaction(async (tx) => {
+      if (nextScheduledAt && scheduleTouched) {
+        await this.availability.lockCompany(tx, cid);
+        await this.availability.assertCompanySlotFree(tx, cid, nextScheduledAt, nextDuration, id);
+      }
       if (assignment !== null) {
         await tx.interventionAssignment.deleteMany({ where: { interventionId: id } });
         if (assignment.memberIds.length > 0) {

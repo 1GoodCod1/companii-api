@@ -7,6 +7,7 @@ import {
   IsObject,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
   Min,
   MinLength,
@@ -54,6 +55,12 @@ export class CreateInterventionDto {
   @IsString()
   @MaxLength(40)
   scheduledAt?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(15)
+  @Max(43200)
+  durationMinutes?: number;
 
   @IsOptional()
   @IsNumber()
@@ -106,6 +113,12 @@ export class UpdateInterventionDto {
   @IsString()
   @MaxLength(40)
   scheduledAt?: string | null;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(15)
+  @Max(43200)
+  durationMinutes?: number | null;
 
   @IsOptional()
   @IsNumber()

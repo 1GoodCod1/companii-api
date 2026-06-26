@@ -8,6 +8,7 @@ import {
   isSlotAvailable,
   zonedTimeToUtc,
 } from './booking-slots.util';
+import type { BusySpan } from './booking-slots.util';
 
 // 2026-06-15 is a Monday.
 const settings: BookingSettings = {
@@ -26,13 +27,18 @@ const settings: BookingSettings = {
 const monday = '2026-06-15';
 const now = zonedTimeToUtc('2026-06-14', '08:00', settings.timezone);
 
-function slotsOf(busy: Date[] = [], at: Date = now) {
+function span(time: string, durationMinutes = 60): BusySpan {
+  return { start: zonedTimeToUtc(monday, time, settings.timezone), durationMinutes };
+}
+
+function slotsOf(busy: BusySpan[] = [], at: Date = now, requestedDurationMinutes?: number) {
   const [day] = computeAvailableSlots({
     settings,
     fromDate: monday,
     days: 1,
     busy,
     now: at,
+    requestedDurationMinutes,
   });
   return day.slots.map((slot) => slot.start);
 }
@@ -61,23 +67,46 @@ describe('computeAvailableSlots', () => {
   });
 
   it('excludes slots taken by existing bookings', () => {
-    const busy = [zonedTimeToUtc(monday, '10:00', settings.timezone)];
-    expect(slotsOf(busy)).toEqual([
+    expect(slotsOf([span('10:00')])).toEqual([
       '2026-06-15T06:00:00.000Z',
       '2026-06-15T08:00:00.000Z',
     ]);
   });
 
   it('keeps a slot when capacity allows parallel bookings', () => {
-    const busy = [zonedTimeToUtc(monday, '10:00', settings.timezone)];
     const [day] = computeAvailableSlots({
       settings: { ...settings, concurrent: 2 },
       fromDate: monday,
       days: 1,
-      busy,
+      busy: [span('10:00')],
       now,
     });
     expect(day.slots).toHaveLength(3);
+  });
+
+  it('a long job blocks every slot it spans', () => {
+    // A 2h job at 10:00 occupies 10:00–12:00, so only the 09:00 slot stays free.
+    expect(slotsOf([span('10:00', 120)])).toEqual(['2026-06-15T06:00:00.000Z']);
+  });
+
+  it('offers every working-hour start regardless of duration (long works may run past closing)', () => {
+    // The duration only blocks overlapping works; it does not restrict which
+    // start slots are offered, so a long/multi-day work can still be booked.
+    expect(slotsOf([], now, 120)).toEqual([
+      '2026-06-15T06:00:00.000Z',
+      '2026-06-15T07:00:00.000Z',
+      '2026-06-15T08:00:00.000Z',
+    ]);
+  });
+
+  it('a multi-day job blocks every slot it covers', () => {
+    // A 1-day job starting 09:00 covers the whole working day → no free slots.
+    expect(slotsOf([span('09:00', 1440)])).toEqual([]);
+  });
+
+  it('treats the end of a busy span as free (no off-by-one overlap)', () => {
+    // A 60-min job at 10:00 ends exactly at 11:00, leaving the 11:00 slot open.
+    expect(slotsOf([span('10:00', 60)])).toContain('2026-06-15T08:00:00.000Z');
   });
 
   it('respects the lead time', () => {
@@ -113,14 +142,14 @@ describe('computeAvailableSlots', () => {
 describe('isSlotAvailable', () => {
   it('accepts a listed slot and rejects off-grid or taken ones', () => {
     const slot = zonedTimeToUtc(monday, '10:00', settings.timezone);
-    expect(isSlotAvailable(settings, slot, [], now)).toBe(true);
-    expect(isSlotAvailable(settings, slot, [slot], now)).toBe(false);
+    expect(isSlotAvailable(settings, slot, 60, [], now)).toBe(true);
+    expect(isSlotAvailable(settings, slot, 60, [{ start: slot, durationMinutes: 60 }], now)).toBe(false);
 
     const offGrid = zonedTimeToUtc(monday, '10:30', settings.timezone);
-    expect(isSlotAvailable(settings, offGrid, [], now)).toBe(false);
+    expect(isSlotAvailable(settings, offGrid, 60, [], now)).toBe(false);
 
     const outsideHours = zonedTimeToUtc(monday, '20:00', settings.timezone);
-    expect(isSlotAvailable(settings, outsideHours, [], now)).toBe(false);
+    expect(isSlotAvailable(settings, outsideHours, 60, [], now)).toBe(false);
   });
 });
 

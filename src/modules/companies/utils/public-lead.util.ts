@@ -18,6 +18,7 @@ export type PublicLeadCreateInput = PublicLeadContactInput & {
   serviceTitle?: string;
   estimatedBudget?: number;
   scheduledAt?: Date;
+  durationMinutes?: number;
 };
 
 export async function ensureCompanyCustomerFromContact(
@@ -130,6 +131,7 @@ export async function createPublicCompanyLead(
       serviceTitle: input.serviceTitle?.trim(),
       estimatedBudget: input.estimatedBudget,
       scheduledAt: input.scheduledAt,
+      durationMinutes: input.durationMinutes,
       status: 'NEW',
     },
   });
