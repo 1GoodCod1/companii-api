@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import { AppErrors } from '../../../../common/errors';
 import { PrismaService } from '../../../shared/database/prisma.service';
 import type { JwtPayload } from '../../../auth/types/jwt-payload';
@@ -235,7 +234,7 @@ export class EstimateProjectActualsService {
 
   async unlockActuals(user: JwtPayload, id: string) {
     this.ctx.assertManagement(user);
-    const project = await this.access.findProjectOrThrow(user, id);
+    await this.access.findProjectOrThrow(user, id);
 
     await this.prisma.estimateProject.update({
       where: { id },

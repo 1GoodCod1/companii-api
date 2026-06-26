@@ -16,10 +16,8 @@ export class EstimateProjectShoppingListService {
   ) {}
 
   async getShoppingList(user: JwtPayload, id: string) {
-    const project = await this.access.findProjectOrThrow(user, id);
+    await this.access.findProjectOrThrow(user, id);
     const isMember = this.ctx.isTechnician(user);
-
-    // Fetch all lines in PENDING actualStatus
     const lines = await this.prisma.estimateLine.findMany({
       where: {
         stage: { projectId: id },

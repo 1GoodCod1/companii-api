@@ -5,7 +5,7 @@ export interface SanityWarning {
 }
 
 export class SanityCheckerService {
-  check(categorySlug: string | undefined, measurements: Record<string, number>, diagnostic: Record<string, unknown>): SanityWarning[] {
+  check(categorySlug: string | undefined, measurements: Record<string, number>, _diagnostic: Record<string, unknown>): SanityWarning[] {
     const warnings: SanityWarning[] = [];
     if (!categorySlug) return warnings;
 

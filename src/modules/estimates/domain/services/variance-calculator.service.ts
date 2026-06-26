@@ -1,5 +1,4 @@
 import { round2 } from '../../estimate.constants';
-import { accumulateEstimateLineTotals } from '../../utils/calculation/estimate-line-recalculate.util';
 
 export interface VarianceBreakdown {
   materialBudget: number;

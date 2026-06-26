@@ -45,11 +45,11 @@ export class PrismaEstimateProjectRepository implements EstimateProjectRepositor
     return toCursorPage(items as unknown as EstimateProjectDetail[], take);
   }
 
-  create(project: import('../../domain/entities/estimate-project.entity').EstimateProject): Promise<EstimateProjectDetail> {
+  create(_project: import('../../domain/entities/estimate-project.entity').EstimateProject): Promise<EstimateProjectDetail> {
     throw new Error('Use create with transaction');
   }
 
-  async update(id: string, data: Record<string, unknown>, version: number): Promise<EstimateProjectDetail> {
+  async update(id: string, data: Record<string, unknown>, _version: number): Promise<EstimateProjectDetail> {
     const updated = await this.prisma.estimateProject.update({
       where: { id },
       data: { ...data, version: { increment: 1 } },

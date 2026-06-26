@@ -1,5 +1,4 @@
 import type { Plan2dData } from '../../plan2d.types';
-import { round2 } from '../../../estimate.constants';
 import { readNumber, readBoolean, readAutoNumber, type MeasurementMap } from '../category-shared.util';
 import {
   type CompanyPricingModifiers,

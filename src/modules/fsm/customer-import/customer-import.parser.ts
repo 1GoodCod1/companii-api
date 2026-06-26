@@ -2,7 +2,6 @@ import ExcelJS from 'exceljs';
 import {
   CUSTOMER_IMPORT_HEADER_ALIASES,
   CUSTOMER_IMPORT_MAX_ROWS,
-  CUSTOMER_IMPORT_TEMPLATE_COLUMNS,
 } from './customer-import.constants';
 import type { ParsedCustomerImportRow } from './customer-import.types';
 import { normalizePhone, phonesMatch } from '../../../common/utils/phone.util';

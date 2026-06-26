@@ -16,7 +16,7 @@ import { createEstimateProjectWithStages } from '../../../estimates/utils/projec
 import { nextCompanyNumber } from '../../../../common/utils/sequence-number.util';
 import { toCursorPage } from '../../../../common/utils/cursor-page.util';
 import { RLS_SYSTEM_CONTEXT } from '../../../../common/rls/rls-system.util';
-import { assertLeadTransition, isClosedLeadStatus } from '../../utils/status-transitions';
+import { assertLeadTransition } from '../../utils/status-transitions';
 import type { EstimateBlueprintConfig } from '../../../../../prisma/estimate-blueprints';
 
 const leadInclude = {

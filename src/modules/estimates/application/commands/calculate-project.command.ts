@@ -34,7 +34,6 @@ import { guessUnit } from '../../estimate.constants';
 import { runSanityChecks } from '../../utils/calculation/sanity-checks.util';
 import { distributeDurationDays } from '../../pricing/pricing-engine-utils';
 import { filterChargeableStages, isStageDefaultLaborChargeable } from '../../services/projects/estimate-stages.service';
-import type { EstimateBlueprintConfig } from '../../../../../prisma/estimate-blueprints';
 
 @Injectable()
 export class CalculateProjectCommandHandler {

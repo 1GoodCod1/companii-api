@@ -34,7 +34,6 @@ export class WebVitalsStoreService {
     for (const [name, values] of this.recent) {
       if (values.length === 0) continue;
       const sorted = [...values].sort((a, b) => a - b);
-      const p50 = percentile(sorted, 50);
       const p75 = percentile(sorted, 75);
       const p90 = percentile(sorted, 90);
       const p95 = percentile(sorted, 95);

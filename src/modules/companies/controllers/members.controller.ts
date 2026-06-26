@@ -28,7 +28,7 @@ import {
   AddTeamMemberDirectDto,
   CreateTeamInviteLinkDto,
 } from '@/modules/companies/team/dto/team-invite.dto';
-import { TransferOwnershipDto, UpdateMemberRoleDto } from '@/modules/companies/team/dto/team-member.dto';
+import { UpdateMemberRoleDto } from '@/modules/companies/team/dto/team-member.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller(`${CONTROLLER_PATH.companies}/members`)

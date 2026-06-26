@@ -1,4 +1,4 @@
-import type { EstimateProjectDetail, EstimateProjectUpdateResult } from '../../estimate.constants';
+import type { EstimateProjectDetail } from '../../estimate.constants';
 import type { EstimateProject } from '@/modules/estimates/domain/entities/estimate-project.entity';
 import type { CursorPage } from '@/common/utils/cursor-page.util';
 

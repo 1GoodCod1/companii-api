@@ -2,14 +2,9 @@ import type {
   CompanyCustomer,
   CompanyInvoice,
   CompanyLead,
-  CompanyReview,
-  Company,
-  Category,
   Quote,
   EstimateProject,
-  EstimateProjectStatus,
   Intervention,
-  InterventionStatus,
   Prisma,
 } from '@prisma/client';
 

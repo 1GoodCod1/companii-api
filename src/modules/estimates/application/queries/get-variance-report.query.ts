@@ -6,7 +6,7 @@ import { EstimateProjectActualsService } from '../../services/projects/estimate-
 import { EstimateProjectAccessService } from '../../services/projects/estimate-project-access.service';
 import { isEstimateLaborLine } from '../../utils/calculation/estimate-line-recalculate.util';
 import { round2, type EstimateProjectDetail } from '../../estimate.constants';
-import type { VarianceStageReport, VarianceBreakdown } from '../../domain/services/variance-calculator.service';
+import type { VarianceStageReport } from '../../domain/services/variance-calculator.service';
 
 @Injectable()
 export class GetVarianceReportQuery {

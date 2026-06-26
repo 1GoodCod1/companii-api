@@ -1,6 +1,3 @@
-/**
- * Shared cleaning parity scenarios — keep in sync with frontend parity tests.
- */
 export type CleaningParityScenario = {
   label: string;
   diagnostic: Record<string, unknown>;

@@ -9,7 +9,6 @@ import { REVIEWS_REPOSITORY } from './domain/ports/reviews.repository.port';
 import type { PrismaReviewsRepository } from './infrastructure/persistence/prisma-reviews.repository';
 import {
   REVIEWABLE_INTERVENTION_STATUSES,
-  REVIEW_PUBLIC_SELECT,
   type CanCreateReviewDto,
   type CompanyReviewPublicDto,
 } from './reviews.types';

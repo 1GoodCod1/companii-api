@@ -7,7 +7,7 @@ import { createEstimateProjectWithStages } from '../../utils/project/create-esti
 import { resolveEstimateGroupId } from '../../utils/project/ensure-estimate-group.util';
 import { projectInclude } from '../../estimate.constants';
 import { AppErrors, AppErrorMessages } from '../../../../common/errors';
-import { canHostEstimateRelatedProjects, canBeAddedAsRelatedEstimate, canLinkEstimateCategories } from '../../../../common/constants/estimate-category-slugs.constants';
+import { canHostEstimateRelatedProjects, canLinkEstimateCategories } from '../../../../common/constants/estimate-category-slugs.constants';
 
 export interface CreateRelatedProjectCommand {
   user: JwtPayload;

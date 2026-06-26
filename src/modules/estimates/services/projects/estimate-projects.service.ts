@@ -3,7 +3,7 @@ import { EstimateProjectStatus, Prisma } from '@prisma/client';
 import { AppErrorMessages, AppErrors } from '../../../../common/errors';
 import { PrismaService } from '../../../shared/database/prisma.service';
 import type { JwtPayload } from '../../../auth/types/jwt-payload';
-import { projectInclude, type EstimateProjectUpdateResult, type EstimateProjectDetail, round2 } from '../../estimate.constants';
+import { projectInclude, type EstimateProjectUpdateResult, type EstimateProjectDetail } from '../../estimate.constants';
 import { EstimatesContextService } from '../../context/estimates-context.service';
 import { EstimatePricingEngine } from '../../pricing/pricing-engine.service';
 import type { Plan2dData } from '../../pricing/plan2d.types';
@@ -106,7 +106,6 @@ export class EstimateProjectsService {
 
     return this.prisma.$transaction(async (tx) => {
       const number = await this.access.nextProjectNumber(tx, cid);
-      const initialDiagnostic = mergeEnabledWorkModulesIntoDiagnostic({}, config);
       const { id } = await createEstimateProjectWithStages(tx, {
         companyId: cid,
         customerId: data.customerId,

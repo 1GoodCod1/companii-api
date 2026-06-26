@@ -7,7 +7,6 @@ import {
   IsString,
   MaxLength,
   Min,
-  MinLength,
 } from 'class-validator';
 import { EstimateProjectStatus } from '@prisma/client';
 import type { Plan2dData } from '../pricing/plan2d.types';

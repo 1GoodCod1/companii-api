@@ -1,7 +1,3 @@
-/**
- * Shared constructii parity scenarios — keep in sync with frontend parity tests.
- * Single source for backend invariants and web derivation parity.
- */
 export type ConstructiiParityScenario = {
   label: string;
   diagnostic: Record<string, unknown>;

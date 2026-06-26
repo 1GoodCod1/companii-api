@@ -112,7 +112,7 @@ describeE2e('Estimate Concurrency & Security (e2e - Epic S)', () => {
     const inviteToken = unwrapBody<{ token: string }>(inviteRes.body).token;
 
     // Register & Login client
-    const regRes = await request(app.getHttpServer())
+    await request(app.getHttpServer())
       .post(api('/auth/register'))
       .send({
         email: clientEmail,

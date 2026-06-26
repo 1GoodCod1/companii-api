@@ -1,4 +1,4 @@
-import type { PortalInvitation, Prisma } from '@prisma/client';
+import type { PortalInvitation } from '@prisma/client';
 
 export const PORTAL_INVITATION_REPOSITORY = Symbol('PortalInvitationRepository');
 

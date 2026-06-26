@@ -18,8 +18,6 @@ describe('plumbing measurements (santehnika)', () => {
     expect(result.fittingsQty).toBe(Math.ceil(33 * 0.8));
     expect(result.plumbingPoints).toBeGreaterThan(0);
     expect(result.complexityMultiplier).toBe(1.15);
-    // Slice 2: access multiplier is applied centrally via blueprint.accessDifficultyImpact
-    // at unitPrice level. The Labor qty fields remain equal to base qty.
     expect(result.pipeLengthMLabor).toBe(33);
   });
 
@@ -54,7 +52,3 @@ describe('plumbing measurements (santehnika)', () => {
     expect(resolvePlumbingAccessMultiplier('difficult')).toBe(1.35);
   });
 });
-
-function round2(value: number): number {
-  return Math.round(value * 100) / 100;
-}

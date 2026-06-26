@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { InterventionStatus, NotificationCategory, Prisma } from '@prisma/client';
+import { InterventionStatus, NotificationCategory } from '@prisma/client';
 import { AppErrorMessages, AppErrors } from '../../../../common/errors';
 import { PrismaService } from '../../../shared/database/prisma.service';
 import { CacheService } from '../../../shared/cache/cache.service';

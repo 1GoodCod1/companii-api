@@ -126,7 +126,7 @@ describe('EstimatePricingEngine integration (E-06)', () => {
     const config = elektrikaBlueprint as EstimateBlueprintConfig;
     const stageDefaultChargeable = config.defaultStages
       .filter((s) => s.code === 'trasee')
-      .every((s) =>
+      .every(() =>
         measurements.wallChasingM > 0,
       );
     expect(stageDefaultChargeable).toBe(false);
@@ -221,7 +221,3 @@ const BLUEPRINTS = {
   fatade: fatadeBlueprint,
   'it-networks': itNetworksBlueprint,
 } as const;
-
-function round2(value: number): number {
-  return Math.round(value * 100) / 100;
-}

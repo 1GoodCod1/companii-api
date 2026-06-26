@@ -20,8 +20,6 @@ describeE2e('Estimate QA (e2e - Epic Q)', () => {
   let ownerToken: string;
   let memberToken: string;
   let portalToken: string;
-  let ownerId: string;
-  let memberId: string;
   let portalCustomerId: string;
 
   const ownerEmail = uniqueEmail('owner-q');
@@ -65,7 +63,6 @@ describeE2e('Estimate QA (e2e - Epic Q)', () => {
       .expect(200);
     const ownerSession = unwrapBody<{ accessToken: string; user: { id: string } }>(ownerLogin.body);
     ownerToken = ownerSession.accessToken;
-    ownerId = ownerSession.user.id;
 
     // Create company
     const compRes = await request(app.getHttpServer())
@@ -120,9 +117,7 @@ describeE2e('Estimate QA (e2e - Epic Q)', () => {
       .expect(200);
     const memberSession = unwrapBody<{ accessToken: string; user: { memberId?: string } }>(memberLogin.body);
     memberToken = memberSession.accessToken;
-    memberId = memberSession.user.memberId ?? '';
 
-    // Create an end-customer and generate portal invite
     const custRes = await request(app.getHttpServer())
       .post(api('/fsm/customers'))
       .set('Authorization', `Bearer ${ownerToken}`)

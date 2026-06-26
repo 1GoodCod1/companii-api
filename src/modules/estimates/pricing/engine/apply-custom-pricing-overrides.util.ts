@@ -29,7 +29,7 @@ function applyCustomUnitPriceSqm(
   customUnitPriceSqm: number,
 ): BlueprintPricingRule[] {
   const isServiceCategory = categorySlug != null && isEstimateServiceCategorySlug(categorySlug);
-  let nextRules = [...rules];
+  const nextRules = [...rules];
 
   if (isServiceCategory) {
     const hourlyLaborRules = nextRules.filter((rule) => rule.unit === 'ore' && rule.kind === 'labor');

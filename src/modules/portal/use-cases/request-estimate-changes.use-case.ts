@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { AppErrorMessages, AppErrors } from '../../../common/errors';
+import { AppErrors } from '../../../common/errors';
 import { PORTAL_REPOSITORY } from '../domain/ports/portal.repository.port';
 import type { PrismaPortalRepository } from '../infrastructure/persistence/prisma-portal.repository';
 import type { JwtPayload } from '../../auth/types/jwt-payload';

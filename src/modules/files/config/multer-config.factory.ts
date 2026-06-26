@@ -105,7 +105,7 @@ export function createMulterOptions(configService: ConfigService) {
       `Multer storage: Backblaze B2 (region=${region}, public=${publicBucket}, private=${privateBucket})`,
     );
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+     
     const autoContentType = multerS3.AUTO_CONTENT_TYPE as (
       req: Express.Request,
       file: Express.Multer.File,
@@ -116,7 +116,7 @@ export function createMulterOptions(configService: ConfigService) {
       ) => void,
     ) => void;
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+     
     const s3Storage: StorageEngine = multerS3({
       s3,
       bucket: (

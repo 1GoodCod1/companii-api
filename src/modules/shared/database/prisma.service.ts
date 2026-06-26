@@ -10,7 +10,6 @@ import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { rlsTxStorage } from '../../../common/rls/rls.storage';
 import { wrapSerialTransactionClient } from '../../../common/rls/rls-tx-serial.util';
-import { RLS_SYSTEM_CONTEXT } from '../../../common/rls/rls-system.util';
 import type { RlsContext } from '../../../common/types/rls-context';
 
 const SLOW_QUERY_THRESHOLD_MS = parseInt(
