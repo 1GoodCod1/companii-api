@@ -66,9 +66,14 @@ jobs:
       - run: npx prisma migrate deploy
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+      - run: npm run seed
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+          NODE_ENV: test
       - run: npm run test:e2e
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+          E2E_RLS_DATABASE_URL: postgresql://companii_app:companii_app_pass@localhost:5432/test_db
           REDIS_URL: redis://localhost:6379
           JWT_SECRET: test-jwt-secret-key-32chars-for-ci
           NODE_ENV: test

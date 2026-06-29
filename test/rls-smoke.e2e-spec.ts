@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/modules/shared/database/prisma.service';
+import { resolveRlsRuntimeDatabaseUrl } from './helpers/resolve-rls-database-url';
 
 const describeE2e = process.env.DATABASE_URL ? describe : describe.skip;
 
@@ -9,12 +10,14 @@ describeE2e('Row-Level Security (RLS) SQL-Driver Smoke Test', () => {
   let moduleRef: TestingModule;
 
   beforeAll(async () => {
-    // Override DATABASE_URL in smoke test to connect as companii_app
     const originalUrl = process.env.DATABASE_URL;
-    const runtimeUrl = process.env.DATABASE_URL?.replace('postgres:companii', 'companii_app:companii_app_pass');
-    if (runtimeUrl) {
-      process.env.DATABASE_URL = runtimeUrl;
+    const runtimeUrl = resolveRlsRuntimeDatabaseUrl(originalUrl);
+    if (!runtimeUrl) {
+      throw new Error(
+        'RLS smoke test requires a companii_app DATABASE_URL — set E2E_RLS_DATABASE_URL or use a postgres URL with the companii_app role',
+      );
     }
+    process.env.DATABASE_URL = runtimeUrl;
 
     moduleRef = await Test.createTestingModule({
       imports: [AppModule],
@@ -33,13 +36,9 @@ describeE2e('Row-Level Security (RLS) SQL-Driver Smoke Test', () => {
   });
 
   it('enforces RLS at database connection level (companii_app non-superuser role)', async () => {
-    // 1. Verify that we are indeed connected under the companii_app role
-    // and that it is not a PostgreSQL superuser.
     const [dbUserRes]: any[] = await prisma.$queryRawUnsafe(
       `SELECT current_user, usesuper FROM pg_user WHERE usename = current_user`
     );
-    
-    console.log('Connected database user in runtime is:', dbUserRes);
     expect(dbUserRes.current_user).toBe('companii_app');
     expect(dbUserRes.usesuper).toBe(false);
 
