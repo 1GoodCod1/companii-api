@@ -428,7 +428,7 @@ npm run start:dev
 
 ```bash
 cp .env.docker.example .env.docker
-npm run docker:dev:up
+npm run docker:dev:create
 ```
 
 ### Seed credentials
