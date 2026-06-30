@@ -14,4 +14,3 @@
 /bun.lock.yaml
 .env
 .env.docker
-.env.example
